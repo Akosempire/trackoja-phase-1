@@ -1,0 +1,214 @@
+/* TrackOja design tokens and base UI primitives
+   Adapted from the TrackOja prototype design system (components/ds.jsx) */
+
+:root {
+  --bg: #080c14;
+  --sb: #0d1220;
+  --surf: #121929;
+  --surf2: #18223a;
+  --surf3: #1e2b44;
+  --border: #1e2a3e;
+  --border2: #2a3b5c;
+
+  --brand: #6366f1;
+  --brand-h: #4f46e5;
+  --brand-l: #818cf8;
+  --brand-s: rgba(99, 102, 241, 0.13);
+
+  --green: #22c55e;
+  --green-s: rgba(34, 197, 94, 0.13);
+  --amber: #f59e0b;
+  --amber-s: rgba(245, 158, 11, 0.13);
+  --red: #ef4444;
+  --red-s: rgba(239, 68, 68, 0.13);
+
+  --t1: #e8eaed;
+  --t2: #8a96b2;
+  --t3: #4a5670;
+
+  --r1: 6px;
+  --r2: 10px;
+  --r3: 14px;
+  --tr: 140ms ease;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--t1);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+a {
+  color: var(--brand-l);
+}
+
+/* ---------- Buttons ---------- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  height: 46px;
+  padding: 0 18px;
+  border-radius: var(--r1);
+  font-family: inherit;
+  font-size: 14.5px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  outline: none;
+  transition: all var(--tr);
+  user-select: none;
+}
+
+.btn-primary {
+  background: var(--brand);
+  color: white;
+}
+.btn-primary:hover:not(:disabled) {
+  background: var(--brand-h);
+}
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--t2);
+  width: auto;
+  height: auto;
+  padding: 0;
+  font-size: 13px;
+  font-weight: 500;
+}
+.btn-ghost:hover {
+  color: var(--t1);
+}
+
+/* ---------- Forms ---------- */
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.form-label {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--t2);
+}
+
+.form-input {
+  width: 100%;
+  height: 44px;
+  background: var(--surf2);
+  border: 1px solid var(--border);
+  border-radius: var(--r1);
+  color: var(--t1);
+  font-family: inherit;
+  font-size: 14.5px;
+  padding: 0 14px;
+  outline: none;
+  transition: border-color var(--tr);
+}
+
+.form-input:focus {
+  border-color: var(--brand);
+}
+
+.form-input::placeholder {
+  color: var(--t3);
+}
+
+.form-input.has-error {
+  border-color: var(--red);
+}
+
+.form-hint {
+  font-size: 11.5px;
+  color: var(--t3);
+}
+
+.form-error {
+  font-size: 12px;
+  color: var(--red);
+}
+
+.form-row-end {
+  display: flex;
+  justify-content: flex-end;
+  margin: -8px 0 16px;
+}
+
+/* ---------- Alerts ---------- */
+.alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: var(--r1);
+  font-size: 13px;
+  line-height: 1.5;
+  margin-bottom: 16px;
+}
+
+.alert-error {
+  background: var(--red-s);
+  color: #fca5a5;
+  border: 1px solid rgba(239, 68, 68, 0.25);
+}
+
+.alert-success {
+  background: var(--green-s);
+  color: #86efac;
+  border: 1px solid rgba(34, 197, 94, 0.25);
+}
+
+/* ---------- Spinner ---------- */
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+/* ---------- Page shells ---------- */
+.page-loader {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.page-loader .spinner {
+  border: 2px solid var(--border);
+  border-top-color: var(--brand);
+}
