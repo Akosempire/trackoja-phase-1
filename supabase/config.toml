@@ -391,6 +391,12 @@ deno_version = 2
 [functions.paystack-webhook]
 verify_jwt = false
 
+# OPay webhook is called directly by OPay (no Supabase user JWT), so it must
+# also skip the default JWT verification. opay-initiate-payment keeps the
+# default (verify_jwt = true) since it is called by signed-in users.
+[functions.opay-webhook]
+verify_jwt = false
+
 [analytics]
 enabled = true
 port = 54327
