@@ -30,3 +30,13 @@ export function OnboardingRoute() {
 
   return <Outlet />;
 }
+
+export function PlatformAdminRoute() {
+  const { user, profile, loading } = useAuth();
+
+  if (loading) return <PageLoader />;
+  if (!user) return <Navigate to="/login" replace />;
+  if (!profile?.isPlatformAdmin) return <Navigate to="/dashboard" replace />;
+
+  return <Outlet />;
+}

@@ -218,6 +218,7 @@ export class AuthService {
         emailVerifiedAt: data.email_verified_at,
         lastLoginAt: data.last_login_at,
         status: data.status,
+        isPlatformAdmin: data.is_platform_admin,
         createdAt: data.created_at,
         updatedAt: data.updated_at,
       };

@@ -2,7 +2,7 @@
 // Store management service
 
 import { supabase } from '../config/supabase';
-import type { Store, CreateStoreRequest } from '../types';
+import type { Store, StoreSettings, CreateStoreRequest } from '../types';
 
 export class StoreService {
   /**
@@ -223,6 +223,42 @@ export class StoreService {
       console.error('Delete store error:', error);
       throw error;
     }
+  }
+
+  /**
+   * Get the settings row for a store (loyalty config, receipt format, etc.)
+   */
+  static async getStoreSettings(storeId: string): Promise<StoreSettings> {
+    try {
+      const { data, error } = await supabase
+        .from('store_settings')
+        .select('*')
+        .eq('store_id', storeId)
+        .single();
+
+      if (error) throw error;
+      if (!data) throw new Error('Store settings not found');
+
+      return this.mapStoreSettingsData(data);
+    } catch (error) {
+      console.error('Get store settings error:', error);
+      throw error;
+    }
+  }
+
+  private static mapStoreSettingsData(data: any): StoreSettings {
+    return {
+      id: data.id,
+      storeId: data.store_id,
+      allowNegativeStock: data.allow_negative_stock,
+      requireCustomerForSale: data.require_customer_for_sale,
+      autoPrintReceipt: data.auto_print_receipt,
+      receiptFormat: data.receipt_format,
+      loyaltyEnabled: data.loyalty_enabled,
+      loyaltyEarnRate: Number(data.loyalty_earn_rate),
+      createdAt: data.created_at,
+      updatedAt: data.updated_at,
+    };
   }
 
   private static mapStoreData(data: any): Store {

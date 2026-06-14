@@ -1,5 +1,5 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
-import { ProtectedRoute, GuestRoute, OnboardingRoute } from './routes/ProtectedRoute';
+import { ProtectedRoute, GuestRoute, OnboardingRoute, PlatformAdminRoute } from './routes/ProtectedRoute';
 import { AppLayout } from './components/AppLayout';
 import LoginPage from './pages/auth/LoginPage';
 import SignUpPage from './pages/auth/SignUpPage';
@@ -8,6 +8,22 @@ import ResetPasswordPage from './pages/auth/ResetPasswordPage';
 import VerifyEmailPage from './pages/auth/VerifyEmailPage';
 import OnboardingPage from './pages/onboarding/OnboardingPage';
 import DashboardPage from './pages/DashboardPage';
+import ProductsPage from './pages/inventory/ProductsPage';
+import ProductFormPage from './pages/inventory/ProductFormPage';
+import CategoriesPage from './pages/inventory/CategoriesPage';
+import StockAdjustmentPage from './pages/inventory/StockAdjustmentPage';
+import CheckoutPage from './pages/sales/CheckoutPage';
+import ReceiptPage from './pages/sales/ReceiptPage';
+import SalesHistoryPage from './pages/sales/SalesHistoryPage';
+import CustomersListPage from './pages/customers/CustomersListPage';
+import CustomerFormPage from './pages/customers/CustomerFormPage';
+import CustomerDetailPage from './pages/customers/CustomerDetailPage';
+import PaymentsPage from './pages/payments/PaymentsPage';
+import DevicesPage from './pages/devices/DevicesPage';
+import DeviceDetailPage from './pages/devices/DeviceDetailPage';
+import ReportsPage from './pages/reports/ReportsPage';
+import BillingPage from './pages/billing/BillingPage';
+import PlatformDashboardPage from './pages/platform/PlatformDashboardPage';
 
 export default function App() {
   return (
@@ -29,6 +45,26 @@ export default function App() {
       <Route element={<ProtectedRoute />}>
         <Route element={<AppLayout />}>
           <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/inventory/products" element={<ProductsPage />} />
+          <Route path="/inventory/products/new" element={<ProductFormPage />} />
+          <Route path="/inventory/products/:productId" element={<ProductFormPage />} />
+          <Route path="/inventory/categories" element={<CategoriesPage />} />
+          <Route path="/inventory/stock" element={<StockAdjustmentPage />} />
+          <Route path="/sales" element={<SalesHistoryPage />} />
+          <Route path="/sales/checkout" element={<CheckoutPage />} />
+          <Route path="/sales/:saleId" element={<ReceiptPage />} />
+          <Route path="/customers" element={<CustomersListPage />} />
+          <Route path="/customers/new" element={<CustomerFormPage />} />
+          <Route path="/customers/:customerId" element={<CustomerDetailPage />} />
+          <Route path="/customers/:customerId/edit" element={<CustomerFormPage />} />
+          <Route path="/payments" element={<PaymentsPage />} />
+          <Route path="/devices" element={<DevicesPage />} />
+          <Route path="/devices/:deviceId" element={<DeviceDetailPage />} />
+          <Route path="/reports" element={<ReportsPage />} />
+          <Route path="/billing" element={<BillingPage />} />
+          <Route element={<PlatformAdminRoute />}>
+            <Route path="/platform" element={<PlatformDashboardPage />} />
+          </Route>
         </Route>
       </Route>
 
