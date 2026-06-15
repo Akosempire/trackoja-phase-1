@@ -5,6 +5,7 @@ import { PageLoader } from '../../components/ui/PageLoader';
 import { getReportDateRange, REPORT_DATE_RANGE_PRESETS, type ReportDateRangePreset } from '../../utils/report-date-ranges';
 import type {
   PlatformOverview,
+  PlatformInventoryOverview,
   PlatformOrganization,
   PlatformRevenueSummary,
   PlatformRevenueByPlan,
@@ -28,6 +29,7 @@ function formatDate(value: string): string {
 
 export default function PlatformDashboardPage() {
   const [overview, setOverview] = useState<PlatformOverview | null>(null);
+  const [inventoryOverview, setInventoryOverview] = useState<PlatformInventoryOverview | null>(null);
   const [organizations, setOrganizations] = useState<PlatformOrganization[]>([]);
   const [systemHealth, setSystemHealth] = useState<PlatformSystemHealth | null>(null);
   const [recentErrors, setRecentErrors] = useState<PlatformRecentError[]>([]);
@@ -44,12 +46,14 @@ export default function PlatformDashboardPage() {
     setLoading(true);
     Promise.all([
       PlatformService.getOverview(),
+      PlatformService.getInventoryOverview(),
       PlatformService.listOrganizations(),
       PlatformService.getSystemHealth(),
       PlatformService.getRecentErrors(20),
     ])
-      .then(([ov, orgs, health, errors]) => {
+      .then(([ov, inv, orgs, health, errors]) => {
         setOverview(ov);
+        setInventoryOverview(inv);
         setOrganizations(orgs);
         setSystemHealth(health);
         setRecentErrors(errors);
@@ -83,6 +87,36 @@ export default function PlatformDashboardPage() {
       </div>
 
       {error && <div className="alert alert-error">{error}</div>}
+
+      <div className="card">
+        <p className="list-item-title" style={{ marginBottom: 8 }}>
+          Network at a glance
+        </p>
+        <div className="stats-grid stats-grid-3">
+          <div className="stat-card">
+            <p className="stat-label">Branches / shops</p>
+            <p className="stat-value">{overview?.totalStores.toLocaleString() ?? 0}</p>
+          </div>
+          <div className="stat-card">
+            <p className="stat-label">Products</p>
+            <p className="stat-value">{inventoryOverview?.totalProducts.toLocaleString() ?? 0}</p>
+          </div>
+          <div className="stat-card">
+            <p className="stat-label">Staff</p>
+            <p className="stat-value">{inventoryOverview?.totalStaff.toLocaleString() ?? 0}</p>
+          </div>
+        </div>
+        <div className="stats-grid">
+          <div className="stat-card">
+            <p className="stat-label">Inventory worth (cost)</p>
+            <p className="stat-value">₦{(inventoryOverview?.inventoryValueCost ?? 0).toLocaleString()}</p>
+          </div>
+          <div className="stat-card">
+            <p className="stat-label">Inventory worth (retail)</p>
+            <p className="stat-value">₦{(inventoryOverview?.inventoryValueRetail ?? 0).toLocaleString()}</p>
+          </div>
+        </div>
+      </div>
 
       <div className="card">
         <p className="list-item-title" style={{ marginBottom: 8 }}>

@@ -5,6 +5,7 @@
 import { supabase } from '../config/supabase';
 import type {
   PlatformOverview,
+  PlatformInventoryOverview,
   PlatformOrganization,
   PlatformRevenueSummary,
   PlatformRevenueByPlan,
@@ -26,6 +27,23 @@ export class PlatformService {
       return this.mapOverview(row);
     } catch (error) {
       console.error('Get platform overview error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Cross-organization product, staff and inventory-value totals.
+   */
+  static async getInventoryOverview(): Promise<PlatformInventoryOverview> {
+    try {
+      const { data, error } = await supabase.rpc('get_platform_inventory_overview');
+
+      if (error) throw error;
+
+      const row = Array.isArray(data) ? data[0] : data;
+      return this.mapInventoryOverview(row);
+    } catch (error) {
+      console.error('Get platform inventory overview error:', error);
       throw error;
     }
   }
@@ -127,6 +145,15 @@ export class PlatformService {
       trialingSubscriptions: Number(data?.trialing_subscriptions ?? 0),
       activeSubscriptions: Number(data?.active_subscriptions ?? 0),
       pastDueOrganizations: Number(data?.past_due_organizations ?? 0),
+    };
+  }
+
+  private static mapInventoryOverview(data: any): PlatformInventoryOverview {
+    return {
+      totalProducts: Number(data?.total_products ?? 0),
+      totalStaff: Number(data?.total_staff ?? 0),
+      inventoryValueCost: Number(data?.inventory_value_cost ?? 0),
+      inventoryValueRetail: Number(data?.inventory_value_retail ?? 0),
     };
   }
 

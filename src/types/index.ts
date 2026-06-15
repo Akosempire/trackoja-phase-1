@@ -663,6 +663,13 @@ export interface PlatformOverview {
   pastDueOrganizations: number;
 }
 
+export interface PlatformInventoryOverview {
+  totalProducts: number;
+  totalStaff: number;
+  inventoryValueCost: number;
+  inventoryValueRetail: number;
+}
+
 export interface PlatformOrganization {
   orgId: string;
   name: string;
