@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { ProtectedRoute, GuestRoute, OnboardingRoute, PlatformAdminRoute } from './routes/ProtectedRoute';
 import { AppLayout } from './components/AppLayout';
+import WelcomePage from './pages/WelcomePage';
 import LoginPage from './pages/auth/LoginPage';
 import SignUpPage from './pages/auth/SignUpPage';
 import ForgotPasswordPage from './pages/auth/ForgotPasswordPage';
@@ -26,10 +27,17 @@ import ReportsPage from './pages/reports/ReportsPage';
 import BillingPage from './pages/billing/BillingPage';
 import PlatformDashboardPage from './pages/platform/PlatformDashboardPage';
 
+function RootRedirect() {
+  const seenWelcome = localStorage.getItem('tk_welcome_seen');
+  return <Navigate to={seenWelcome ? '/login' : '/welcome'} replace />;
+}
+
 export default function App() {
   return (
     <Routes>
       <Route element={<GuestRoute />}>
+        <Route path="/" element={<RootRedirect />} />
+        <Route path="/welcome" element={<WelcomePage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignUpPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />

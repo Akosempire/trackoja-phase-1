@@ -120,3 +120,51 @@
 .auth-form-row > .form-group {
   flex: 1;
 }
+
+/* ---------- Welcome carousel ---------- */
+.welcome-card {
+  position: relative;
+  text-align: center;
+}
+
+.welcome-skip {
+  position: absolute;
+  top: 22px;
+  right: 22px;
+}
+
+.welcome-icon {
+  width: 56px;
+  height: 56px;
+  margin: 8px auto 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--r2);
+  background: var(--brand-s);
+  color: var(--brand-l);
+}
+
+.welcome-dots {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+.welcome-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--border2);
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  transition: background var(--tr), width var(--tr);
+}
+
+.welcome-dot.active {
+  background: var(--brand);
+  width: 20px;
+  border-radius: 4px;
+}
