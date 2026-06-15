@@ -8,6 +8,7 @@ import { StoreService } from '../../services/store.service';
 import { Button } from '../../components/ui/Button';
 import { FormField } from '../../components/ui/FormField';
 import { PageLoader } from '../../components/ui/PageLoader';
+import { BarcodeScanner } from '../../components/BarcodeScanner';
 import type { Customer, PaymentMethod, Product, StoreSettings } from '../../types';
 
 interface CartLine {
@@ -50,6 +51,8 @@ export default function CheckoutPage() {
 
   const [search, setSearch] = useState('');
   const [cart, setCart] = useState<CartLine[]>([]);
+  const [scanning, setScanning] = useState(false);
+  const [scanError, setScanError] = useState<string | null>(null);
 
   const [customerSearch, setCustomerSearch] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
@@ -121,6 +124,18 @@ export default function CheckoutPage() {
       ];
     });
     setSearch('');
+  };
+
+  const handleScan = (value: string) => {
+    setScanning(false);
+    const match = products.find((p) => p.barcode === value || p.sku === value);
+    if (match) {
+      addToCart(match);
+      setScanError(null);
+    } else {
+      setSearch(value);
+      setScanError(`No product found for barcode "${value}".`);
+    }
   };
 
   const updateQuantity = (productId: string, delta: number) => {
@@ -209,13 +224,36 @@ export default function CheckoutPage() {
       </div>
 
       {error && <div className="alert alert-error">{error}</div>}
+      {scanError && <div className="alert alert-error">{scanError}</div>}
 
-      <input
-        className="form-input search-input"
-        placeholder="Search products by name, SKU, or barcode"
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-      />
+      <div className="btn-row search-input">
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <input
+            className="form-input"
+            placeholder="Search products by name, SKU, or barcode"
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setScanError(null);
+            }}
+          />
+        </div>
+        <Button
+          type="button"
+          variant="ghost"
+          className="btn-sm"
+          onClick={() => {
+            setScanError(null);
+            setScanning(true);
+          }}
+        >
+          Scan
+        </Button>
+      </div>
+
+      {scanning && (
+        <BarcodeScanner onDetect={handleScan} onClose={() => setScanning(false)} />
+      )}
 
       {filteredProducts.length > 0 && (
         <div className="card">

@@ -7,6 +7,7 @@ import { CategoryService } from '../../services/category.service';
 import { Button } from '../../components/ui/Button';
 import { FormField } from '../../components/ui/FormField';
 import { PageLoader } from '../../components/ui/PageLoader';
+import { BarcodeScanner } from '../../components/BarcodeScanner';
 import type { ProductCategory } from '../../types';
 
 export default function ProductFormPage() {
@@ -35,6 +36,7 @@ export default function ProductFormPage() {
   const [stockQty, setStockQty] = useState('0');
   const [reorderLevel, setReorderLevel] = useState('0');
   const [status, setStatus] = useState<'active' | 'inactive' | 'archived'>('active');
+  const [scanning, setScanning] = useState(false);
 
   const canUpdate = hasPermission('product:update');
   const canDelete = hasPermission('product:delete');
@@ -146,6 +148,22 @@ export default function ProductFormPage() {
           <FormField id="product-sku" label="SKU" value={sku} onChange={setSku} required />
           <FormField id="product-barcode" label="Barcode" value={barcode} onChange={setBarcode} placeholder="Optional" />
         </div>
+        {!readOnly && (
+          <div className="btn-row" style={{ marginBottom: 12 }}>
+            <Button type="button" variant="ghost" className="btn-sm" onClick={() => setScanning(true)}>
+              Scan barcode
+            </Button>
+          </div>
+        )}
+        {scanning && (
+          <BarcodeScanner
+            onDetect={(value) => {
+              setBarcode(value);
+              setScanning(false);
+            }}
+            onClose={() => setScanning(false)}
+          />
+        )}
         <FormField
           id="product-description"
           label="Description"

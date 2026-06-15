@@ -142,6 +142,12 @@ export interface StoreMember {
   updatedAt: string;
 }
 
+export interface StoreMemberWithDetails extends StoreMember {
+  roleName?: string;
+  name?: string;
+  email?: string;
+}
+
 // ============================================================
 // RBAC
 // ============================================================

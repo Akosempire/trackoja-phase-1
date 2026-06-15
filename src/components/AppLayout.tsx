@@ -90,6 +90,11 @@ export function AppLayout() {
             Reports
           </NavLink>
         )}
+        {hasPermission('member:invite') && (
+          <NavLink to="/staff" className={({ isActive }) => `app-nav-link${isActive ? ' active' : ''}`}>
+            Staff
+          </NavLink>
+        )}
         <NavLink to="/billing" className={({ isActive }) => `app-nav-link${isActive ? ' active' : ''}`}>
           Billing
         </NavLink>

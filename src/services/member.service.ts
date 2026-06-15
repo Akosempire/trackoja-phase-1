@@ -2,9 +2,63 @@
 // Store member and staff management service
 
 import { supabase } from '../config/supabase';
-import type { StoreMember, InviteStaffRequest } from '../types';
+import type { StoreMember, StoreMemberWithDetails, InviteStaffRequest } from '../types';
 
 export class MemberService {
+  /**
+   * Link the current user to any pending staff invitations matching their
+   * email (sets store_members to active and joins organization_members).
+   * Safe to call on every login - a no-op if there are no pending invites.
+   */
+  static async acceptPendingInvitations(): Promise<void> {
+    const { error } = await supabase.rpc('accept_pending_invitations');
+    if (error) throw error;
+  }
+
+  /**
+   * Get all non-removed members (active + pending invites) of a store, with
+   * the invited/joined user's name and the role's name resolved.
+   */
+  static async getStoreMembersDetailed(storeId: string): Promise<StoreMemberWithDetails[]> {
+    try {
+      const { data, error } = await supabase
+        .from('store_members')
+        .select('*, roles(name)')
+        .eq('store_id', storeId)
+        .neq('status', 'inactive')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      const members = data ?? [];
+
+      const userIds = members.map((m: any) => m.user_id).filter(Boolean);
+      let usersById: Record<string, { firstName: string | null; lastName: string | null; email: string }> = {};
+      if (userIds.length > 0) {
+        const { data: users, error: usersError } = await supabase
+          .from('users')
+          .select('id, first_name, last_name, email')
+          .in('id', userIds);
+        if (usersError) throw usersError;
+        usersById = Object.fromEntries(
+          (users ?? []).map((u: any) => [u.id, { firstName: u.first_name, lastName: u.last_name, email: u.email }])
+        );
+      }
+
+      return members.map((m: any) => {
+        const u = m.user_id ? usersById[m.user_id] : undefined;
+        return {
+          ...this.mapMemberData(m),
+          roleName: m.roles?.name,
+          name: u ? [u.firstName, u.lastName].filter(Boolean).join(' ') || u.email : undefined,
+          email: u?.email,
+        };
+      });
+    } catch (error) {
+      console.error('Get store members error:', error);
+      throw error;
+    }
+  }
+
   /**
    * Invite a staff member to a store
    */

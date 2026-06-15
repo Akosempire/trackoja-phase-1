@@ -21,6 +21,7 @@ import CustomerDetailPage from './pages/customers/CustomerDetailPage';
 import PaymentsPage from './pages/payments/PaymentsPage';
 import DevicesPage from './pages/devices/DevicesPage';
 import DeviceDetailPage from './pages/devices/DeviceDetailPage';
+import StaffPage from './pages/staff/StaffPage';
 import ReportsPage from './pages/reports/ReportsPage';
 import BillingPage from './pages/billing/BillingPage';
 import PlatformDashboardPage from './pages/platform/PlatformDashboardPage';
@@ -60,6 +61,7 @@ export default function App() {
           <Route path="/payments" element={<PaymentsPage />} />
           <Route path="/devices" element={<DevicesPage />} />
           <Route path="/devices/:deviceId" element={<DeviceDetailPage />} />
+          <Route path="/staff" element={<StaffPage />} />
           <Route path="/reports" element={<ReportsPage />} />
           <Route path="/billing" element={<BillingPage />} />
           <Route element={<PlatformAdminRoute />}>

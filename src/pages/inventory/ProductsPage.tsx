@@ -6,6 +6,7 @@ import { ProductService } from '../../services/product.service';
 import { CategoryService } from '../../services/category.service';
 import { Button } from '../../components/ui/Button';
 import { PageLoader } from '../../components/ui/PageLoader';
+import { BarcodeScanner } from '../../components/BarcodeScanner';
 import type { Product, ProductCategory } from '../../types';
 
 export default function ProductsPage() {
@@ -21,6 +22,7 @@ export default function ProductsPage() {
   const [search, setSearch] = useState('');
   const [categoryId, setCategoryId] = useState('');
   const [lowStockOnly, setLowStockOnly] = useState(false);
+  const [scanning, setScanning] = useState(false);
 
   const canCreate = hasPermission('product:create');
   const canAdjust = hasPermission('inventory:adjust');
@@ -63,12 +65,29 @@ export default function ProductsPage() {
 
       {error && <div className="alert alert-error">{error}</div>}
 
-      <input
-        className="form-input search-input"
-        placeholder="Search by name, SKU, or barcode"
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-      />
+      <div className="btn-row search-input">
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <input
+            className="form-input"
+            placeholder="Search by name, SKU, or barcode"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
+        <Button type="button" variant="ghost" className="btn-sm" onClick={() => setScanning(true)}>
+          Scan
+        </Button>
+      </div>
+
+      {scanning && (
+        <BarcodeScanner
+          onDetect={(value) => {
+            setSearch(value);
+            setScanning(false);
+          }}
+          onClose={() => setScanning(false)}
+        />
+      )}
 
       <div className="form-group">
         <select className="select-input" value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>

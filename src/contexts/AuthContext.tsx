@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import type { User } from '@supabase/supabase-js';
 import type { User as AppUser } from '../types';
 import { AuthService } from '../services/auth.service';
+import { MemberService } from '../services/member.service';
 
 interface AuthContextValue {
   user: User | null;
@@ -22,6 +23,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!nextUser) {
       setProfile(null);
       return;
+    }
+    // Link up any pending staff invitations for this user's email before
+    // loading their profile, so a newly-accepted membership's org/store is
+    // reflected immediately (skips onboarding for invited staff).
+    try {
+      await MemberService.acceptPendingInvitations();
+    } catch (err) {
+      console.error('Accept pending invitations error:', err);
     }
     const userProfile = await AuthService.getUserProfile(nextUser.id);
     setProfile(userProfile);
