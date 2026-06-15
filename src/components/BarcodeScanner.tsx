@@ -13,52 +13,81 @@ export function BarcodeScanner({ onDetect, onClose }: BarcodeScannerProps) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!window.BarcodeDetector) {
-      setError('Barcode scanning is not supported on this device or browser.');
-      return;
-    }
-
+    let stopped = false;
     let stream: MediaStream | null = null;
     let frameId = 0;
-    let stopped = false;
-    const detector = new window.BarcodeDetector({ formats: FORMATS });
+    let controls: { stop: () => void } | null = null;
 
-    const scan = async () => {
-      if (stopped || !videoRef.current) return;
-      try {
-        const codes = await detector.detect(videoRef.current);
-        if (codes.length > 0) {
-          onDetect(codes[0].rawValue);
-          return;
-        }
-      } catch {
-        // Ignore transient per-frame detection errors and keep scanning.
-      }
-      frameId = requestAnimationFrame(scan);
-    };
+    if (window.BarcodeDetector) {
+      const detector = new window.BarcodeDetector({ formats: FORMATS });
 
-    navigator.mediaDevices
-      .getUserMedia({ video: { facingMode: 'environment' } })
-      .then((mediaStream) => {
-        if (stopped) {
-          mediaStream.getTracks().forEach((t) => t.stop());
-          return;
-        }
-        stream = mediaStream;
-        if (videoRef.current) {
-          videoRef.current.srcObject = mediaStream;
-          videoRef.current.play().catch(() => {});
+      const scan = async () => {
+        if (stopped || !videoRef.current) return;
+        try {
+          const codes = await detector.detect(videoRef.current);
+          if (codes.length > 0) {
+            onDetect(codes[0].rawValue);
+            return;
+          }
+        } catch {
+          // Ignore transient per-frame detection errors and keep scanning.
         }
         frameId = requestAnimationFrame(scan);
-      })
-      .catch((err: Error) => {
-        setError(err.message || 'Unable to access the camera.');
-      });
+      };
+
+      navigator.mediaDevices
+        .getUserMedia({ video: { facingMode: 'environment' } })
+        .then((mediaStream) => {
+          if (stopped) {
+            mediaStream.getTracks().forEach((t) => t.stop());
+            return;
+          }
+          stream = mediaStream;
+          if (videoRef.current) {
+            videoRef.current.srcObject = mediaStream;
+            videoRef.current.play().catch(() => {});
+          }
+          frameId = requestAnimationFrame(scan);
+        })
+        .catch((err: Error) => {
+          setError(err.message || 'Unable to access the camera.');
+        });
+    } else {
+      // Browsers without the Shape Detection API (e.g. iOS Safari) fall back to
+      // ZXing, which decodes frames from getUserMedia via canvas.
+      import('@zxing/browser')
+        .then(({ BrowserMultiFormatReader }) => {
+          if (stopped || !videoRef.current) return undefined;
+          const reader = new BrowserMultiFormatReader();
+          return reader.decodeFromConstraints(
+            { video: { facingMode: 'environment' } },
+            videoRef.current,
+            (result, _err, scanControls) => {
+              if (result) {
+                scanControls.stop();
+                onDetect(result.getText());
+              }
+            }
+          );
+        })
+        .then((scanControls) => {
+          if (!scanControls) return;
+          if (stopped) {
+            scanControls.stop();
+            return;
+          }
+          controls = scanControls;
+        })
+        .catch((err: Error) => {
+          setError(err.message || 'Unable to access the camera.');
+        });
+    }
 
     return () => {
       stopped = true;
       cancelAnimationFrame(frameId);
       stream?.getTracks().forEach((t) => t.stop());
+      controls?.stop();
     };
   }, [onDetect]);
 
