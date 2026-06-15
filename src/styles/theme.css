@@ -102,6 +102,15 @@ a {
   color: var(--t1);
 }
 
+.btn-outline {
+  background: var(--surf2);
+  color: var(--t1);
+  border: 1px solid var(--border);
+}
+.btn-outline:hover {
+  border-color: var(--border2);
+}
+
 /* ---------- Forms ---------- */
 .form-group {
   display: flex;

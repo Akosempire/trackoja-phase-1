@@ -34,18 +34,15 @@ export default function ReceiptPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const [voidReason, setVoidReason] = useState('');
-  const [voiding, setVoiding] = useState(false);
-
   const [verifyingId, setVerifyingId] = useState<string | null>(null);
 
+  const [showRefund, setShowRefund] = useState(false);
   const [refundItems, setRefundItems] = useState<Record<string, number>>({});
   const [refundAmount, setRefundAmount] = useState('');
   const [refundMethod, setRefundMethod] = useState<PaymentMethod>('cash');
   const [refundReason, setRefundReason] = useState('');
   const [refunding, setRefunding] = useState(false);
 
-  const canVoid = hasPermission('sales:void');
   const canRefund = hasPermission('sales:refund');
 
   const load = () => {
@@ -70,24 +67,6 @@ export default function ReceiptPage() {
   useEffect(() => {
     load();
   }, [saleId]);
-
-  const handleVoid = async () => {
-    if (!sale || !voidReason.trim()) {
-      setError('A reason is required to void this sale');
-      return;
-    }
-
-    setVoiding(true);
-    setError(null);
-    try {
-      await SaleService.voidSale(sale.id, voidReason.trim());
-      load();
-    } catch (err: any) {
-      setError(err.message ?? 'Failed to void sale');
-    } finally {
-      setVoiding(false);
-    }
-  };
 
   const handleVerifyPayment = async (paymentId: string, status: 'verified' | 'rejected') => {
     setVerifyingId(paymentId);
@@ -142,6 +121,7 @@ export default function ReceiptPage() {
       setRefundItems({});
       setRefundAmount('');
       setRefundReason('');
+      setShowRefund(false);
       load();
     } catch (err: any) {
       setError(err.message ?? 'Failed to process refund');
@@ -278,9 +258,14 @@ export default function ReceiptPage() {
       </div>
 
       <div className="btn-row no-print" style={{ marginTop: 12 }}>
-        <Button variant="ghost" className="btn-sm" onClick={() => window.print()}>
+        <Button variant="ghost" className="btn-sm btn-outline" onClick={() => window.print()}>
           Print
         </Button>
+        {canRefund && sale.status === 'completed' && remainingBalance > 0 && (
+          <Button variant="ghost" className="btn-sm btn-outline" onClick={() => setShowRefund((v) => !v)}>
+            Refund
+          </Button>
+        )}
         <Button variant="ghost" className="btn-sm" onClick={() => navigate('/sales')}>
           Back to sales
         </Button>
@@ -324,19 +309,7 @@ export default function ReceiptPage() {
         </div>
       )}
 
-      {canVoid && sale.status === 'completed' && (
-        <div className="card no-print">
-          <p className="list-item-title" style={{ marginBottom: 8 }}>
-            Void sale
-          </p>
-          <FormField id="void-reason" label="Reason" value={voidReason} onChange={setVoidReason} placeholder="Why is this sale being voided?" />
-          <Button variant="ghost" className="btn-sm" loading={voiding} onClick={handleVoid}>
-            Void sale
-          </Button>
-        </div>
-      )}
-
-      {canRefund && sale.status === 'completed' && remainingBalance > 0 && (
+      {showRefund && canRefund && sale.status === 'completed' && remainingBalance > 0 && (
         <div className="card no-print">
           <p className="list-item-title" style={{ marginBottom: 8 }}>
             Process refund
@@ -405,9 +378,14 @@ export default function ReceiptPage() {
             placeholder="Why is this refund being issued?"
           />
 
-          <Button variant="ghost" className="btn-sm" loading={refunding} onClick={handleRefund}>
-            Process refund
-          </Button>
+          <div className="btn-row">
+            <Button variant="ghost" className="btn-sm" loading={refunding} onClick={handleRefund}>
+              Process refund
+            </Button>
+            <Button variant="ghost" className="btn-sm" onClick={() => setShowRefund(false)}>
+              Cancel
+            </Button>
+          </div>
         </div>
       )}
     </div>
