@@ -253,6 +253,20 @@ export default function CheckoutPage() {
         </div>
       </div>
 
+      {cart.length > 0 && (
+        <button
+          type="button"
+          className="cart-sticky-bar"
+          onClick={() => document.getElementById('cart-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+        >
+          <span className="cart-sticky-bar-count">
+            {cart.length} item{cart.length === 1 ? '' : 's'}
+          </span>
+          <span className="cart-sticky-bar-total">₦{total.toLocaleString()}</span>
+          <span className="cart-sticky-bar-action">View cart ↓</span>
+        </button>
+      )}
+
       {error && <div className="alert alert-error">{error}</div>}
       {scanError && <div className="alert alert-error">{scanError}</div>}
 
@@ -332,10 +346,13 @@ export default function CheckoutPage() {
         </div>
       )}
 
-      <div className="card">
-        <p className="list-item-title" style={{ marginBottom: 8 }}>
-          Cart
-        </p>
+      <div id="cart-section" className={`card${cart.length > 0 ? ' cart-card-active' : ''}`}>
+        <div className="cart-card-header">
+          <p className="list-item-title" style={{ marginBottom: 0 }}>
+            Cart
+          </p>
+          {cart.length > 0 && <span className="cart-card-total">₦{total.toLocaleString()}</span>}
+        </div>
         {cart.length === 0 ? (
           <div className="empty-state">Search for a product to add it to the cart.</div>
         ) : (
