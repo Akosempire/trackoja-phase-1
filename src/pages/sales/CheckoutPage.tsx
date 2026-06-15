@@ -10,7 +10,8 @@ import { Button } from '../../components/ui/Button';
 import { FormField } from '../../components/ui/FormField';
 import { PageLoader } from '../../components/ui/PageLoader';
 import { BarcodeScanner } from '../../components/BarcodeScanner';
-import type { Customer, PaymentMethod, Product, ProductCategory, StoreSettings } from '../../types';
+import { OfflineSalesService, isNetworkError } from '../../services/offlineSales.service';
+import type { Customer, CreateSaleRequest, PaymentMethod, Product, ProductCategory, StoreSettings } from '../../types';
 
 interface CartLine {
   productId: string;
@@ -203,25 +204,38 @@ export default function CheckoutPage() {
   const handleCompleteSale = async () => {
     if (!storeId || cart.length === 0) return;
 
+    const request: CreateSaleRequest = {
+      items: cart.map((line) => ({ productId: line.productId, quantity: line.quantity })),
+      payments: [
+        {
+          method: paymentMethod,
+          amount: paymentMethod === 'cash' ? Math.max(amountDue, total) : total,
+          reference: reference || undefined,
+          pending: VERIFIABLE_METHODS.includes(paymentMethod) && pendingVerification,
+        },
+      ],
+      customerId: selectedCustomer?.id,
+      discountTotal: discount,
+    };
+
     setSaving(true);
     setError(null);
-    try {
-      const sale = await SaleService.createSale(storeId, {
-        items: cart.map((line) => ({ productId: line.productId, quantity: line.quantity })),
-        payments: [
-          {
-            method: paymentMethod,
-            amount: paymentMethod === 'cash' ? Math.max(amountDue, total) : total,
-            reference: reference || undefined,
-            pending: VERIFIABLE_METHODS.includes(paymentMethod) && pendingVerification,
-          },
-        ],
-        customerId: selectedCustomer?.id,
-        discountTotal: discount,
-      });
 
+    if (!navigator.onLine) {
+      OfflineSalesService.addPendingSale(storeId, request, cart.length, total);
+      navigate('/sales');
+      return;
+    }
+
+    try {
+      const sale = await SaleService.createSale(storeId, request);
       navigate(`/sales/${sale.id}`);
     } catch (err: any) {
+      if (isNetworkError(err)) {
+        OfflineSalesService.addPendingSale(storeId, request, cart.length, total);
+        navigate('/sales');
+        return;
+      }
       setError(err.message ?? 'Failed to complete sale');
     } finally {
       setSaving(false);

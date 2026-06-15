@@ -7,6 +7,8 @@ import { ReportService } from '../../services/report.service';
 import { Button } from '../../components/ui/Button';
 import { PageLoader } from '../../components/ui/PageLoader';
 import { getReportDateRange } from '../../utils/report-date-ranges';
+import { OfflineSalesService, type PendingSale } from '../../services/offlineSales.service';
+import { useOnlineStatus } from '../../hooks/useOnlineStatus';
 import type { Sale, PendingSalePayment, PaymentMethodBreakdown } from '../../types';
 
 export default function SalesHubPage() {
@@ -22,6 +24,9 @@ export default function SalesHubPage() {
   const [paymentBreakdown, setPaymentBreakdown] = useState<PaymentMethodBreakdown[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [pendingOfflineSales, setPendingOfflineSales] = useState<PendingSale[]>([]);
+  const [syncing, setSyncing] = useState(false);
+  const online = useOnlineStatus();
 
   useEffect(() => {
     if (!storeId) {
@@ -45,6 +50,23 @@ export default function SalesHubPage() {
       .finally(() => setLoading(false));
   }, [storeId, canVerifyPayments]);
 
+  useEffect(() => {
+    if (!storeId) return;
+    const refresh = () => setPendingOfflineSales(OfflineSalesService.getPendingSales(storeId));
+    refresh();
+    return OfflineSalesService.subscribe(refresh);
+  }, [storeId]);
+
+  const syncNow = async () => {
+    if (!storeId || syncing) return;
+    setSyncing(true);
+    try {
+      await OfflineSalesService.flushPendingSales(storeId);
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   if (permsLoading || loading) return <PageLoader />;
 
   return (
@@ -62,6 +84,35 @@ export default function SalesHubPage() {
       </div>
 
       {error && <div className="alert alert-error">{error}</div>}
+
+      {pendingOfflineSales.length > 0 && (
+        <div className="card">
+          <div className="page-header" style={{ marginBottom: 8 }}>
+            <p className="list-item-title" style={{ margin: 0 }}>
+              Pending sync
+            </p>
+            {online && (
+              <Button variant="ghost" className="btn-sm" onClick={syncNow} loading={syncing}>
+                Sync now
+              </Button>
+            )}
+          </div>
+          <div className="list">
+            {pendingOfflineSales.map((sale) => (
+              <div key={sale.id} className="list-item" style={{ cursor: 'default' }}>
+                <div>
+                  <p className="list-item-title">
+                    {sale.itemCount} item{sale.itemCount === 1 ? '' : 's'}
+                  </p>
+                  <p className="list-item-subtitle">Saved offline · {new Date(sale.createdAt).toLocaleString()}</p>
+                </div>
+                <span className="list-item-title">₦{sale.total.toLocaleString()}</span>
+              </div>
+            ))}
+          </div>
+          {!online && <p className="scanner-hint" style={{ marginTop: 8 }}>Will sync automatically when you're back online.</p>}
+        </div>
+      )}
 
       {paymentBreakdown.length > 0 && (
         <div className="card">

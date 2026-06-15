@@ -3,6 +3,7 @@ import { AuthService } from '../services/auth.service';
 import { Button } from './ui/Button';
 import { StoreSwitcher } from './StoreSwitcher';
 import { BottomNav } from './BottomNav';
+import { OfflineBanner } from './OfflineBanner';
 import { useAuth } from '../contexts/AuthContext';
 
 // Shared shell for authenticated pages. Mobile-first: the primary navigation
@@ -45,6 +46,7 @@ export function AppLayout() {
           </Button>
         </div>
       </header>
+      <OfflineBanner />
       <div className="app-content">
         <Outlet />
       </div>
