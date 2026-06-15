@@ -270,7 +270,7 @@ export default function CheckoutPage() {
         </div>
         <Button
           type="button"
-          variant="ghost"
+          variant="primary"
           className="btn-sm"
           onClick={() => {
             setScanError(null);

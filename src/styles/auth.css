@@ -133,16 +133,16 @@
   right: 22px;
 }
 
-.welcome-icon {
-  width: 56px;
-  height: 56px;
-  margin: 8px auto 20px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: var(--r2);
-  background: var(--brand-s);
-  color: var(--brand-l);
+.welcome-illustration {
+  width: 100%;
+  max-width: 220px;
+  margin: 4px auto 20px;
+}
+
+.welcome-illustration svg {
+  display: block;
+  width: 100%;
+  height: auto;
 }
 
 .welcome-dots {

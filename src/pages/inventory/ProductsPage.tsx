@@ -90,7 +90,7 @@ export default function ProductsPage() {
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-        <Button type="button" variant="ghost" className="btn-sm" onClick={() => setScanning(true)}>
+        <Button type="button" variant="primary" className="btn-sm" onClick={() => setScanning(true)}>
           Scan
         </Button>
       </div>
