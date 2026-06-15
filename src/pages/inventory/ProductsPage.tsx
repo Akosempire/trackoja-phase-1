@@ -127,12 +127,19 @@ export default function ProductsPage() {
             const isLowStock = product.trackInventory && product.stockQty <= product.reorderLevel;
             return (
               <Link key={product.id} to={`/inventory/products/${product.id}`} className="list-item">
-                <div>
-                  <p className="list-item-title">{product.name}</p>
-                  <p className="list-item-subtitle">
-                    SKU {product.sku}
-                    {categoryName(product.categoryId) ? ` · ${categoryName(product.categoryId)}` : ''}
-                  </p>
+                <div className="list-item-leading">
+                  {product.imageUrl ? (
+                    <img src={product.imageUrl} alt="" className="list-item-image" />
+                  ) : (
+                    <div className="list-item-image-placeholder">{product.name.charAt(0).toUpperCase()}</div>
+                  )}
+                  <div>
+                    <p className="list-item-title">{product.name}</p>
+                    <p className="list-item-subtitle">
+                      SKU {product.sku}
+                      {categoryName(product.categoryId) ? ` · ${categoryName(product.categoryId)}` : ''}
+                    </p>
+                  </div>
                 </div>
                 <div className="list-item-meta">
                   <span className={`badge ${isLowStock ? 'badge-warning' : 'badge-default'}`}>

@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { usePermissions } from '../../hooks/usePermissions';
 import { ProductService } from '../../services/product.service';
 import { CategoryService } from '../../services/category.service';
+import { StorageService, PRODUCT_IMAGE_ACCEPT, PRODUCT_IMAGE_MAX_BYTES } from '../../services/storage.service';
 import { Button } from '../../components/ui/Button';
 import { FormField } from '../../components/ui/FormField';
 import { PageLoader } from '../../components/ui/PageLoader';
@@ -36,7 +37,10 @@ export default function ProductFormPage() {
   const [stockQty, setStockQty] = useState('0');
   const [reorderLevel, setReorderLevel] = useState('0');
   const [status, setStatus] = useState<'active' | 'inactive' | 'archived'>('active');
+  const [imageUrl, setImageUrl] = useState('');
+  const [uploadingImage, setUploadingImage] = useState(false);
   const [scanning, setScanning] = useState(false);
+  const imageInputRef = useRef<HTMLInputElement>(null);
 
   const canUpdate = hasPermission('product:update');
   const canDelete = hasPermission('product:delete');
@@ -64,6 +68,7 @@ export default function ProductFormPage() {
         setStockQty(String(product.stockQty));
         setReorderLevel(String(product.reorderLevel));
         setStatus(product.status);
+        setImageUrl(product.imageUrl ?? '');
       })
       .catch((err) => setError(err.message ?? 'Failed to load product'))
       .finally(() => setLoading(false));
@@ -90,6 +95,7 @@ export default function ProductFormPage() {
           trackInventory,
           stockQty: Number(stockQty) || 0,
           reorderLevel: Number(reorderLevel) || 0,
+          imageUrl: imageUrl || undefined,
         });
         navigate(`/inventory/products/${product.id}`, { replace: true });
       } else if (productId) {
@@ -106,6 +112,7 @@ export default function ProductFormPage() {
           trackInventory,
           reorderLevel: Number(reorderLevel) || 0,
           status,
+          imageUrl: imageUrl || undefined,
         });
         navigate('/inventory/products');
       }
@@ -113,6 +120,28 @@ export default function ProductFormPage() {
       setError(err.message ?? 'Failed to save product');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !storeId) return;
+
+    if (file.size > PRODUCT_IMAGE_MAX_BYTES) {
+      setError('Image is too large. Maximum size is 5MB.');
+      return;
+    }
+
+    setUploadingImage(true);
+    setError(null);
+    try {
+      const url = await StorageService.uploadProductImage(storeId, file);
+      setImageUrl(url);
+    } catch (err: any) {
+      setError(err.message ?? 'Failed to upload image');
+    } finally {
+      setUploadingImage(false);
+      if (imageInputRef.current) imageInputRef.current.value = '';
     }
   };
 
@@ -143,6 +172,42 @@ export default function ProductFormPage() {
       {error && <div className="alert alert-error">{error}</div>}
 
       <form className="card" onSubmit={handleSubmit}>
+        <div className="form-group">
+          <label className="form-label">Photo</label>
+          <div className="product-image-row">
+            {imageUrl ? (
+              <img src={imageUrl} alt="" className="product-image-preview" />
+            ) : (
+              <div className="product-image-placeholder">{(name || '?').charAt(0).toUpperCase()}</div>
+            )}
+            {!readOnly && (
+              <div className="btn-row">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="btn-sm btn-outline"
+                  loading={uploadingImage}
+                  onClick={() => imageInputRef.current?.click()}
+                >
+                  {imageUrl ? 'Change photo' : 'Upload photo'}
+                </Button>
+                {imageUrl && (
+                  <Button type="button" variant="ghost" className="btn-sm" onClick={() => setImageUrl('')}>
+                    Remove
+                  </Button>
+                )}
+              </div>
+            )}
+            <input
+              ref={imageInputRef}
+              type="file"
+              accept={PRODUCT_IMAGE_ACCEPT}
+              onChange={handleImageChange}
+              style={{ display: 'none' }}
+            />
+          </div>
+        </div>
+
         <FormField id="product-name" label="Name" value={name} onChange={setName} required />
         <div className="auth-form-row">
           <FormField id="product-sku" label="SKU" value={sku} onChange={setSku} required />

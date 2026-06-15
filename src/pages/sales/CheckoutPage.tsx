@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { ProductService } from '../../services/product.service';
+import { CategoryService } from '../../services/category.service';
 import { SaleService } from '../../services/sale.service';
 import { CustomerService } from '../../services/customer.service';
 import { StoreService } from '../../services/store.service';
@@ -9,7 +10,7 @@ import { Button } from '../../components/ui/Button';
 import { FormField } from '../../components/ui/FormField';
 import { PageLoader } from '../../components/ui/PageLoader';
 import { BarcodeScanner } from '../../components/BarcodeScanner';
-import type { Customer, PaymentMethod, Product, StoreSettings } from '../../types';
+import type { Customer, PaymentMethod, Product, ProductCategory, StoreSettings } from '../../types';
 
 interface CartLine {
   productId: string;
@@ -43,6 +44,7 @@ export default function CheckoutPage() {
   const storeId = profile?.currentStoreId;
 
   const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<ProductCategory[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [storeSettings, setStoreSettings] = useState<StoreSettings | null>(null);
   const [loading, setLoading] = useState(true);
@@ -50,6 +52,7 @@ export default function CheckoutPage() {
   const [saving, setSaving] = useState(false);
 
   const [search, setSearch] = useState('');
+  const [categoryId, setCategoryId] = useState('');
   const [cart, setCart] = useState<CartLine[]>([]);
   const [scanning, setScanning] = useState(false);
   const [scanError, setScanError] = useState<string | null>(null);
@@ -67,11 +70,13 @@ export default function CheckoutPage() {
     setLoading(true);
     Promise.all([
       ProductService.getProducts(storeId, { status: 'active' }),
+      CategoryService.getCategories(storeId),
       CustomerService.getCustomers(storeId, { isActive: true }),
       StoreService.getStoreSettings(storeId),
     ])
-      .then(([productsData, customersData, settingsData]) => {
+      .then(([productsData, categoriesData, customersData, settingsData]) => {
         setProducts(productsData);
+        setCategories(categoriesData);
         setCustomers(customersData);
         setStoreSettings(settingsData);
       })
@@ -79,18 +84,19 @@ export default function CheckoutPage() {
       .finally(() => setLoading(false));
   }, [storeId]);
 
-  const filteredProducts = useMemo(() => {
-    if (!search.trim()) return [];
+  const displayedProducts = useMemo(() => {
     const term = search.trim().toLowerCase();
     return products
+      .filter((p) => !categoryId || p.categoryId === categoryId)
       .filter(
         (p) =>
+          !term ||
           p.name.toLowerCase().includes(term) ||
           p.sku.toLowerCase().includes(term) ||
           (p.barcode ?? '').toLowerCase().includes(term)
       )
-      .slice(0, 8);
-  }, [products, search]);
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [products, search, categoryId]);
 
   const filteredCustomers = useMemo(() => {
     if (!customerSearch.trim()) return [];
@@ -123,7 +129,6 @@ export default function CheckoutPage() {
         },
       ];
     });
-    setSearch('');
   };
 
   const handleScan = (value: string) => {
@@ -255,33 +260,50 @@ export default function CheckoutPage() {
         <BarcodeScanner onDetect={handleScan} onClose={() => setScanning(false)} />
       )}
 
-      {filteredProducts.length > 0 && (
-        <div className="card">
-          <div className="list">
-            {filteredProducts.map((product) => {
-              const lowStock = product.trackInventory && product.stockQty <= 0;
-              return (
-                <button
-                  key={product.id}
-                  type="button"
-                  className="list-item"
-                  style={{ width: '100%', cursor: 'pointer', font: 'inherit' }}
-                  onClick={() => addToCart(product)}
-                >
-                  <div>
-                    <p className="list-item-title">{product.name}</p>
-                    <p className="list-item-subtitle">SKU {product.sku}</p>
-                  </div>
-                  <div className="list-item-meta">
-                    <span className={`badge ${lowStock ? 'badge-warning' : 'badge-default'}`}>
-                      {product.trackInventory ? `${product.stockQty} ${product.unit}` : 'No tracking'}
-                    </span>
-                    <span className="list-item-subtitle">₦{product.sellingPrice.toLocaleString()}</span>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
+      {categories.length > 0 && (
+        <div className="chip-row">
+          <button type="button" className={`chip${categoryId === '' ? ' active' : ''}`} onClick={() => setCategoryId('')}>
+            All
+          </button>
+          {categories.map((c) => (
+            <button
+              key={c.id}
+              type="button"
+              className={`chip${categoryId === c.id ? ' active' : ''}`}
+              onClick={() => setCategoryId(c.id)}
+            >
+              {c.name}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {displayedProducts.length === 0 ? (
+        <div className="empty-state">No products match your search.</div>
+      ) : (
+        <div className="product-grid">
+          {displayedProducts.map((product) => {
+            const outOfStock = product.trackInventory && product.stockQty <= 0;
+            return (
+              <button
+                key={product.id}
+                type="button"
+                className="product-card"
+                disabled={outOfStock}
+                onClick={() => addToCart(product)}
+              >
+                {product.imageUrl ? (
+                  <img src={product.imageUrl} alt="" className="product-card-image" />
+                ) : (
+                  <div className="product-card-placeholder">{product.name.charAt(0).toUpperCase()}</div>
+                )}
+                <span className="product-card-name">{product.name}</span>
+                <span className="product-card-price">
+                  {outOfStock ? 'Out of stock' : `₦${product.sellingPrice.toLocaleString()}`}
+                </span>
+              </button>
+            );
+          })}
         </div>
       )}
 
