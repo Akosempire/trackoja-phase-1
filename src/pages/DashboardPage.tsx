@@ -2,12 +2,13 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { usePermissions } from '../hooks/usePermissions';
-import { OrganizationService } from '../services/organization.service';
 import { StoreService } from '../services/store.service';
 import { ReportService } from '../services/report.service';
-import { SaleService } from '../services/sale.service';
+import { ProductService } from '../services/product.service';
+import { AuditService } from '../services/audit.service';
 import { PageLoader } from '../components/ui/PageLoader';
-import type { Organization, Store, Sale, SalesSummary, InventoryValuation, CustomerBalancesSummary } from '../types';
+import { AlertIcon, ChevronRightIcon } from '../components/icons';
+import type { Store, SalesSummary, Product, AuditLog } from '../types';
 
 function startOfToday(): string {
   const d = new Date();
@@ -22,16 +23,32 @@ function greeting(): string {
   return 'Good evening';
 }
 
+function formatAction(log: AuditLog): string {
+  const label = log.action.toLowerCase().replace(/_/g, ' ');
+  const friendly = label.charAt(0).toUpperCase() + label.slice(1);
+  return log.resourceName ? `${friendly} · ${log.resourceName}` : friendly;
+}
+
+function timeAgo(iso: string): string {
+  const diffMs = Date.now() - new Date(iso).getTime();
+  const minutes = Math.floor(diffMs / 60000);
+  if (minutes < 1) return 'just now';
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
+}
+
 export default function DashboardPage() {
   const { user, profile } = useAuth();
   const { hasPermission } = usePermissions();
 
-  const [organization, setOrganization] = useState<Organization | null>(null);
   const [store, setStore] = useState<Store | null>(null);
   const [summary, setSummary] = useState<SalesSummary | null>(null);
-  const [inventory, setInventory] = useState<InventoryValuation | null>(null);
-  const [balances, setBalances] = useState<CustomerBalancesSummary | null>(null);
-  const [recentSales, setRecentSales] = useState<Sale[]>([]);
+  const [profitToday, setProfitToday] = useState(0);
+  const [lowStock, setLowStock] = useState<Product[]>([]);
+  const [activity, setActivity] = useState<AuditLog[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -45,20 +62,18 @@ export default function DashboardPage() {
     const now = new Date().toISOString();
 
     Promise.all([
-      OrganizationService.getOrganization(profile.currentOrgId),
       storeId ? StoreService.getStore(storeId) : Promise.resolve(null),
       storeId ? ReportService.getSalesSummary(storeId, todayStart, now) : Promise.resolve(null),
-      storeId ? ReportService.getInventoryValuation(storeId) : Promise.resolve(null),
-      storeId ? ReportService.getCustomerBalancesSummary(storeId) : Promise.resolve(null),
-      storeId ? SaleService.getSales(storeId, { dateFrom: todayStart }) : Promise.resolve([]),
+      storeId ? ReportService.getProfitSummary(storeId, todayStart, now) : Promise.resolve(0),
+      storeId ? ProductService.getProducts(storeId, { status: 'active', lowStockOnly: true }) : Promise.resolve([]),
+      storeId ? AuditService.getStoreAuditLogs(storeId, 6) : Promise.resolve([]),
     ])
-      .then(([org, currentStore, salesSummary, inv, bal, sales]) => {
-        setOrganization(org);
+      .then(([currentStore, salesSummary, profit, lowStockProducts, recentActivity]) => {
         setStore(currentStore);
         setSummary(salesSummary);
-        setInventory(inv);
-        setBalances(bal);
-        setRecentSales(sales.slice(0, 5));
+        setProfitToday(profit);
+        setLowStock(lowStockProducts);
+        setActivity(recentActivity);
       })
       .finally(() => setLoading(false));
   }, [profile?.currentOrgId, profile?.currentStoreId]);
@@ -74,10 +89,7 @@ export default function DashboardPage() {
           <h1 className="page-title">
             {greeting()}, {firstName}
           </h1>
-          <p className="page-subtitle">
-            {organization?.name}
-            {store ? ` · ${store.name}` : ''}
-          </p>
+          <p className="page-subtitle">{store?.name ?? 'No store selected'}</p>
         </div>
       </div>
 
@@ -85,24 +97,47 @@ export default function DashboardPage() {
         <div className="empty-state">No store selected yet.</div>
       ) : (
         <>
-          <div className="stats-grid">
+          <div className="stats-grid stats-grid-3">
             <div className="stat-card">
-              <p className="stat-label">Revenue today</p>
+              <p className="stat-label">Today's sales</p>
               <p className="stat-value">₦{(summary?.totalRevenue ?? 0).toLocaleString()}</p>
             </div>
             <div className="stat-card">
-              <p className="stat-label">Transactions today</p>
+              <p className="stat-label">Transactions</p>
               <p className="stat-value">{summary?.transactionCount ?? 0}</p>
             </div>
             <div className="stat-card">
-              <p className="stat-label">Low stock items</p>
-              <p className="stat-value">{inventory?.lowStockCount ?? 0}</p>
-            </div>
-            <div className="stat-card">
-              <p className="stat-label">Outstanding balance</p>
-              <p className="stat-value">₦{(balances?.totalReceivables ?? 0).toLocaleString()}</p>
+              <p className="stat-label">Profit</p>
+              <p className="stat-value">₦{profitToday.toLocaleString()}</p>
             </div>
           </div>
+
+          {lowStock.length > 0 && (
+            <div className="card">
+              <div className="page-header" style={{ marginBottom: 8 }}>
+                <p className="list-item-title" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <AlertIcon width={16} height={16} style={{ color: 'var(--amber)' }} />
+                  Low stock alerts
+                </p>
+                <Link to="/inventory/products" className="btn-ghost" style={{ fontSize: 13 }}>
+                  View all
+                </Link>
+              </div>
+              <div className="list">
+                {lowStock.slice(0, 4).map((product) => (
+                  <Link key={product.id} to={`/inventory/products/${product.id}`} className="list-item">
+                    <div>
+                      <p className="list-item-title">{product.name}</p>
+                      <p className="list-item-subtitle">SKU {product.sku}</p>
+                    </div>
+                    <span className="badge badge-warning">
+                      {product.stockQty} {product.unit} left
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div className="card">
             <p className="list-item-title" style={{ marginBottom: 12 }}>
@@ -132,42 +167,26 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <div className="page-header">
-            <p className="list-item-title" style={{ margin: 0 }}>
-              Recent sales
+          <div className="card">
+            <p className="list-item-title" style={{ marginBottom: 8 }}>
+              Recent activity
             </p>
-            {hasPermission('sales:view') && (
-              <Link to="/sales" className="btn-ghost" style={{ fontSize: 13 }}>
-                View all
-              </Link>
+            {activity.length === 0 ? (
+              <div className="empty-state">No recent activity.</div>
+            ) : (
+              <div className="list">
+                {activity.map((log) => (
+                  <div key={log.id} className="list-item" style={{ cursor: 'default' }}>
+                    <div>
+                      <p className="list-item-title">{formatAction(log)}</p>
+                      <p className="list-item-subtitle">{timeAgo(log.createdAt)}</p>
+                    </div>
+                    <ChevronRightIcon width={16} height={16} style={{ color: 'var(--t2)' }} />
+                  </div>
+                ))}
+              </div>
             )}
           </div>
-
-          {recentSales.length === 0 ? (
-            <div className="empty-state">No sales yet today.</div>
-          ) : (
-            <div className="list">
-              {recentSales.map((sale) => (
-                <Link key={sale.id} to={`/sales/${sale.id}`} className="list-item">
-                  <div>
-                    <p className="list-item-title">{sale.saleNumber}</p>
-                    <p className="list-item-subtitle">
-                      {sale.customerName || 'Walk-in customer'} ·{' '}
-                      {new Date(sale.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </p>
-                  </div>
-                  <div className="list-item-meta">
-                    <span className="list-item-title">₦{sale.total.toLocaleString()}</span>
-                    {sale.status !== 'completed' && (
-                      <span className="badge badge-warning" style={{ textTransform: 'capitalize' }}>
-                        {sale.status}
-                      </span>
-                    )}
-                  </div>
-                </Link>
-              ))}
-            </div>
-          )}
         </>
       )}
     </div>

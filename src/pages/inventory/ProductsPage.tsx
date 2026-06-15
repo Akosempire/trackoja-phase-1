@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { usePermissions } from '../../hooks/usePermissions';
 import { ProductService } from '../../services/product.service';
@@ -12,6 +12,7 @@ import type { Product, ProductCategory } from '../../types';
 export default function ProductsPage() {
   const { profile } = useAuth();
   const { hasPermission, loading: permsLoading } = usePermissions();
+  const [searchParams, setSearchParams] = useSearchParams();
   const storeId = profile?.currentStoreId;
 
   const [products, setProducts] = useState<Product[]>([]);
@@ -46,6 +47,14 @@ export default function ProductsPage() {
   }, [storeId, search, categoryId, lowStockOnly]);
 
   const categoryName = (id?: string) => categories.find((c) => c.id === id)?.name;
+
+  useEffect(() => {
+    if (searchParams.get('scan') !== '1') return;
+    setScanning(true);
+    const next = new URLSearchParams(searchParams);
+    next.delete('scan');
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
 
   if (permsLoading) return <PageLoader />;
 

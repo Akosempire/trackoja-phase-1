@@ -81,6 +81,27 @@ export class ReportService {
   }
 
   /**
+   * Estimated gross profit (revenue ex-tax/discount less current cost price)
+   * for completed sales in a date range.
+   */
+  static async getProfitSummary(storeId: string, dateFrom: string, dateTo: string): Promise<number> {
+    try {
+      const { data, error } = await supabase.rpc('get_sales_profit_summary', {
+        p_store_id: storeId,
+        p_date_from: dateFrom,
+        p_date_to: dateTo,
+      });
+
+      if (error) throw error;
+      const row = Array.isArray(data) ? data[0] : data;
+      return Number(row?.gross_profit ?? 0);
+    } catch (error) {
+      console.error('Get profit summary error:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Point-in-time stock valuation snapshot.
    */
   static async getInventoryValuation(storeId: string): Promise<InventoryValuation> {

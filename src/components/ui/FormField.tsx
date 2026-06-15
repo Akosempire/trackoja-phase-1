@@ -8,6 +8,7 @@ interface FormFieldProps {
   error?: string;
   autoComplete?: string;
   required?: boolean;
+  disabled?: boolean;
 }
 
 export function FormField({
@@ -20,6 +21,7 @@ export function FormField({
   error,
   autoComplete,
   required,
+  disabled,
 }: FormFieldProps) {
   return (
     <div className="form-group">
@@ -36,6 +38,7 @@ export function FormField({
         placeholder={placeholder}
         autoComplete={autoComplete}
         required={required}
+        disabled={disabled}
       />
       {error && <span className="form-error">{error}</span>}
     </div>

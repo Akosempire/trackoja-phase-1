@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { ProductService } from '../../services/product.service';
 import { CategoryService } from '../../services/category.service';
@@ -41,6 +41,7 @@ function round2(value: number): number {
 export default function CheckoutPage() {
   const { profile } = useAuth();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const storeId = profile?.currentStoreId;
 
   const [products, setProducts] = useState<Product[]>([]);
@@ -85,6 +86,14 @@ export default function CheckoutPage() {
       .catch((err) => setError(err.message ?? 'Failed to load checkout data'))
       .finally(() => setLoading(false));
   }, [storeId]);
+
+  useEffect(() => {
+    if (loading || searchParams.get('scan') !== '1') return;
+    setScanning(true);
+    const next = new URLSearchParams(searchParams);
+    next.delete('scan');
+    setSearchParams(next, { replace: true });
+  }, [loading, searchParams, setSearchParams]);
 
   const displayedProducts = useMemo(() => {
     const term = search.trim().toLowerCase();

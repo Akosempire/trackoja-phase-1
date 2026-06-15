@@ -16,6 +16,7 @@ import CategoriesPage from './pages/inventory/CategoriesPage';
 import StockAdjustmentPage from './pages/inventory/StockAdjustmentPage';
 import CheckoutPage from './pages/sales/CheckoutPage';
 import ReceiptPage from './pages/sales/ReceiptPage';
+import SalesHubPage from './pages/sales/SalesHubPage';
 import SalesHistoryPage from './pages/sales/SalesHistoryPage';
 import CustomersListPage from './pages/customers/CustomersListPage';
 import CustomerFormPage from './pages/customers/CustomerFormPage';
@@ -26,6 +27,9 @@ import DeviceDetailPage from './pages/devices/DeviceDetailPage';
 import StaffPage from './pages/staff/StaffPage';
 import ReportsPage from './pages/reports/ReportsPage';
 import BillingPage from './pages/billing/BillingPage';
+import MorePage from './pages/MorePage';
+import SettingsPage from './pages/SettingsPage';
+import SupportPage from './pages/SupportPage';
 import PlatformDashboardPage from './pages/platform/PlatformDashboardPage';
 
 function RootRedirect() {
@@ -61,7 +65,8 @@ export default function App() {
           <Route path="/inventory/products/:productId" element={<ProductFormPage />} />
           <Route path="/inventory/categories" element={<CategoriesPage />} />
           <Route path="/inventory/stock" element={<StockAdjustmentPage />} />
-          <Route path="/sales" element={<SalesHistoryPage />} />
+          <Route path="/sales" element={<SalesHubPage />} />
+          <Route path="/sales/history" element={<SalesHistoryPage />} />
           <Route path="/sales/checkout" element={<CheckoutPage />} />
           <Route path="/sales/:saleId" element={<ReceiptPage />} />
           <Route path="/customers" element={<CustomersListPage />} />
@@ -74,6 +79,9 @@ export default function App() {
           <Route path="/staff" element={<StaffPage />} />
           <Route path="/reports" element={<ReportsPage />} />
           <Route path="/billing" element={<BillingPage />} />
+          <Route path="/more" element={<MorePage />} />
+          <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/support" element={<SupportPage />} />
           <Route element={<PlatformAdminRoute />}>
             <Route path="/platform" element={<PlatformDashboardPage />} />
           </Route>

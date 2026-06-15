@@ -35,6 +35,35 @@ export default function ReportsPage() {
   const [loadingSnapshots, setLoadingSnapshots] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const [quickStats, setQuickStats] = useState<{
+    todayRevenue: number;
+    todayProfit: number;
+    weekRevenue: number;
+    weekProfit: number;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!storeId) return;
+    const today = getReportDateRange('today');
+    const week = getReportDateRange('last7');
+
+    Promise.all([
+      ReportService.getSalesSummary(storeId, today.from, today.to),
+      ReportService.getProfitSummary(storeId, today.from, today.to),
+      ReportService.getSalesSummary(storeId, week.from, week.to),
+      ReportService.getProfitSummary(storeId, week.from, week.to),
+    ])
+      .then(([todaySummary, todayProfit, weekSummary, weekProfit]) => {
+        setQuickStats({
+          todayRevenue: todaySummary.totalRevenue,
+          todayProfit,
+          weekRevenue: weekSummary.totalRevenue,
+          weekProfit,
+        });
+      })
+      .catch((err) => setError(err.message ?? 'Failed to load quick stats'));
+  }, [storeId]);
+
   useEffect(() => {
     if (!storeId) return;
     const { from, to } = getReportDateRange(preset);
@@ -76,6 +105,25 @@ export default function ReportsPage() {
       </div>
 
       {error && <div className="alert alert-error">{error}</div>}
+
+      {quickStats && (
+        <div className="stats-grid">
+          <div className="stat-card">
+            <p className="stat-label">Daily sales</p>
+            <p className="stat-value">₦{quickStats.todayRevenue.toLocaleString()}</p>
+            <p className="page-subtitle" style={{ margin: '4px 0 0' }}>
+              Profit ₦{quickStats.todayProfit.toLocaleString()}
+            </p>
+          </div>
+          <div className="stat-card">
+            <p className="stat-label">Weekly sales</p>
+            <p className="stat-value">₦{quickStats.weekRevenue.toLocaleString()}</p>
+            <p className="page-subtitle" style={{ margin: '4px 0 0' }}>
+              Profit ₦{quickStats.weekProfit.toLocaleString()}
+            </p>
+          </div>
+        </div>
+      )}
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         {REPORT_DATE_RANGE_PRESETS.map((p) => (

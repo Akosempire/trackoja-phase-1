@@ -2,15 +2,14 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { AuthService } from '../services/auth.service';
 import { Button } from './ui/Button';
 import { StoreSwitcher } from './StoreSwitcher';
-import { usePermissions } from '../hooks/usePermissions';
+import { BottomNav } from './BottomNav';
 import { useAuth } from '../contexts/AuthContext';
 
-// Shared shell for authenticated pages. Hosts the persistent global store
-// switcher so it is available everywhere in the app, per the Phase 1
-// multi-store support requirement.
+// Shared shell for authenticated pages. Mobile-first: the primary navigation
+// is the bottom tab bar (see BottomNav), and the top bar is reduced to
+// branding, the store switcher, and account actions.
 export function AppLayout() {
   const navigate = useNavigate();
-  const { hasPermission } = usePermissions();
   const { profile } = useAuth();
 
   const handleLogout = async () => {
@@ -32,6 +31,11 @@ export function AppLayout() {
         <span style={{ fontWeight: 700, fontSize: 15 }}>TrackOja</span>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <StoreSwitcher />
+          {profile?.isPlatformAdmin && (
+            <NavLink to="/platform" className={({ isActive }) => `app-nav-link${isActive ? ' active' : ''}`}>
+              Platform
+            </NavLink>
+          )}
           <Button
             variant="ghost"
             onClick={handleLogout}
@@ -41,70 +45,10 @@ export function AppLayout() {
           </Button>
         </div>
       </header>
-      <nav className="app-nav">
-        <NavLink to="/dashboard" className={({ isActive }) => `app-nav-link${isActive ? ' active' : ''}`}>
-          Dashboard
-        </NavLink>
-        {hasPermission('inventory:view') && (
-          <>
-            <NavLink to="/inventory/products" className={({ isActive }) => `app-nav-link${isActive ? ' active' : ''}`}>
-              Products
-            </NavLink>
-            <NavLink to="/inventory/categories" className={({ isActive }) => `app-nav-link${isActive ? ' active' : ''}`}>
-              Categories
-            </NavLink>
-            {hasPermission('inventory:adjust') && (
-              <NavLink to="/inventory/stock" className={({ isActive }) => `app-nav-link${isActive ? ' active' : ''}`}>
-                Stock
-              </NavLink>
-            )}
-          </>
-        )}
-        {hasPermission('sales:create') && (
-          <NavLink to="/sales/checkout" className={({ isActive }) => `app-nav-link${isActive ? ' active' : ''}`}>
-            Checkout
-          </NavLink>
-        )}
-        {hasPermission('sales:view') && (
-          <NavLink to="/sales" className={({ isActive }) => `app-nav-link${isActive ? ' active' : ''}`} end>
-            Sales
-          </NavLink>
-        )}
-        {hasPermission('customer:view') && (
-          <NavLink to="/customers" className={({ isActive }) => `app-nav-link${isActive ? ' active' : ''}`}>
-            Customers
-          </NavLink>
-        )}
-        {hasPermission('sales:refund') && (
-          <NavLink to="/payments" className={({ isActive }) => `app-nav-link${isActive ? ' active' : ''}`}>
-            Payments
-          </NavLink>
-        )}
-        {hasPermission('devices:view') && (
-          <NavLink to="/devices" className={({ isActive }) => `app-nav-link${isActive ? ' active' : ''}`}>
-            Devices
-          </NavLink>
-        )}
-        {hasPermission('reports:view') && (
-          <NavLink to="/reports" className={({ isActive }) => `app-nav-link${isActive ? ' active' : ''}`}>
-            Reports
-          </NavLink>
-        )}
-        {hasPermission('member:invite') && (
-          <NavLink to="/staff" className={({ isActive }) => `app-nav-link${isActive ? ' active' : ''}`}>
-            Staff
-          </NavLink>
-        )}
-        <NavLink to="/billing" className={({ isActive }) => `app-nav-link${isActive ? ' active' : ''}`}>
-          Billing
-        </NavLink>
-        {profile?.isPlatformAdmin && (
-          <NavLink to="/platform" className={({ isActive }) => `app-nav-link${isActive ? ' active' : ''}`}>
-            Platform
-          </NavLink>
-        )}
-      </nav>
-      <Outlet />
+      <div className="app-content">
+        <Outlet />
+      </div>
+      <BottomNav />
     </div>
   );
 }
