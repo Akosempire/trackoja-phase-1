@@ -59,7 +59,9 @@ export default function CheckoutPage() {
 
   const [customerSearch, setCustomerSearch] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [showCustomerSearch, setShowCustomerSearch] = useState(false);
   const [discountTotal, setDiscountTotal] = useState('0');
+  const [showDiscount, setShowDiscount] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
   const [amountTendered, setAmountTendered] = useState('');
   const [reference, setReference] = useState('');
@@ -342,20 +344,42 @@ export default function CheckoutPage() {
       {cart.length > 0 && (
         <>
           <div className="card">
-            <FormField id="discount-total" label="Discount (₦)" type="number" value={discountTotal} onChange={setDiscountTotal} />
+            {(!showDiscount && discount === 0) || (!showCustomerSearch && !selectedCustomer && !requireCustomer) ? (
+              <div className="btn-row" style={{ marginBottom: 12 }}>
+                {!showDiscount && discount === 0 && (
+                  <Button type="button" variant="ghost" className="btn-sm" onClick={() => setShowDiscount(true)}>
+                    + Discount
+                  </Button>
+                )}
+                {!showCustomerSearch && !selectedCustomer && !requireCustomer && (
+                  <Button type="button" variant="ghost" className="btn-sm" onClick={() => setShowCustomerSearch(true)}>
+                    + Customer
+                  </Button>
+                )}
+              </div>
+            ) : null}
+
+            {(showDiscount || discount > 0) && (
+              <FormField id="discount-total" label="Discount (₦)" type="number" value={discountTotal} onChange={setDiscountTotal} />
+            )}
+
             <div className="totals">
               <div className="total-row">
                 <span>Subtotal</span>
                 <span>₦{subtotal.toLocaleString()}</span>
               </div>
-              <div className="total-row">
-                <span>Discount</span>
-                <span>−₦{discount.toLocaleString()}</span>
-              </div>
-              <div className="total-row">
-                <span>Tax</span>
-                <span>₦{taxTotal.toLocaleString()}</span>
-              </div>
+              {discount > 0 && (
+                <div className="total-row">
+                  <span>Discount</span>
+                  <span>−₦{discount.toLocaleString()}</span>
+                </div>
+              )}
+              {taxTotal > 0 && (
+                <div className="total-row">
+                  <span>Tax</span>
+                  <span>₦{taxTotal.toLocaleString()}</span>
+                </div>
+              )}
               <div className="total-row grand">
                 <span>Total</span>
                 <span>₦{total.toLocaleString()}</span>
@@ -363,57 +387,65 @@ export default function CheckoutPage() {
             </div>
           </div>
 
-          <div className="card">
-            <p className="list-item-title" style={{ marginBottom: 8 }}>
-              Customer {requireCustomer ? '(required)' : '(optional)'}
-            </p>
-            {selectedCustomer ? (
-              <div className="list-item" style={{ padding: 0 }}>
-                <div>
-                  <p className="list-item-title">{selectedCustomer.name}</p>
-                  <p className="list-item-subtitle">
-                    {selectedCustomer.phone || selectedCustomer.email || 'No contact info'}
-                    {' · '}₦{remainingCredit.toLocaleString()} credit available
-                  </p>
-                </div>
-                <Button variant="ghost" className="btn-sm" onClick={clearCustomer}>
-                  Change
-                </Button>
-              </div>
-            ) : (
-              <>
-                <input
-                  className="form-input search-input"
-                  placeholder="Search customers by name or phone"
-                  value={customerSearch}
-                  onChange={(e) => setCustomerSearch(e.target.value)}
-                />
-                {filteredCustomers.length > 0 && (
-                  <div className="list">
-                    {filteredCustomers.map((customer) => (
-                      <button
-                        key={customer.id}
-                        type="button"
-                        className="list-item"
-                        style={{ width: '100%', cursor: 'pointer', font: 'inherit' }}
-                        onClick={() => selectCustomer(customer)}
-                      >
-                        <div>
-                          <p className="list-item-title">{customer.name}</p>
-                          <p className="list-item-subtitle">{customer.phone || customer.email || 'No contact info'}</p>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
+          {(selectedCustomer || requireCustomer || showCustomerSearch) && (
+            <div className="card">
+              <div className="list-item" style={{ padding: 0, marginBottom: 8 }}>
+                <p className="list-item-title">Customer {requireCustomer ? '(required)' : '(optional)'}</p>
+                {!selectedCustomer && !requireCustomer && (
+                  <Button variant="ghost" className="btn-sm" onClick={() => setShowCustomerSearch(false)}>
+                    Cancel
+                  </Button>
                 )}
-              </>
-            )}
-            {loyaltyPreview > 0 && (
-              <p className="page-subtitle" style={{ marginTop: 8 }}>
-                Customer will earn {loyaltyPreview} loyalty point{loyaltyPreview === 1 ? '' : 's'} from this sale.
-              </p>
-            )}
-          </div>
+              </div>
+              {selectedCustomer ? (
+                <div className="list-item" style={{ padding: 0 }}>
+                  <div>
+                    <p className="list-item-title">{selectedCustomer.name}</p>
+                    <p className="list-item-subtitle">
+                      {selectedCustomer.phone || selectedCustomer.email || 'No contact info'}
+                      {' · '}₦{remainingCredit.toLocaleString()} credit available
+                    </p>
+                  </div>
+                  <Button variant="ghost" className="btn-sm" onClick={clearCustomer}>
+                    Change
+                  </Button>
+                </div>
+              ) : (
+                <>
+                  <input
+                    className="form-input search-input"
+                    placeholder="Search customers by name or phone"
+                    value={customerSearch}
+                    onChange={(e) => setCustomerSearch(e.target.value)}
+                    autoFocus
+                  />
+                  {filteredCustomers.length > 0 && (
+                    <div className="list">
+                      {filteredCustomers.map((customer) => (
+                        <button
+                          key={customer.id}
+                          type="button"
+                          className="list-item"
+                          style={{ width: '100%', cursor: 'pointer', font: 'inherit' }}
+                          onClick={() => selectCustomer(customer)}
+                        >
+                          <div>
+                            <p className="list-item-title">{customer.name}</p>
+                            <p className="list-item-subtitle">{customer.phone || customer.email || 'No contact info'}</p>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
+              {loyaltyPreview > 0 && (
+                <p className="page-subtitle" style={{ marginTop: 8 }}>
+                  Customer will earn {loyaltyPreview} loyalty point{loyaltyPreview === 1 ? '' : 's'} from this sale.
+                </p>
+              )}
+            </div>
+          )}
 
           <div className="card">
             <p className="list-item-title" style={{ marginBottom: 8 }}>
