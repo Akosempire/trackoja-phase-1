@@ -23,23 +23,7 @@ export class ProductService {
     try {
       const { data, error } = await supabase
         .from('products')
-        .insert({
-          store_id: storeId,
-          category_id: request.categoryId,
-          name: request.name,
-          sku: request.sku,
-          barcode: request.barcode,
-          description: request.description,
-          unit: request.unit ?? 'pcs',
-          cost_price: request.costPrice ?? 0,
-          selling_price: request.sellingPrice,
-          tax_rate: request.taxRate ?? 0,
-          track_inventory: request.trackInventory ?? true,
-          stock_qty: request.stockQty ?? 0,
-          reorder_level: request.reorderLevel ?? 0,
-          image_url: request.imageUrl,
-          created_by: userId,
-        })
+        .insert(this.toInsertRow(storeId, userId, request))
         .select()
         .single();
 
@@ -51,6 +35,47 @@ export class ProductService {
       console.error('Create product error:', error);
       throw error;
     }
+  }
+
+  /**
+   * Create many products in a single insert (used by bulk import)
+   */
+  static async bulkCreateProducts(
+    storeId: string,
+    userId: string,
+    requests: CreateProductRequest[]
+  ): Promise<Product[]> {
+    try {
+      const rows = requests.map((request) => this.toInsertRow(storeId, userId, request));
+
+      const { data, error } = await supabase.from('products').insert(rows).select();
+
+      if (error) throw error;
+      return data ? data.map((p) => this.mapProductData(p)) : [];
+    } catch (error) {
+      console.error('Bulk create products error:', error);
+      throw error;
+    }
+  }
+
+  private static toInsertRow(storeId: string, userId: string, request: CreateProductRequest) {
+    return {
+      store_id: storeId,
+      category_id: request.categoryId,
+      name: request.name,
+      sku: request.sku,
+      barcode: request.barcode,
+      description: request.description,
+      unit: request.unit ?? 'pcs',
+      cost_price: request.costPrice ?? 0,
+      selling_price: request.sellingPrice,
+      tax_rate: request.taxRate ?? 0,
+      track_inventory: request.trackInventory ?? true,
+      stock_qty: request.stockQty ?? 0,
+      reorder_level: request.reorderLevel ?? 0,
+      image_url: request.imageUrl,
+      created_by: userId,
+    };
   }
 
   /**

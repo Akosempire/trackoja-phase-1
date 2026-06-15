@@ -57,9 +57,16 @@ export default function ProductsPage() {
           <p className="page-subtitle">{products.length} item{products.length === 1 ? '' : 's'}</p>
         </div>
         {canCreate && (
-          <Link to="/inventory/products/new">
-            <Button className="btn-sm">Add product</Button>
-          </Link>
+          <div className="btn-row">
+            <Link to="/inventory/products/bulk-import">
+              <Button variant="ghost" className="btn-sm btn-outline">
+                Bulk import
+              </Button>
+            </Link>
+            <Link to="/inventory/products/new">
+              <Button className="btn-sm">Add product</Button>
+            </Link>
+          </div>
         )}
       </div>
 

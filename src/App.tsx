@@ -11,6 +11,7 @@ import OnboardingPage from './pages/onboarding/OnboardingPage';
 import DashboardPage from './pages/DashboardPage';
 import ProductsPage from './pages/inventory/ProductsPage';
 import ProductFormPage from './pages/inventory/ProductFormPage';
+import BulkImportPage from './pages/inventory/BulkImportPage';
 import CategoriesPage from './pages/inventory/CategoriesPage';
 import StockAdjustmentPage from './pages/inventory/StockAdjustmentPage';
 import CheckoutPage from './pages/sales/CheckoutPage';
@@ -55,6 +56,7 @@ export default function App() {
         <Route element={<AppLayout />}>
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/inventory/products" element={<ProductsPage />} />
+          <Route path="/inventory/products/bulk-import" element={<BulkImportPage />} />
           <Route path="/inventory/products/new" element={<ProductFormPage />} />
           <Route path="/inventory/products/:productId" element={<ProductFormPage />} />
           <Route path="/inventory/categories" element={<CategoriesPage />} />
