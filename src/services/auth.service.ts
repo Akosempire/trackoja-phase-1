@@ -16,6 +16,7 @@ export class AuthService {
         email: request.email,
         password: request.password,
         options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
           data: {
             first_name: request.firstName,
             last_name: request.lastName,
@@ -99,7 +100,9 @@ export class AuthService {
    */
   static async forgotPassword(email: string) {
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email);
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
       if (error) throw error;
     } catch (error) {
       console.error('Forgot password error:', error);
