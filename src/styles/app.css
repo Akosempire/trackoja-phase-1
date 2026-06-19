@@ -1004,6 +1004,13 @@
   margin-top: 4px;
 }
 
+/* Override: hide bottom-nav on desktop (placed after all component styles to win specificity race) */
+@media (min-width: 768px) {
+  .bottom-nav {
+    display: none !important;
+  }
+}
+
 .scanner-overlay {
   position: fixed;
   inset: 0;
