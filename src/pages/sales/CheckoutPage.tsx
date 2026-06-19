@@ -42,7 +42,7 @@ function round2(value: number): number {
 
 export default function CheckoutPage() {
   const { profile } = useAuth();
-  const { category } = useBusinessContext();
+  const { category, config } = useBusinessContext();
   const isRestaurant = category === 'restaurant';
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -253,344 +253,261 @@ export default function CheckoutPage() {
   if (loading) return <PageLoader />;
 
   return (
-    <div className="page">
-      <div className="page-header">
-        <div>
-          <h1 className="page-title">Checkout</h1>
-          <p className="page-subtitle">{cart.length} item{cart.length === 1 ? '' : 's'} in cart</p>
-        </div>
-      </div>
-
+    <div className="checkout-page">
+      {/* Mobile-only sticky jump bar */}
       {cart.length > 0 && (
         <button
           type="button"
           className="cart-sticky-bar"
-          onClick={() => document.getElementById('cart-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+          onClick={() => document.getElementById('checkout-receipt')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
         >
-          <span className="cart-sticky-bar-count">
-            {cart.length} item{cart.length === 1 ? '' : 's'}
-          </span>
+          <span className="cart-sticky-bar-count">{cart.length} item{cart.length === 1 ? '' : 's'}</span>
           <span className="cart-sticky-bar-total">₦{total.toLocaleString()}</span>
           <span className="cart-sticky-bar-action">View cart ↓</span>
         </button>
       )}
 
-      {error && <div className="alert alert-error">{error}</div>}
-      {scanError && <div className="alert alert-error">{scanError}</div>}
-
-      <div className="btn-row search-input">
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <input
-            className="form-input"
-            placeholder="Search products by name, SKU, or barcode"
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setScanError(null);
-            }}
-          />
-        </div>
-        <Button
-          type="button"
-          variant="primary"
-          className="btn-sm"
-          onClick={() => {
-            setScanError(null);
-            setScanning(true);
-          }}
-        >
-          Scan
-        </Button>
-      </div>
-
-      {scanning && (
-        <BarcodeScanner onDetect={handleScan} onClose={() => setScanning(false)} />
-      )}
-
-      {categories.length > 0 && (
-        <div className="chip-row">
-          <button type="button" className={`chip${categoryId === '' ? ' active' : ''}`} onClick={() => setCategoryId('')}>
-            All
-          </button>
-          {categories.map((c) => (
-            <button
-              key={c.id}
-              type="button"
-              className={`chip${categoryId === c.id ? ' active' : ''}`}
-              onClick={() => setCategoryId(c.id)}
-            >
-              {c.name}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {displayedProducts.length === 0 ? (
-        <div className="empty-state">No products match your search.</div>
-      ) : (
-        <div className="product-grid">
-          {displayedProducts.map((product) => {
-            const outOfStock = product.trackInventory && product.stockQty <= 0;
-            return (
-              <button
-                key={product.id}
-                type="button"
-                className="product-card"
-                disabled={outOfStock}
-                onClick={() => addToCart(product)}
-              >
-                {product.imageUrl ? (
-                  <img src={product.imageUrl} alt="" className="product-card-image" />
-                ) : (
-                  <div className="product-card-placeholder">{product.name.charAt(0).toUpperCase()}</div>
-                )}
-                <span className="product-card-name">{product.name}</span>
-                <span className="product-card-price">
-                  {outOfStock ? 'Out of stock' : `₦${product.sellingPrice.toLocaleString()}`}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      )}
-
-      <div id="cart-section" className={`card${cart.length > 0 ? ' cart-card-active' : ''}`}>
-        <div className="cart-card-header">
-          <p className="list-item-title" style={{ marginBottom: 0 }}>
-            Cart
-          </p>
-          {cart.length > 0 && <span className="cart-card-total">₦{total.toLocaleString()}</span>}
-        </div>
-        {cart.length === 0 ? (
-          <div className="empty-state">Search for a product to add it to the cart.</div>
-        ) : (
-          cart.map((line) => (
-            <div key={line.productId} className="cart-item">
-              <div className="cart-item-info">
-                <div>{line.name}</div>
-                <div className="page-subtitle">
-                  ₦{line.unitPrice.toLocaleString()} x {line.quantity} = ₦{(line.unitPrice * line.quantity).toLocaleString()}
-                </div>
-              </div>
-              <div className="qty-stepper">
-                <button type="button" onClick={() => updateQuantity(line.productId, -1)} aria-label="Decrease quantity">
-                  −
-                </button>
-                <span>{line.quantity}</span>
-                <button type="button" onClick={() => updateQuantity(line.productId, 1)} aria-label="Increase quantity">
-                  +
-                </button>
-              </div>
-              <Button variant="ghost" className="btn-sm" onClick={() => removeLine(line.productId)}>
-                Remove
-              </Button>
-            </div>
-          ))
-        )}
-      </div>
-
-      {cart.length > 0 && isRestaurant && (
-        <div className="card">
-          <p className="list-item-title" style={{ marginBottom: 10 }}>Order type</p>
-          <div className="order-type-row">
-            {(['dine_in', 'takeaway', 'delivery'] as OrderType[]).map((type) => {
-              const labels: Record<OrderType, string> = { dine_in: '🪑 Dine-in', takeaway: '🥡 Takeaway', delivery: '🛵 Delivery', standard: '' };
-              return (
-                <button
-                  key={type}
-                  type="button"
-                  className={`order-type-btn${orderType === type ? ' active' : ''}`}
-                  onClick={() => setOrderType(type)}
-                >
-                  {labels[type]}
-                </button>
-              );
-            })}
-          </div>
-          {orderType === 'dine_in' && (
-            <input
-              className="form-input"
-              style={{ marginTop: 10 }}
-              placeholder="Table number (optional)"
-              value={tableNumber}
-              onChange={(e) => setTableNumber(e.target.value)}
-            />
-          )}
-        </div>
-      )}
-
-      {cart.length > 0 && (
-        <>
-          <div className="card">
-            {(!showDiscount && discount === 0) || (!showCustomerSearch && !selectedCustomer && !requireCustomer) ? (
-              <div className="btn-row" style={{ marginBottom: 12 }}>
-                {!showDiscount && discount === 0 && (
-                  <Button type="button" variant="ghost" className="btn-sm" onClick={() => setShowDiscount(true)}>
-                    + Discount
-                  </Button>
-                )}
-                {!showCustomerSearch && !selectedCustomer && !requireCustomer && (
-                  <Button type="button" variant="ghost" className="btn-sm" onClick={() => setShowCustomerSearch(true)}>
-                    + Customer
-                  </Button>
-                )}
-              </div>
-            ) : null}
-
-            {(showDiscount || discount > 0) && (
-              <FormField id="discount-total" label="Discount (₦)" type="number" value={discountTotal} onChange={setDiscountTotal} />
-            )}
-
-            <div className="totals">
-              <div className="total-row">
-                <span>Subtotal</span>
-                <span>₦{subtotal.toLocaleString()}</span>
-              </div>
-              {discount > 0 && (
-                <div className="total-row">
-                  <span>Discount</span>
-                  <span>−₦{discount.toLocaleString()}</span>
-                </div>
-              )}
-              {taxTotal > 0 && (
-                <div className="total-row">
-                  <span>Tax</span>
-                  <span>₦{taxTotal.toLocaleString()}</span>
-                </div>
-              )}
-              <div className="total-row grand">
-                <span>Total</span>
-                <span>₦{total.toLocaleString()}</span>
-              </div>
-            </div>
+      <div className="checkout-shell">
+        {/* ── LEFT PANEL: Product discovery ── */}
+        <div className="checkout-products">
+          <div className="checkout-products-header">
+            <h1 className="page-title">{config.saleLabel}</h1>
+            <p className="page-subtitle">{products.length} products</p>
           </div>
 
-          {(selectedCustomer || requireCustomer || showCustomerSearch) && (
-            <div className="card">
-              <div className="list-item" style={{ padding: 0, marginBottom: 8 }}>
-                <p className="list-item-title">Customer {requireCustomer ? '(required)' : '(optional)'}</p>
-                {!selectedCustomer && !requireCustomer && (
-                  <Button variant="ghost" className="btn-sm" onClick={() => setShowCustomerSearch(false)}>
-                    Cancel
-                  </Button>
-                )}
-              </div>
-              {selectedCustomer ? (
-                <div className="list-item" style={{ padding: 0 }}>
-                  <div>
-                    <p className="list-item-title">{selectedCustomer.name}</p>
-                    <p className="list-item-subtitle">
-                      {selectedCustomer.phone || selectedCustomer.email || 'No contact info'}
-                      {' · '}₦{remainingCredit.toLocaleString()} credit available
-                    </p>
-                  </div>
-                  <Button variant="ghost" className="btn-sm" onClick={clearCustomer}>
-                    Change
-                  </Button>
-                </div>
-              ) : (
-                <>
-                  <input
-                    className="form-input search-input"
-                    placeholder="Search customers by name or phone"
-                    value={customerSearch}
-                    onChange={(e) => setCustomerSearch(e.target.value)}
-                    autoFocus
-                  />
-                  {filteredCustomers.length > 0 && (
-                    <div className="list">
-                      {filteredCustomers.map((customer) => (
-                        <button
-                          key={customer.id}
-                          type="button"
-                          className="list-item"
-                          style={{ width: '100%', cursor: 'pointer', font: 'inherit' }}
-                          onClick={() => selectCustomer(customer)}
-                        >
-                          <div>
-                            <p className="list-item-title">{customer.name}</p>
-                            <p className="list-item-subtitle">{customer.phone || customer.email || 'No contact info'}</p>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </>
-              )}
-              {loyaltyPreview > 0 && (
-                <p className="page-subtitle" style={{ marginTop: 8 }}>
-                  Customer will earn {loyaltyPreview} loyalty point{loyaltyPreview === 1 ? '' : 's'} from this sale.
-                </p>
-              )}
-            </div>
-          )}
+          {error && <div className="alert alert-error">{error}</div>}
+          {scanError && <div className="alert alert-error">{scanError}</div>}
 
-          <div className="card">
-            <p className="list-item-title" style={{ marginBottom: 8 }}>
-              Payment
-            </p>
-            <div className="form-group">
-              <label className="form-label" htmlFor="payment-method">
-                Method
-              </label>
-              <select
-                id="payment-method"
-                className="select-input"
-                value={paymentMethod}
+          <div className="btn-row search-input" style={{ marginBottom: 12 }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <input
+                className="form-input"
+                placeholder="Search by name, SKU, or barcode"
+                value={search}
                 onChange={(e) => {
-                  setPaymentMethod(e.target.value as PaymentMethod);
-                  setPendingVerification(false);
+                  setSearch(e.target.value);
+                  setScanError(null);
                 }}
-              >
-                {PAYMENT_METHODS.map((m) => (
-                  <option key={m.value} value={m.value} disabled={m.value === 'credit' && !selectedCustomer}>
-                    {m.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {paymentMethod === 'cash' ? (
-              <FormField
-                id="amount-tendered"
-                label="Amount tendered (₦)"
-                type="number"
-                value={amountTendered}
-                onChange={setAmountTendered}
-                placeholder={String(total)}
               />
-            ) : paymentMethod === 'credit' ? (
-              <p className="page-subtitle">
-                ₦{total.toLocaleString()} will be added to {selectedCustomer?.name}'s outstanding balance.
-              </p>
-            ) : (
-              <FormField id="payment-reference" label="Reference (optional)" value={reference} onChange={setReference} />
-            )}
+            </div>
+            <Button
+              type="button"
+              variant="primary"
+              className="btn-sm"
+              onClick={() => { setScanError(null); setScanning(true); }}
+            >
+              Scan
+            </Button>
+          </div>
 
-            {VERIFIABLE_METHODS.includes(paymentMethod) && (
-              <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
-                <input
-                  type="checkbox"
-                  checked={pendingVerification}
-                  onChange={(e) => setPendingVerification(e.target.checked)}
-                />
-                Awaiting confirmation (mark pending verification)
-              </label>
-            )}
+          {scanning && <BarcodeScanner onDetect={handleScan} onClose={() => setScanning(false)} />}
 
-            {paymentMethod === 'cash' && (
-              <div className="total-row grand">
-                <span>Change due</span>
-                <span>₦{changeDue.toLocaleString()}</span>
-              </div>
+          {categories.length > 0 && (
+            <div className="chip-row">
+              <button type="button" className={`chip${categoryId === '' ? ' active' : ''}`} onClick={() => setCategoryId('')}>
+                All
+              </button>
+              {categories.map((c) => (
+                <button key={c.id} type="button" className={`chip${categoryId === c.id ? ' active' : ''}`} onClick={() => setCategoryId(c.id)}>
+                  {c.name}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {displayedProducts.length === 0 ? (
+            <div className="empty-state">No products match your search.</div>
+          ) : (
+            <div className="product-grid">
+              {displayedProducts.map((product) => {
+                const outOfStock = product.trackInventory && product.stockQty <= 0;
+                return (
+                  <button
+                    key={product.id}
+                    type="button"
+                    className="product-card"
+                    disabled={outOfStock}
+                    onClick={() => addToCart(product)}
+                  >
+                    {product.imageUrl ? (
+                      <img src={product.imageUrl} alt="" className="product-card-image" />
+                    ) : (
+                      <div className="product-card-placeholder">{product.name.charAt(0).toUpperCase()}</div>
+                    )}
+                    <span className="product-card-name">{product.name}</span>
+                    <span className="product-card-price">
+                      {outOfStock ? 'Out of stock' : `₦${product.sellingPrice.toLocaleString()}`}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* ── RIGHT PANEL: Live receipt / order summary ── */}
+        <div className="checkout-receipt" id="checkout-receipt">
+          <div className="checkout-receipt-header">
+            <span className="checkout-receipt-title">Order</span>
+            {cart.length > 0 && (
+              <span className="checkout-receipt-count">{cart.length} item{cart.length === 1 ? '' : 's'}</span>
             )}
           </div>
 
-          <Button onClick={handleCompleteSale} loading={saving} disabled={!canSubmit}>
-            Complete sale
-          </Button>
-        </>
-      )}
+          {cart.length === 0 ? (
+            <div className="checkout-receipt-empty">Tap a product to add it to the order.</div>
+          ) : (
+            <>
+              {/* Line items */}
+              <div className="co-lines">
+                {cart.map((line) => (
+                  <div key={line.productId} className="co-line">
+                    <div className="co-line-top">
+                      <span className="co-line-name">{line.name}</span>
+                      <span className="co-line-total">₦{(line.unitPrice * line.quantity).toLocaleString()}</span>
+                    </div>
+                    <div className="co-line-bottom">
+                      <div className="qty-stepper">
+                        <button type="button" onClick={() => updateQuantity(line.productId, -1)} aria-label="Decrease">−</button>
+                        <span>{line.quantity}</span>
+                        <button type="button" onClick={() => updateQuantity(line.productId, 1)} aria-label="Increase">+</button>
+                      </div>
+                      <span className="co-line-unit">₦{line.unitPrice.toLocaleString()} ea.</span>
+                      <button type="button" className="co-line-remove" onClick={() => removeLine(line.productId)}>✕</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="receipt-divider" />
+
+              {/* Restaurant: order type */}
+              {isRestaurant && (
+                <div className="co-section">
+                  <p className="co-section-label">Order type</p>
+                  <div className="order-type-row">
+                    {(['dine_in', 'takeaway', 'delivery'] as OrderType[]).map((type) => {
+                      const labels: Record<OrderType, string> = { dine_in: '🪑 Dine-in', takeaway: '🥡 Takeaway', delivery: '🛵 Delivery', standard: '' };
+                      return (
+                        <button key={type} type="button" className={`order-type-btn${orderType === type ? ' active' : ''}`} onClick={() => setOrderType(type)}>
+                          {labels[type]}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {orderType === 'dine_in' && (
+                    <input className="form-input" style={{ marginTop: 8 }} placeholder="Table number (optional)" value={tableNumber} onChange={(e) => setTableNumber(e.target.value)} />
+                  )}
+                </div>
+              )}
+
+              {/* Customer */}
+              <div className="co-section">
+                {selectedCustomer ? (
+                  <div className="co-customer">
+                    <div>
+                      <p className="co-customer-name">{selectedCustomer.name}</p>
+                      <p className="co-customer-sub">
+                        {selectedCustomer.phone || selectedCustomer.email || 'No contact'} · ₦{remainingCredit.toLocaleString()} credit
+                      </p>
+                      {loyaltyPreview > 0 && <p className="co-customer-sub">+{loyaltyPreview} loyalty pts</p>}
+                    </div>
+                    <button type="button" className="co-line-remove" onClick={clearCustomer}>✕</button>
+                  </div>
+                ) : (showCustomerSearch || requireCustomer) ? (
+                  <>
+                    <p className="co-section-label">Customer {requireCustomer ? '(required)' : ''}</p>
+                    <input
+                      className="form-input"
+                      placeholder="Search by name or phone"
+                      value={customerSearch}
+                      onChange={(e) => setCustomerSearch(e.target.value)}
+                    />
+                    {filteredCustomers.length > 0 && (
+                      <div className="list" style={{ marginTop: 4 }}>
+                        {filteredCustomers.map((c) => (
+                          <button key={c.id} type="button" className="list-item" style={{ width: '100%', cursor: 'pointer', font: 'inherit' }} onClick={() => selectCustomer(c)}>
+                            <div>
+                              <p className="list-item-title">{c.name}</p>
+                              <p className="list-item-subtitle">{c.phone || c.email || 'No contact info'}</p>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    {!requireCustomer && (
+                      <button type="button" className="co-add-btn" style={{ marginTop: 6 }} onClick={() => setShowCustomerSearch(false)}>Cancel</button>
+                    )}
+                  </>
+                ) : (
+                  <button type="button" className="co-add-btn" onClick={() => setShowCustomerSearch(true)}>+ Add customer</button>
+                )}
+              </div>
+
+              {/* Discount */}
+              <div className="co-section">
+                {(showDiscount || discount > 0) ? (
+                  <FormField id="discount-total" label="Discount (₦)" type="number" value={discountTotal} onChange={setDiscountTotal} />
+                ) : (
+                  <button type="button" className="co-add-btn" onClick={() => setShowDiscount(true)}>+ Add discount</button>
+                )}
+              </div>
+
+              <div className="receipt-divider" />
+
+              {/* Totals */}
+              <div className="co-totals">
+                <div className="co-total-row"><span>Subtotal</span><span>₦{subtotal.toLocaleString()}</span></div>
+                {discount > 0 && <div className="co-total-row"><span>Discount</span><span>−₦{discount.toLocaleString()}</span></div>}
+                {taxTotal > 0 && <div className="co-total-row"><span>Tax</span><span>₦{taxTotal.toLocaleString()}</span></div>}
+                <div className="co-total-row grand"><span>Total</span><span>₦{total.toLocaleString()}</span></div>
+              </div>
+
+              <div className="receipt-divider" />
+
+              {/* Payment */}
+              <div className="co-section">
+                <p className="co-section-label">Payment</p>
+                <select
+                  className="select-input"
+                  value={paymentMethod}
+                  onChange={(e) => { setPaymentMethod(e.target.value as PaymentMethod); setPendingVerification(false); }}
+                >
+                  {PAYMENT_METHODS.map((m) => (
+                    <option key={m.value} value={m.value} disabled={m.value === 'credit' && !selectedCustomer}>{m.label}</option>
+                  ))}
+                </select>
+
+                {paymentMethod === 'cash' ? (
+                  <FormField id="amount-tendered" label="Amount tendered (₦)" type="number" value={amountTendered} onChange={setAmountTendered} placeholder={String(total)} />
+                ) : paymentMethod === 'credit' ? (
+                  <p className="page-subtitle" style={{ marginTop: 8 }}>₦{total.toLocaleString()} added to {selectedCustomer?.name}'s balance.</p>
+                ) : (
+                  <FormField id="payment-reference" label="Reference (optional)" value={reference} onChange={setReference} />
+                )}
+
+                {VERIFIABLE_METHODS.includes(paymentMethod) && (
+                  <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
+                    <input type="checkbox" checked={pendingVerification} onChange={(e) => setPendingVerification(e.target.checked)} />
+                    Awaiting confirmation
+                  </label>
+                )}
+
+                {paymentMethod === 'cash' && (
+                  <div className="co-total-row" style={{ marginTop: 10, fontWeight: 600 }}>
+                    <span>Change due</span>
+                    <span>₦{changeDue.toLocaleString()}</span>
+                  </div>
+                )}
+              </div>
+
+              <Button onClick={handleCompleteSale} loading={saving} disabled={!canSubmit} style={{ width: '100%', marginTop: 8 }}>
+                Complete sale — ₦{total.toLocaleString()}
+              </Button>
+            </>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

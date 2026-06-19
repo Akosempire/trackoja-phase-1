@@ -12,6 +12,14 @@ export function SideNav({ onLogout }: SideNavProps) {
   const { profile } = useAuth();
   const { allItems, handleScan } = useAppNav();
 
+  const initials = profile
+    ? (((profile.firstName?.[0] ?? '') + (profile.lastName?.[0] ?? '')) || (profile.email?.[0] ?? '?')).toUpperCase()
+    : '?';
+
+  const displayName = profile?.firstName
+    ? `${profile.firstName}${profile.lastName ? ' ' + profile.lastName : ''}`
+    : profile?.email?.split('@')[0] ?? 'User';
+
   return (
     <aside className="side-nav">
       <div className="side-nav-logo">TrackOja</div>
@@ -49,9 +57,22 @@ export function SideNav({ onLogout }: SideNavProps) {
             <span>Platform</span>
           </NavLink>
         )}
-        <button type="button" className="side-nav-logout" onClick={onLogout}>
-          Log out
-        </button>
+
+        <div className="side-nav-profile">
+          <div className="side-nav-avatar">{initials}</div>
+          <div className="side-nav-profile-info">
+            <span className="side-nav-profile-name">{displayName}</span>
+            <span className="side-nav-profile-email">{profile?.email}</span>
+          </div>
+          <button
+            type="button"
+            className="side-nav-profile-logout"
+            onClick={onLogout}
+            title="Log out"
+          >
+            ↪
+          </button>
+        </div>
       </div>
     </aside>
   );
