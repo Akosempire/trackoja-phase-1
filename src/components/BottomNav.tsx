@@ -1,7 +1,7 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import { usePermissions } from '../hooks/usePermissions';
 import { useBusinessContext } from '../contexts/BusinessContext';
-import { HomeIcon, SalesIcon, ScanIcon, ReportsIcon, MoreIcon, ProductsIcon } from './icons';
+import { HomeIcon, SalesIcon, ScanIcon, ReportsIcon, MoreIcon, ProductsIcon, KitchenIcon, ExpiryIcon } from './icons';
 
 interface NavItem {
   to: string;
@@ -16,7 +16,7 @@ interface NavItem {
 export function BottomNav() {
   const navigate = useNavigate();
   const { roleName, hasPermission } = usePermissions();
-  const { config } = useBusinessContext();
+  const { config, category } = useBusinessContext();
 
   const isInventoryOfficer = roleName === 'inventory_officer';
   const isCashier = roleName === 'cashier';
@@ -31,7 +31,13 @@ export function BottomNav() {
   if (isInventoryOfficer) {
     rightItems.push({ to: '/inventory/products', label: 'Products', icon: ProductsIcon });
   } else if (!isCashier) {
-    rightItems.push({ to: '/reports', label: 'Reports', icon: ReportsIcon });
+    if (category === 'restaurant') {
+      rightItems.push({ to: '/kitchen', label: 'Kitchen', icon: KitchenIcon });
+    } else if (category === 'pharmacy') {
+      rightItems.push({ to: '/pharmacy/expiry', label: 'Alerts', icon: ExpiryIcon });
+    } else {
+      rightItems.push({ to: '/reports', label: 'Reports', icon: ReportsIcon });
+    }
   }
 
   rightItems.push({ to: '/more', label: 'More', icon: MoreIcon });

@@ -897,3 +897,264 @@
   font-size: 11.5px;
   color: var(--t2);
 }
+
+/* ============================================================
+   Dashboard: module-specific widget cards
+   ============================================================ */
+.module-widget-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-decoration: none;
+  color: inherit;
+  transition: background var(--tr);
+}
+
+.module-widget-card:hover {
+  background: var(--surf2);
+}
+
+.module-widget-card.module-widget-warn {
+  border-left: 3px solid var(--amber, #f59e0b);
+}
+
+.module-widget-icon {
+  color: var(--brand);
+  flex-shrink: 0;
+}
+
+.module-widget-warn .module-widget-icon {
+  color: var(--amber, #f59e0b);
+}
+
+.module-widget-body {
+  flex: 1;
+}
+
+.module-widget-label {
+  font-size: 12px;
+  color: var(--t2);
+  margin: 0;
+}
+
+.module-widget-value {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--t1);
+  margin: 2px 0 0;
+}
+
+/* ============================================================
+   Kitchen queue page
+   ============================================================ */
+.kitchen-section-label {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--t2);
+  margin: 0 0 8px;
+}
+
+.kitchen-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.kitchen-card {
+  background: var(--surf);
+  border: 1.5px solid var(--border);
+  border-radius: var(--r2);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.kitchen-new {
+  border-left: 4px solid var(--brand);
+}
+
+.kitchen-preparing {
+  border-left: 4px solid var(--amber, #f59e0b);
+}
+
+.kitchen-ready {
+  border-left: 4px solid var(--success, #22c55e);
+}
+
+.kitchen-served {
+  opacity: 0.55;
+}
+
+.kitchen-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.kitchen-order-num {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--t1);
+}
+
+.kitchen-time {
+  font-size: 12px;
+  color: var(--t2);
+}
+
+.kitchen-meta {
+  font-size: 13px;
+  color: var(--t2);
+  font-weight: 500;
+}
+
+.kitchen-items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.kitchen-items li {
+  font-size: 13.5px;
+  color: var(--t1);
+}
+
+.kitchen-qty {
+  font-weight: 700;
+  color: var(--brand);
+  margin-right: 4px;
+}
+
+.kitchen-advance-btn {
+  width: 100%;
+  padding: 9px 12px;
+  border-radius: var(--r1);
+  border: none;
+  background: var(--brand);
+  color: #fff;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity var(--tr);
+  font: inherit;
+}
+
+.kitchen-advance-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.kitchen-advance-btn:hover:not(:disabled) {
+  opacity: 0.88;
+}
+
+.kitchen-served-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.kitchen-served-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  font-size: 13px;
+  color: var(--t2);
+  padding: 8px 12px;
+  background: var(--surf);
+  border-radius: var(--r1);
+}
+
+/* ============================================================
+   Expiry alerts page
+   ============================================================ */
+.expiry-section-label {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 0 0 8px;
+}
+
+.expiry-red    { color: var(--danger, #ef4444); }
+.expiry-amber  { color: var(--amber, #f59e0b); }
+.expiry-yellow { color: #ca8a04; }
+.expiry-green  { color: var(--success, #22c55e); }
+
+.expiry-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.expiry-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  background: var(--surf);
+  border-radius: var(--r2);
+  border: 1.5px solid var(--border);
+  cursor: pointer;
+  transition: background var(--tr);
+  gap: 12px;
+}
+
+.expiry-row.expiry-red    { border-left: 4px solid var(--danger, #ef4444); }
+.expiry-row.expiry-amber  { border-left: 4px solid var(--amber, #f59e0b); }
+.expiry-row.expiry-yellow { border-left: 4px solid #ca8a04; }
+.expiry-row.expiry-green  { border-left: 4px solid var(--success, #22c55e); }
+
+.expiry-row:hover {
+  background: var(--surf2);
+}
+
+.expiry-row-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.expiry-product-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--t1);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.expiry-sku {
+  font-size: 11.5px;
+  color: var(--t2);
+}
+
+.expiry-row-date {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.expiry-date-str {
+  font-size: 12px;
+  color: var(--t2);
+}
+
+.expiry-days-badge {
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: var(--surf2);
+  color: var(--t1);
+}

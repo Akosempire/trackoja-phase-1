@@ -32,6 +32,8 @@ import MorePage from './pages/MorePage';
 import SettingsPage from './pages/SettingsPage';
 import SupportPage from './pages/SupportPage';
 import PlatformDashboardPage from './pages/platform/PlatformDashboardPage';
+import KitchenPage from './pages/restaurant/KitchenPage';
+import ExpiryAlertsPage from './pages/pharmacy/ExpiryAlertsPage';
 
 function RootRedirect() {
   const seenWelcome = localStorage.getItem('tk_welcome_seen');
@@ -84,6 +86,8 @@ export default function App() {
           <Route path="/more" element={<MorePage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/support" element={<SupportPage />} />
+          <Route path="/kitchen" element={<KitchenPage />} />
+          <Route path="/pharmacy/expiry" element={<ExpiryAlertsPage />} />
           <Route element={<PlatformAdminRoute />}>
             <Route path="/platform" element={<PlatformDashboardPage />} />
           </Route>

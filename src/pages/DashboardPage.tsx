@@ -7,8 +7,9 @@ import { StoreService } from '../services/store.service';
 import { ReportService } from '../services/report.service';
 import { ProductService } from '../services/product.service';
 import { AuditService } from '../services/audit.service';
+import { SaleService } from '../services/sale.service';
 import { PageLoader } from '../components/ui/PageLoader';
-import { AlertIcon, ChevronRightIcon } from '../components/icons';
+import { AlertIcon, ChevronRightIcon, KitchenIcon, ExpiryIcon } from '../components/icons';
 import type { Store, SalesSummary, Product, AuditLog } from '../types';
 
 function startOfToday(): string {
@@ -44,7 +45,7 @@ function timeAgo(iso: string): string {
 export default function DashboardPage() {
   const { user, profile } = useAuth();
   const { hasPermission } = usePermissions();
-  const { config } = useBusinessContext();
+  const { config, category } = useBusinessContext();
 
   const [store, setStore] = useState<Store | null>(null);
   const [summary, setSummary] = useState<SalesSummary | null>(null);
@@ -52,6 +53,8 @@ export default function DashboardPage() {
   const [lowStock, setLowStock] = useState<Product[]>([]);
   const [activity, setActivity] = useState<AuditLog[]>([]);
   const [loading, setLoading] = useState(true);
+  const [kitchenActiveCount, setKitchenActiveCount] = useState<number | null>(null);
+  const [expiryAlertCount, setExpiryAlertCount] = useState<number | null>(null);
 
   useEffect(() => {
     if (!profile?.currentOrgId) {
@@ -79,6 +82,27 @@ export default function DashboardPage() {
       })
       .finally(() => setLoading(false));
   }, [profile?.currentOrgId, profile?.currentStoreId]);
+
+  useEffect(() => {
+    const storeId = profile?.currentStoreId;
+    if (!storeId || !category) return;
+    if (category === 'restaurant') {
+      SaleService.getKitchenOrders(storeId).then((orders) => {
+        setKitchenActiveCount(orders.filter((o) => o.orderStatus !== 'served').length);
+      });
+    } else if (category === 'pharmacy') {
+      ProductService.getProducts(storeId).then((products) => {
+        const now = new Date();
+        const count = products.filter((p) => {
+          const raw = p.attributes?.expiryDate;
+          if (!raw) return false;
+          const d = new Date(raw);
+          return !isNaN(d.getTime()) && (d.getTime() - now.getTime()) / 86400000 <= 90;
+        }).length;
+        setExpiryAlertCount(count);
+      });
+    }
+  }, [category, profile?.currentStoreId]);
 
   if (loading) return <PageLoader />;
 
@@ -115,6 +139,32 @@ export default function DashboardPage() {
               <p className="stat-value">₦{profitToday.toLocaleString()}</p>
             </div>
           </div>
+
+          {category === 'restaurant' && kitchenActiveCount !== null && (
+            <Link to="/kitchen" className="card module-widget-card">
+              <div className="module-widget-icon"><KitchenIcon width={20} height={20} /></div>
+              <div className="module-widget-body">
+                <p className="module-widget-label">Kitchen queue</p>
+                <p className="module-widget-value">
+                  {kitchenActiveCount} active order{kitchenActiveCount === 1 ? '' : 's'} today
+                </p>
+              </div>
+              <ChevronRightIcon width={16} height={16} style={{ color: 'var(--t2)' }} />
+            </Link>
+          )}
+
+          {category === 'pharmacy' && expiryAlertCount !== null && expiryAlertCount > 0 && (
+            <Link to="/pharmacy/expiry" className="card module-widget-card module-widget-warn">
+              <div className="module-widget-icon"><ExpiryIcon width={20} height={20} /></div>
+              <div className="module-widget-body">
+                <p className="module-widget-label">Expiry alerts</p>
+                <p className="module-widget-value">
+                  {expiryAlertCount} product{expiryAlertCount === 1 ? '' : 's'} expiring within 90 days
+                </p>
+              </div>
+              <ChevronRightIcon width={16} height={16} style={{ color: 'var(--t2)' }} />
+            </Link>
+          )}
 
           {lowStock.length > 0 && (
             <div className="card">

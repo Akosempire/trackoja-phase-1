@@ -1,6 +1,7 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { usePermissions } from '../hooks/usePermissions';
+import { useBusinessContext } from '../contexts/BusinessContext';
 import { AuthService } from '../services/auth.service';
 import {
   ProductsIcon,
@@ -12,6 +13,7 @@ import {
   SubscriptionIcon,
   SupportIcon,
   ChevronRightIcon,
+  ExpiryIcon,
 } from '../components/icons';
 
 interface MoreLink {
@@ -24,6 +26,7 @@ export default function MorePage() {
   const navigate = useNavigate();
   const { profile } = useAuth();
   const { hasPermission, loading } = usePermissions();
+  const { category } = useBusinessContext();
 
   const handleLogout = async () => {
     await AuthService.logout();
@@ -33,6 +36,10 @@ export default function MorePage() {
   if (loading) return null;
 
   const links: MoreLink[] = [{ to: '/inventory/products', label: 'Products', icon: ProductsIcon }];
+
+  if (category === 'pharmacy') {
+    links.push({ to: '/pharmacy/expiry', label: 'Expiry Alerts', icon: ExpiryIcon });
+  }
 
   if (hasPermission('customer:view')) {
     links.push({ to: '/customers', label: 'Customers', icon: CustomersIcon });
