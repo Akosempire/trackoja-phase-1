@@ -37,6 +37,11 @@ import ExpiryAlertsPage from './pages/pharmacy/ExpiryAlertsPage';
 
 function RootRedirect() {
   const seenWelcome = localStorage.getItem('tk_welcome_seen');
+  // Supabase sends errors to the site root when the redirect URL isn't in the
+  // allowed list. Forward the hash to /auth/callback so it's handled there.
+  if (window.location.hash.includes('error=')) {
+    return <Navigate to={`/auth/callback${window.location.hash}`} replace />;
+  }
   return <Navigate to={seenWelcome ? '/login' : '/welcome'} replace />;
 }
 

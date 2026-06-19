@@ -162,3 +162,28 @@ export function AlertIcon(props: IconProps) {
     </svg>
   );
 }
+
+export function KitchenIcon(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M6 3v18" />
+      <path d="M10 3v18" />
+      <path d="M6 8h4" />
+      <path d="M6 13h4" />
+      <path d="M14 3c0 0 4 2.5 4 6s-4 6-4 6v6" />
+    </svg>
+  );
+}
+
+export function ExpiryIcon(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <rect x="3" y="4" width="18" height="18" rx="2" />
+      <path d="M16 2v4" />
+      <path d="M8 2v4" />
+      <path d="M3 10h18" />
+      <path d="M12 14v4" />
+      <path d="M10 16h4" />
+    </svg>
+  );
+}

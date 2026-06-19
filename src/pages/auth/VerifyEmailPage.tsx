@@ -17,6 +17,9 @@ export default function VerifyEmailPage() {
   const [verifying, setVerifying] = useState(false);
   const [resending, setResending] = useState(false);
 
+  // Persist email so /auth/callback can offer a resend if the link expires
+  if (email) sessionStorage.setItem('tk_verify_email', email);
+
   const handleVerify = async (e: FormEvent) => {
     e.preventDefault();
     setError(null);

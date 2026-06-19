@@ -223,6 +223,71 @@ export class SaleService {
     }
   }
 
+  /**
+   * Attach restaurant order metadata to a sale immediately after creation.
+   */
+  static async setOrderMeta(
+    saleId: string,
+    orderType: string,
+    orderStatus: string,
+    tableNumber?: string
+  ): Promise<void> {
+    try {
+      const { error } = await supabase
+        .from('sales')
+        .update({ order_type: orderType, order_status: orderStatus, table_number: tableNumber ?? null })
+        .eq('id', saleId);
+      if (error) throw error;
+    } catch (error) {
+      console.error('Set order meta error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Advance a restaurant order to its next status stage.
+   */
+  static async advanceOrderStatus(saleId: string, nextStatus: string): Promise<void> {
+    try {
+      const { error } = await supabase
+        .from('sales')
+        .update({ order_status: nextStatus })
+        .eq('id', saleId);
+      if (error) throw error;
+    } catch (error) {
+      console.error('Advance order status error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Fetch today's restaurant orders for the kitchen queue.
+   */
+  static async getKitchenOrders(storeId: string): Promise<Sale[]> {
+    try {
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+      const { data, error } = await supabase
+        .from('sales')
+        .select('*, sale_items(*)')
+        .eq('store_id', storeId)
+        .neq('order_type', 'standard')
+        .not('order_status', 'is', null)
+        .gte('created_at', todayStart.toISOString())
+        .order('created_at', { ascending: true });
+
+      if (error) throw error;
+      return (data ?? []).map((s) => {
+        const sale = this.mapSaleData(s);
+        sale.items = (s.sale_items ?? []).map((item: any) => this.mapSaleItemData(item));
+        return sale;
+      });
+    } catch (error) {
+      console.error('Get kitchen orders error:', error);
+      throw error;
+    }
+  }
+
   private static mapSaleData(data: any): Sale {
     return {
       id: data.id,
@@ -241,6 +306,9 @@ export class SaleService {
       refundedAmount: Number(data.refunded_amount ?? 0),
       loyaltyPointsEarned: Number(data.loyalty_points_earned ?? 0),
       notes: data.notes,
+      orderType: data.order_type ?? 'standard',
+      orderStatus: data.order_status ?? undefined,
+      tableNumber: data.table_number ?? undefined,
       createdBy: data.created_by,
       createdAt: data.created_at,
       voidedAt: data.voided_at,

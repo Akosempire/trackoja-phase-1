@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { useBusinessContext } from '../../contexts/BusinessContext';
 import { ProductService } from '../../services/product.service';
 import { CategoryService } from '../../services/category.service';
 import { SaleService } from '../../services/sale.service';
@@ -11,7 +12,7 @@ import { FormField } from '../../components/ui/FormField';
 import { PageLoader } from '../../components/ui/PageLoader';
 import { BarcodeScanner } from '../../components/BarcodeScanner';
 import { OfflineSalesService, isNetworkError } from '../../services/offlineSales.service';
-import type { Customer, CreateSaleRequest, PaymentMethod, Product, ProductCategory, StoreSettings } from '../../types';
+import type { Customer, CreateSaleRequest, PaymentMethod, Product, ProductCategory, StoreSettings, OrderType } from '../../types';
 
 interface CartLine {
   productId: string;
@@ -41,6 +42,8 @@ function round2(value: number): number {
 
 export default function CheckoutPage() {
   const { profile } = useAuth();
+  const { category } = useBusinessContext();
+  const isRestaurant = category === 'restaurant';
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const storeId = profile?.currentStoreId;
@@ -68,6 +71,8 @@ export default function CheckoutPage() {
   const [amountTendered, setAmountTendered] = useState('');
   const [reference, setReference] = useState('');
   const [pendingVerification, setPendingVerification] = useState(false);
+  const [orderType, setOrderType] = useState<OrderType>('dine_in');
+  const [tableNumber, setTableNumber] = useState('');
 
   useEffect(() => {
     if (!storeId) return;
@@ -229,6 +234,9 @@ export default function CheckoutPage() {
 
     try {
       const sale = await SaleService.createSale(storeId, request);
+      if (isRestaurant) {
+        await SaleService.setOrderMeta(sale.id, orderType, 'new', orderType === 'dine_in' ? tableNumber : undefined);
+      }
       navigate(`/sales/${sale.id}`);
     } catch (err: any) {
       if (isNetworkError(err)) {
@@ -380,6 +388,36 @@ export default function CheckoutPage() {
           ))
         )}
       </div>
+
+      {cart.length > 0 && isRestaurant && (
+        <div className="card">
+          <p className="list-item-title" style={{ marginBottom: 10 }}>Order type</p>
+          <div className="order-type-row">
+            {(['dine_in', 'takeaway', 'delivery'] as OrderType[]).map((type) => {
+              const labels: Record<OrderType, string> = { dine_in: '🪑 Dine-in', takeaway: '🥡 Takeaway', delivery: '🛵 Delivery', standard: '' };
+              return (
+                <button
+                  key={type}
+                  type="button"
+                  className={`order-type-btn${orderType === type ? ' active' : ''}`}
+                  onClick={() => setOrderType(type)}
+                >
+                  {labels[type]}
+                </button>
+              );
+            })}
+          </div>
+          {orderType === 'dine_in' && (
+            <input
+              className="form-input"
+              style={{ marginTop: 10 }}
+              placeholder="Table number (optional)"
+              value={tableNumber}
+              onChange={(e) => setTableNumber(e.target.value)}
+            />
+          )}
+        </div>
+      )}
 
       {cart.length > 0 && (
         <>
