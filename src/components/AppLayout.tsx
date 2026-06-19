@@ -3,13 +3,11 @@ import { AuthService } from '../services/auth.service';
 import { Button } from './ui/Button';
 import { StoreSwitcher } from './StoreSwitcher';
 import { BottomNav } from './BottomNav';
+import { SideNav } from './SideNav';
 import { OfflineBanner } from './OfflineBanner';
 import { useAuth } from '../contexts/AuthContext';
 import { BusinessProvider } from '../contexts/BusinessContext';
 
-// Shared shell for authenticated pages. Mobile-first: the primary navigation
-// is the bottom tab bar (see BottomNav), and the top bar is reduced to
-// branding, the store switcher, and account actions.
 export function AppLayout() {
   const navigate = useNavigate();
   const { profile } = useAuth();
@@ -20,39 +18,36 @@ export function AppLayout() {
   };
 
   return (
-    <div>
-      <header
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '12px 24px',
-          borderBottom: '1px solid var(--border)',
-        }}
-      >
-        <span style={{ fontWeight: 700, fontSize: 15 }}>TrackOja</span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+    <div className="app-shell">
+      {/* ── Mobile top header (hidden on desktop) ── */}
+      <header className="app-header">
+        <span className="app-header-logo">TrackOja</span>
+        <div className="app-header-actions">
           <StoreSwitcher />
           {profile?.isPlatformAdmin && (
             <NavLink to="/platform" className={({ isActive }) => `app-nav-link${isActive ? ' active' : ''}`}>
               Platform
             </NavLink>
           )}
-          <Button
-            variant="ghost"
-            onClick={handleLogout}
-            style={{ width: 'auto', height: 36, padding: '0 14px' }}
-          >
+          <Button variant="ghost" onClick={handleLogout} style={{ width: 'auto', height: 36, padding: '0 14px' }}>
             Log out
           </Button>
         </div>
       </header>
-      <OfflineBanner />
+
       <BusinessProvider>
-        <div className="app-content">
-          <Outlet />
+        {/* ── Desktop sidebar (hidden on mobile) ── */}
+        <SideNav onLogout={handleLogout} />
+
+        {/* ── Main content area ── */}
+        <div className="app-main">
+          <OfflineBanner />
+          <div className="app-content">
+            <Outlet />
+          </div>
+          {/* Mobile bottom nav only */}
+          <BottomNav />
         </div>
-        <BottomNav />
       </BusinessProvider>
     </div>
   );
