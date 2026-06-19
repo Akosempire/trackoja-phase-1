@@ -343,6 +343,8 @@ export interface AdjustStockRequest {
 // ============================================================
 export type SaleStatus = 'completed' | 'voided';
 export type PaymentMethod = 'cash' | 'card' | 'transfer' | 'other' | 'credit';
+export type OrderType = 'standard' | 'dine_in' | 'takeaway' | 'delivery';
+export type OrderStatus = 'new' | 'preparing' | 'ready' | 'served';
 
 export interface Sale {
   id: string;
@@ -361,6 +363,9 @@ export interface Sale {
   refundedAmount: number;
   loyaltyPointsEarned: number;
   notes?: string;
+  orderType?: OrderType;
+  orderStatus?: OrderStatus;
+  tableNumber?: string;
   createdBy: string;
   createdAt: string;
   voidedAt?: string;
@@ -425,6 +430,8 @@ export interface CreateSaleRequest {
   customerPhone?: string;
   discountTotal?: number;
   notes?: string;
+  orderType?: OrderType;
+  tableNumber?: string;
 }
 
 // ============================================================
@@ -685,6 +692,7 @@ export interface PlatformOrganization {
   subscriptionStatus: string | null;
   storeCount: number;
   createdAt: string;
+  businessCategory: string;
 }
 
 export interface PlatformRevenueSummary {

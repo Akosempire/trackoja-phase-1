@@ -1158,3 +1158,309 @@
   background: var(--surf2);
   color: var(--t1);
 }
+
+/* ============================================================
+   Platform dashboard
+   ============================================================ */
+
+/* KPI strip */
+.plat-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+@media (max-width: 640px) {
+  .plat-kpi-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.plat-kpi-card {
+  background: var(--surf);
+  border: 1.5px solid var(--border);
+  border-radius: var(--r2);
+  padding: 14px 12px;
+  text-align: center;
+}
+
+.plat-kpi-card.plat-kpi-brand {
+  border-color: var(--brand);
+  background: var(--brand-s);
+}
+
+.plat-kpi-card.plat-kpi-danger {
+  border-color: var(--danger, #ef4444);
+  background: rgba(239, 68, 68, 0.07);
+}
+
+.plat-kpi-value {
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--t1);
+  margin: 0 0 2px;
+  line-height: 1;
+}
+
+.plat-kpi-card.plat-kpi-brand .plat-kpi-value { color: var(--brand); }
+.plat-kpi-card.plat-kpi-danger .plat-kpi-value { color: var(--danger, #ef4444); }
+
+.plat-kpi-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--t2);
+  margin: 0;
+}
+
+.plat-kpi-sub {
+  font-size: 11px;
+  color: var(--success, #22c55e);
+  margin: 4px 0 0;
+}
+
+/* Section titles */
+.plat-section-title {
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--t2);
+  margin: 0 0 12px;
+}
+
+.plat-section-sub {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--t2);
+  margin: 0 0 8px;
+}
+
+/* System health grid */
+.plat-health-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.plat-health-item {
+  padding: 14px;
+  border-radius: var(--r2);
+  border: 1.5px solid var(--border);
+  text-align: center;
+}
+
+.plat-health-ok    { border-color: var(--success, #22c55e); background: rgba(34, 197, 94, 0.07); }
+.plat-health-warn  { border-color: var(--amber, #f59e0b);   background: rgba(245, 158, 11, 0.07); }
+.plat-health-danger { border-color: var(--danger, #ef4444); background: rgba(239, 68, 68, 0.07); }
+
+.plat-health-value {
+  font-size: 28px;
+  font-weight: 800;
+  margin: 0 0 4px;
+  line-height: 1;
+}
+
+.plat-health-ok    .plat-health-value { color: var(--success, #22c55e); }
+.plat-health-warn  .plat-health-value { color: var(--amber, #f59e0b); }
+.plat-health-danger .plat-health-value { color: var(--danger, #ef4444); }
+
+.plat-health-label {
+  font-size: 12px;
+  color: var(--t2);
+  margin: 0;
+}
+
+/* Merchant search/filter */
+.plat-search-row {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.plat-filter-pills {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.plat-filter-pill {
+  padding: 5px 12px;
+  border-radius: 999px;
+  border: 1.5px solid var(--border);
+  background: var(--surf);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--t2);
+  cursor: pointer;
+  font: inherit;
+  transition: all var(--tr);
+}
+
+.plat-filter-pill.active {
+  border-color: var(--brand);
+  background: var(--brand-s);
+  color: var(--brand);
+}
+
+/* Org row */
+.plat-org-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.plat-org-row:last-child { border-bottom: none; }
+
+.plat-org-category {
+  font-size: 22px;
+  line-height: 1;
+  flex-shrink: 0;
+  padding-top: 2px;
+}
+
+.plat-org-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.plat-org-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--t1);
+  margin: 0 0 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.plat-org-meta {
+  flex-shrink: 0;
+  text-align: right;
+}
+
+/* Industries breakdown */
+.plat-category-breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.plat-category-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.plat-category-emoji { font-size: 16px; flex-shrink: 0; }
+
+.plat-category-name {
+  font-size: 13px;
+  color: var(--t1);
+  width: 160px;
+  flex-shrink: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.plat-category-bar-wrap {
+  flex: 1;
+  height: 8px;
+  background: var(--surf2);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.plat-category-bar {
+  height: 100%;
+  background: var(--brand);
+  border-radius: 999px;
+  min-width: 4px;
+  transition: width 0.4s ease;
+}
+
+.plat-category-count {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--t1);
+  min-width: 20px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+/* Revenue */
+.plat-revenue-highlight {
+  text-align: center;
+  padding: 20px 0 16px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 12px;
+}
+
+.plat-revenue-value {
+  font-size: 36px;
+  font-weight: 800;
+  color: var(--t1);
+  margin: 0 0 6px;
+}
+
+.plat-revenue-sub {
+  font-size: 13px;
+  color: var(--t2);
+  margin: 0;
+}
+
+.plat-plan-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.plat-plan-info {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  width: 110px;
+  flex-shrink: 0;
+}
+
+.plat-plan-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--t1);
+}
+
+.plat-plan-bar-wrap {
+  flex: 1;
+  height: 8px;
+  background: var(--surf2);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.plat-plan-bar {
+  height: 100%;
+  background: var(--brand);
+  border-radius: 999px;
+  min-width: 4px;
+  transition: width 0.4s ease;
+}
+
+.plat-plan-amount {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--t1);
+  min-width: 60px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+/* badge variants */
+.badge-success { background: rgba(34,197,94,0.12); color: var(--success, #22c55e); }
+.badge-error   { background: rgba(239,68,68,0.12);  color: var(--danger, #ef4444); }

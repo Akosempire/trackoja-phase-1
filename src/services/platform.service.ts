@@ -168,6 +168,7 @@ export class PlatformService {
       subscriptionStatus: data.subscription_status,
       storeCount: Number(data.store_count),
       createdAt: data.created_at,
+      businessCategory: data.business_category ?? 'general_retail',
     };
   }
 
