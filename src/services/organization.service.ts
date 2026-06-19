@@ -11,7 +11,8 @@ export class OrganizationService {
   static async createOrganization(
     userId: string,
     organizationName: string,
-    timezone: string = 'UTC'
+    timezone: string = 'UTC',
+    businessCategory: string = 'general_retail'
   ): Promise<Organization> {
     try {
       // Generate slug from organization name
@@ -24,11 +25,12 @@ export class OrganizationService {
         .from('organizations')
         .insert({
           name: organizationName,
-          slug: `${slug}-${Date.now()}`, // Ensure uniqueness
+          slug: `${slug}-${Date.now()}`,
           owner_id: userId,
           billing_status: 'trial',
-          trial_ends_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 day trial
+          trial_ends_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
           timezone,
+          business_category: businessCategory,
         })
         .select()
         .single();

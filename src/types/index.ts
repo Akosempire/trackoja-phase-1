@@ -75,6 +75,8 @@ export interface Organization {
   trialEndsAt?: string;
   subscriptionPlanId?: string;
   timezone: string;
+  businessCategory?: string;
+  enabledModules?: string[];
   createdAt: string;
   updatedAt: string;
 }
@@ -247,6 +249,7 @@ export interface Product {
   stockQty: number;
   reorderLevel: number;
   imageUrl?: string;
+  attributes?: Record<string, string>;
   status: 'active' | 'inactive' | 'archived';
   createdBy: string;
   createdAt: string;
@@ -306,6 +309,7 @@ export interface CreateProductRequest {
   stockQty?: number;
   reorderLevel?: number;
   imageUrl?: string;
+  attributes?: Record<string, string>;
 }
 
 export interface UpdateProductRequest {
@@ -322,6 +326,7 @@ export interface UpdateProductRequest {
   reorderLevel?: number;
   imageUrl?: string;
   status?: 'active' | 'inactive' | 'archived';
+  attributes?: Record<string, string>;
 }
 
 export interface AdjustStockRequest {

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { usePermissions } from '../hooks/usePermissions';
+import { useBusinessContext } from '../contexts/BusinessContext';
 import { StoreService } from '../services/store.service';
 import { ReportService } from '../services/report.service';
 import { ProductService } from '../services/product.service';
@@ -43,6 +44,7 @@ function timeAgo(iso: string): string {
 export default function DashboardPage() {
   const { user, profile } = useAuth();
   const { hasPermission } = usePermissions();
+  const { config } = useBusinessContext();
 
   const [store, setStore] = useState<Store | null>(null);
   const [summary, setSummary] = useState<SalesSummary | null>(null);
@@ -89,7 +91,9 @@ export default function DashboardPage() {
           <h1 className="page-title">
             {greeting()}, {firstName}
           </h1>
-          <p className="page-subtitle">{store?.name ?? 'No store selected'}</p>
+          <p className="page-subtitle">
+            {store?.name ?? 'No store selected'} · {config.emoji} {config.label}
+          </p>
         </div>
       </div>
 

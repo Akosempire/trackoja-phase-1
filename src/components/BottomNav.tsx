@@ -1,5 +1,6 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import { usePermissions } from '../hooks/usePermissions';
+import { useBusinessContext } from '../contexts/BusinessContext';
 import { HomeIcon, SalesIcon, ScanIcon, ReportsIcon, MoreIcon, ProductsIcon } from './icons';
 
 interface NavItem {
@@ -15,6 +16,7 @@ interface NavItem {
 export function BottomNav() {
   const navigate = useNavigate();
   const { roleName, hasPermission } = usePermissions();
+  const { config } = useBusinessContext();
 
   const isInventoryOfficer = roleName === 'inventory_officer';
   const isCashier = roleName === 'cashier';
@@ -23,7 +25,7 @@ export function BottomNav() {
   const rightItems: NavItem[] = [];
 
   if (!isInventoryOfficer) {
-    leftItems.push({ to: '/sales', label: 'Sales', icon: SalesIcon, end: true });
+    leftItems.push({ to: '/sales', label: config.saleLabel, icon: SalesIcon, end: true });
   }
 
   if (isInventoryOfficer) {

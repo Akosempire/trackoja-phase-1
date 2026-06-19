@@ -74,6 +74,7 @@ export class ProductService {
       stock_qty: request.stockQty ?? 0,
       reorder_level: request.reorderLevel ?? 0,
       image_url: request.imageUrl,
+      attributes: request.attributes ?? {},
       created_by: userId,
     };
   }
@@ -153,6 +154,7 @@ export class ProductService {
       if (request.reorderLevel !== undefined) updates.reorder_level = request.reorderLevel;
       if (request.imageUrl !== undefined) updates.image_url = request.imageUrl;
       if (request.status !== undefined) updates.status = request.status;
+      if (request.attributes !== undefined) updates.attributes = request.attributes;
 
       const { data, error } = await supabase
         .from('products')
@@ -209,6 +211,7 @@ export class ProductService {
       stockQty: Number(data.stock_qty),
       reorderLevel: Number(data.reorder_level),
       imageUrl: data.image_url,
+      attributes: data.attributes ?? {},
       status: data.status,
       createdBy: data.created_by,
       createdAt: data.created_at,

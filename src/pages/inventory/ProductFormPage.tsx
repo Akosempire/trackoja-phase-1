@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { usePermissions } from '../../hooks/usePermissions';
+import { useBusinessContext } from '../../contexts/BusinessContext';
 import { ProductService } from '../../services/product.service';
 import { CategoryService } from '../../services/category.service';
 import { StorageService, PRODUCT_IMAGE_ACCEPT, PRODUCT_IMAGE_MAX_BYTES } from '../../services/storage.service';
@@ -42,6 +43,9 @@ export default function ProductFormPage() {
   const [scanning, setScanning] = useState(false);
   const imageInputRef = useRef<HTMLInputElement>(null);
 
+  const { config } = useBusinessContext();
+  const [attributes, setAttributes] = useState<Record<string, string>>({});
+
   const canUpdate = hasPermission('product:update');
   const canDelete = hasPermission('product:delete');
 
@@ -69,6 +73,7 @@ export default function ProductFormPage() {
         setReorderLevel(String(product.reorderLevel));
         setStatus(product.status);
         setImageUrl(product.imageUrl ?? '');
+        setAttributes(product.attributes ?? {});
       })
       .catch((err) => setError(err.message ?? 'Failed to load product'))
       .finally(() => setLoading(false));
@@ -96,6 +101,7 @@ export default function ProductFormPage() {
           stockQty: Number(stockQty) || 0,
           reorderLevel: Number(reorderLevel) || 0,
           imageUrl: imageUrl || undefined,
+          attributes,
         });
         navigate(`/inventory/products/${product.id}`, { replace: true });
       } else if (productId) {
@@ -113,6 +119,7 @@ export default function ProductFormPage() {
           reorderLevel: Number(reorderLevel) || 0,
           status,
           imageUrl: imageUrl || undefined,
+          attributes,
         });
         navigate('/inventory/products');
       }
@@ -269,9 +276,64 @@ export default function ProductFormPage() {
         </div>
 
         <div className="auth-form-row">
-          <FormField id="product-unit" label="Unit" value={unit} onChange={setUnit} placeholder="pcs, kg, litre..." />
+          <div className="form-group">
+            <label className="form-label" htmlFor="product-unit">Unit</label>
+            <select
+              id="product-unit"
+              className="select-input"
+              value={unit}
+              onChange={(e) => setUnit(e.target.value)}
+            >
+              {config.unitOptions.map((u) => (
+                <option key={u} value={u}>{u}</option>
+              ))}
+              {!config.unitOptions.includes(unit) && unit && (
+                <option value={unit}>{unit}</option>
+              )}
+            </select>
+          </div>
           <FormField id="product-tax-rate" label="Tax rate (%)" type="number" value={taxRate} onChange={setTaxRate} />
         </div>
+
+        {config.attributeFields.length > 0 && (
+          <div className="form-section">
+            <p className="form-section-label">Additional details</p>
+            {config.attributeFields.map((field) => {
+              const val = attributes[field.key] ?? '';
+              const onChange = (v: string) =>
+                setAttributes((prev) => ({ ...prev, [field.key]: v }));
+              if (field.type === 'select') {
+                return (
+                  <div className="form-group" key={field.key}>
+                    <label className="form-label" htmlFor={`attr-${field.key}`}>{field.label}</label>
+                    <select
+                      id={`attr-${field.key}`}
+                      className="select-input"
+                      value={val}
+                      onChange={(e) => onChange(e.target.value)}
+                    >
+                      <option value="">Select…</option>
+                      {field.options?.map((opt) => (
+                        <option key={opt} value={opt}>{opt}</option>
+                      ))}
+                    </select>
+                  </div>
+                );
+              }
+              return (
+                <FormField
+                  key={field.key}
+                  id={`attr-${field.key}`}
+                  label={field.label}
+                  type={field.type === 'date' ? 'date' : 'text'}
+                  value={val}
+                  onChange={onChange}
+                  placeholder={field.placeholder}
+                />
+              );
+            })}
+          </div>
+        )}
 
         <div className="checkbox-row">
           <input

@@ -5,6 +5,7 @@ import { StoreSwitcher } from './StoreSwitcher';
 import { BottomNav } from './BottomNav';
 import { OfflineBanner } from './OfflineBanner';
 import { useAuth } from '../contexts/AuthContext';
+import { BusinessProvider } from '../contexts/BusinessContext';
 
 // Shared shell for authenticated pages. Mobile-first: the primary navigation
 // is the bottom tab bar (see BottomNav), and the top bar is reduced to
@@ -47,10 +48,12 @@ export function AppLayout() {
         </div>
       </header>
       <OfflineBanner />
-      <div className="app-content">
-        <Outlet />
-      </div>
-      <BottomNav />
+      <BusinessProvider>
+        <div className="app-content">
+          <Outlet />
+        </div>
+        <BottomNav />
+      </BusinessProvider>
     </div>
   );
 }
