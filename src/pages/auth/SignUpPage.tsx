@@ -41,6 +41,7 @@ export default function SignUpPage() {
       if (session) {
         navigate('/dashboard', { replace: true });
       } else {
+        sessionStorage.setItem('tk_verify_email', email);
         navigate(`/verify-email?email=${encodeURIComponent(email)}`, { replace: true });
       }
     } catch (err) {
