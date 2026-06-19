@@ -96,6 +96,22 @@ export class OrganizationService {
   }
 
   /**
+   * Update the business category for an org (owner only via RLS).
+   */
+  static async updateBusinessCategory(orgId: string, category: string): Promise<void> {
+    try {
+      const { error } = await supabase
+        .from('organizations')
+        .update({ business_category: category })
+        .eq('id', orgId);
+      if (error) throw error;
+    } catch (error) {
+      console.error('Update business category error:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Get all organizations for a user
    */
   static async getUserOrganizations(userId: string): Promise<Organization[]> {

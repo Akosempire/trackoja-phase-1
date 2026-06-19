@@ -13,8 +13,9 @@ export default function OnboardingPage() {
   const navigate = useNavigate();
   const { user, refreshProfile } = useAuth();
 
-  const [step, setStep] = useState<1 | 2>(1);
-  const [selectedCategory, setSelectedCategory] = useState<BusinessCategory | ''>('');
+  const prefilled = sessionStorage.getItem('tk_signup_category') as BusinessCategory | null;
+  const [step, setStep] = useState<1 | 2>(prefilled ? 2 : 1);
+  const [selectedCategory, setSelectedCategory] = useState<BusinessCategory | ''>(prefilled ?? '');
   const [organizationName, setOrganizationName] = useState('');
   const [storeName, setStoreName] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -45,6 +46,7 @@ export default function OnboardingPage() {
       );
       const store = await StoreService.createStore(organization.id, user.id, { name: storeName });
 
+      sessionStorage.removeItem('tk_signup_category');
       StoreContextManager.switchStore(store, user.id);
       await refreshProfile();
       navigate('/dashboard', { replace: true });
