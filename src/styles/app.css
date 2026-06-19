@@ -237,44 +237,6 @@
     padding: 28px 32px;
   }
 
-  /* Checkout split layout on desktop */
-  .checkout-page {
-    display: flex;
-    flex-direction: column;
-    height: 100dvh;
-    overflow: hidden;
-  }
-
-  .cart-sticky-bar {
-    display: none !important;
-  }
-
-  .checkout-shell {
-    flex: 1;
-    display: flex;
-    flex-direction: row;
-    overflow: hidden;
-    min-height: 0;
-  }
-
-  .checkout-products {
-    flex: 1;
-    min-width: 0;
-    overflow-y: auto;
-    padding: 24px 28px 32px;
-  }
-
-  .checkout-receipt {
-    width: 340px;
-    flex-shrink: 0;
-    overflow-y: auto;
-    border-left: 1px solid var(--border);
-    background: var(--sb);
-    padding: 20px 20px 28px;
-    display: flex;
-    flex-direction: column;
-    gap: 0;
-  }
 }
 
 .app-nav-link {
@@ -1004,10 +966,50 @@
   margin-top: 4px;
 }
 
-/* Override: hide bottom-nav on desktop (placed after all component styles to win specificity race) */
+/* ── Desktop overrides (after all global styles to win source-order) ── */
 @media (min-width: 768px) {
   .bottom-nav {
     display: none !important;
+  }
+
+  /* Checkout split-panel: products left, receipt right */
+  .checkout-page {
+    display: block; /* let content flow naturally */
+  }
+
+  .cart-sticky-bar {
+    display: none !important;
+  }
+
+  .checkout-shell {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: flex-start;
+    width: 100%;
+  }
+
+  .checkout-products {
+    flex: 1 !important;
+    min-width: 0;
+    padding: 24px 28px 32px;
+  }
+
+  .checkout-products-header {
+    margin-bottom: 12px;
+  }
+
+  .checkout-receipt {
+    width: 360px !important;
+    flex-shrink: 0;
+    position: sticky;
+    top: 0;
+    height: 100dvh;
+    overflow-y: auto;
+    border-left: 1px solid var(--border);
+    background: var(--sb);
+    padding: 20px 20px 28px;
+    display: flex !important;
+    flex-direction: column;
   }
 }
 
