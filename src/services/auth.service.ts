@@ -147,7 +147,7 @@ export class AuthService {
       const { data, error } = await supabase.auth.verifyOtp({
         email,
         token,
-        type: 'email',
+        type: 'signup',
       });
 
       if (error) throw error;
@@ -166,6 +166,7 @@ export class AuthService {
       const { error } = await supabase.auth.resend({
         type: 'signup',
         email,
+        options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
       });
 
       if (error) throw error;
