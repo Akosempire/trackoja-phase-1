@@ -31,25 +31,31 @@ import BillingPage from './pages/billing/BillingPage';
 import MorePage from './pages/MorePage';
 import SettingsPage from './pages/SettingsPage';
 import SupportPage from './pages/SupportPage';
-import PlatformDashboardPage from './pages/platform/PlatformDashboardPage';
+import PlatformAdminPage from './pages/platform/PlatformAdminPage';
 import KitchenPage from './pages/restaurant/KitchenPage';
 import ExpiryAlertsPage from './pages/pharmacy/ExpiryAlertsPage';
+import LandingPage from './pages/landing/LandingPage';
+import LegalPlaceholderPage from './pages/landing/LegalPlaceholderPage';
 
-function RootRedirect() {
-  const seenWelcome = localStorage.getItem('tk_welcome_seen');
+/**
+ * Public front door. The landing page replaced the old "/" -> /welcome redirect;
+ * /welcome is still reachable on its own route.
+ */
+function LandingRoute() {
   // Supabase sends errors to the site root when the redirect URL isn't in the
   // allowed list. Forward the hash to /auth/callback so it's handled there.
   if (window.location.hash.includes('error=')) {
     return <Navigate to={`/auth/callback${window.location.hash}`} replace />;
   }
-  return <Navigate to={seenWelcome ? '/login' : '/welcome'} replace />;
+  return <LandingPage />;
 }
+
 
 export default function App() {
   return (
     <Routes>
       <Route element={<GuestRoute />}>
-        <Route path="/" element={<RootRedirect />} />
+        <Route path="/" element={<LandingRoute />} />
         <Route path="/welcome" element={<WelcomePage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignUpPage />} />
@@ -60,6 +66,26 @@ export default function App() {
       <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route path="/verify-email" element={<VerifyEmailPage />} />
       <Route path="/auth/callback" element={<AuthCallbackPage />} />
+
+      {/* Public legal pages linked from the landing page footer */}
+      <Route
+        path="/privacy"
+        element={
+          <LegalPlaceholderPage
+            title="Privacy notice"
+            summary="How TrackOja handles business and customer information."
+          />
+        }
+      />
+      <Route
+        path="/terms"
+        element={
+          <LegalPlaceholderPage
+            title="Terms of service"
+            summary="The terms that apply when you use TrackOja."
+          />
+        }
+      />
 
       <Route element={<OnboardingRoute />}>
         <Route path="/onboarding" element={<OnboardingPage />} />
@@ -94,7 +120,7 @@ export default function App() {
           <Route path="/kitchen" element={<KitchenPage />} />
           <Route path="/pharmacy/expiry" element={<ExpiryAlertsPage />} />
           <Route element={<PlatformAdminRoute />}>
-            <Route path="/platform" element={<PlatformDashboardPage />} />
+            <Route path="/platform" element={<PlatformAdminPage />} />
           </Route>
         </Route>
       </Route>

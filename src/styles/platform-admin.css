@@ -1,0 +1,301 @@
+/* ============================================================
+   Platform administration (multi-product) + developer mode indicators
+   Built on the Waya tokens. Reuses existing .card, .list, .list-item,
+   .badge, .plat-kpi-* and .btn primitives where they already fit.
+   ============================================================ */
+
+/* ------------------------------------------------- developer indicators */
+
+.dev-banner-stack {
+  display: flex;
+  flex-direction: column;
+}
+
+.dev-banner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-10);
+  padding: var(--space-8) var(--space-16);
+  font-size: var(--text-caption);
+  line-height: var(--leading-ui);
+  border-bottom: var(--border-hairline) solid var(--color-border);
+}
+
+.dev-banner-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.dev-banner-dot {
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-pill);
+}
+
+/* Deliberately loud: developer mode must be unmistakable. */
+.dev-banner-developer {
+  background: color-mix(in srgb, var(--color-workspace) 14%, var(--color-page));
+  color: var(--color-text-strong);
+  border-bottom-color: var(--color-workspace);
+}
+
+.dev-banner-developer .dev-banner-dot {
+  background: var(--color-workspace);
+}
+
+.dev-banner-impersonation {
+  background: color-mix(in srgb, var(--color-danger) 10%, var(--color-page));
+  color: var(--color-text-strong);
+  border-bottom-color: var(--color-danger);
+}
+
+.dev-banner-impersonation .dev-banner-dot {
+  background: var(--color-danger);
+}
+
+/* ---------------------------------------------------------- admin shell */
+
+.plat-admin-tabs {
+  display: flex;
+  gap: var(--space-4);
+  overflow-x: auto;
+  margin-bottom: var(--space-20);
+  padding-bottom: var(--space-4);
+  border-bottom: var(--border-hairline) solid var(--color-border);
+}
+
+.plat-admin-tab {
+  flex: 0 0 auto;
+  padding: var(--space-8) var(--space-12);
+  border: none;
+  border-radius: var(--radius-control);
+  background: transparent;
+  font-family: inherit;
+  font-size: var(--text-label);
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: background var(--tr), color var(--tr);
+}
+
+.plat-admin-tab:hover {
+  background: var(--color-hover);
+  color: var(--color-text-strong);
+}
+
+.plat-admin-tab.is-active {
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+}
+
+.plat-admin-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-16);
+}
+
+.plat-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+}
+
+/* ------------------------------------------------------------ fragments */
+
+.plat-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-12);
+  align-items: flex-end;
+}
+
+.plat-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 160px;
+}
+
+.plat-field-grow {
+  flex: 1;
+}
+
+.plat-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+}
+
+.plat-form-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-12);
+}
+
+.plat-form-row > * {
+  flex: 1;
+  min-width: 180px;
+}
+
+.plat-section-title {
+  margin: 0;
+  font-size: var(--text-body);
+  font-weight: 700;
+  color: var(--color-text-strong);
+}
+
+.plat-section-sub {
+  margin: var(--space-16) 0 var(--space-8);
+  font-size: var(--text-caption);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+}
+
+.plat-note {
+  margin: 0;
+  font-size: var(--text-caption);
+  line-height: var(--leading-body);
+  color: var(--color-text-secondary);
+}
+
+.plat-key {
+  display: inline-block;
+  margin-left: var(--space-6);
+  padding: 1px var(--space-6);
+  border-radius: var(--radius-tooltip);
+  background: var(--color-panel);
+  border: var(--border-hairline) solid var(--color-border-control);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--color-text-muted);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.plat-sandbox {
+  display: inline-block;
+  margin-left: var(--space-6);
+  padding: 1px var(--space-6);
+  border-radius: var(--radius-tooltip);
+  background: color-mix(in srgb, var(--color-workspace) 16%, transparent);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--color-text-strong);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* ------------------------------------------------------- permissions UI */
+
+.plat-perm-grid {
+  display: grid;
+  gap: var(--space-16);
+  grid-template-columns: 1fr;
+  margin-top: var(--space-16);
+  padding-top: var(--space-16);
+  border-top: var(--border-hairline) solid var(--color-border);
+}
+
+@media (min-width: 901px) {
+  .plat-perm-grid {
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  }
+}
+
+.plat-perm-block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  padding: var(--space-12);
+  border-radius: var(--radius-card);
+  background: var(--color-panel);
+  border: var(--border-hairline) solid var(--color-border);
+}
+
+.plat-perm-email {
+  margin: 0 0 var(--space-4);
+  font-size: var(--text-caption);
+  font-weight: 700;
+  color: var(--color-text-strong);
+}
+
+.plat-check {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+}
+
+/* ----------------------------------------------------------- settings UI */
+
+.plat-setting-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.plat-setting-edit {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  flex-shrink: 0;
+}
+
+.plat-setting-edit .form-input {
+  width: 160px;
+  height: var(--control-small);
+  font-size: var(--text-caption);
+}
+
+/* -------------------------------------------------------- business detail */
+
+.plat-detail-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-12);
+  margin-bottom: var(--space-8);
+}
+
+.plat-diagnostics {
+  margin: var(--space-12) 0 0;
+  padding: var(--space-12);
+  max-height: 340px;
+  overflow: auto;
+  border-radius: var(--radius-card);
+  background: var(--color-panel);
+  border: var(--border-hairline) solid var(--color-border);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: var(--text-sm);
+  line-height: var(--leading-body);
+  color: var(--color-text-secondary);
+  white-space: pre-wrap;
+}
+
+@media (max-width: 600px) {
+  .plat-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .plat-setting-edit {
+    width: 100%;
+  }
+
+  .plat-setting-edit .form-input {
+    width: 100%;
+  }
+
+  .plat-setting-edit {
+    flex-wrap: wrap;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .plat-admin-tab {
+    transition: none;
+  }
+}
