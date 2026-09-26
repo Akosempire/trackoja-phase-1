@@ -1,3 +1,4 @@
+import { BusinessCategoryPicker } from '../../components/BusinessCategoryPicker';
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -8,6 +9,7 @@ import { OrganizationService } from '../../services/organization.service';
 import { StoreService } from '../../services/store.service';
 import { StoreContextManager } from '../../utils/store-context';
 import { BUSINESS_CATEGORIES, type BusinessCategory } from '../../config/businessModules';
+import { BusinessCategoryIllustration } from '../../components/BusinessCategoryIllustration';
 
 export default function OnboardingPage() {
   const navigate = useNavigate();
@@ -67,19 +69,7 @@ export default function OnboardingPage() {
           </p>
         </div>
 
-        <div className="category-grid">
-          {BUSINESS_CATEGORIES.map((cat) => (
-            <button
-              key={cat.value}
-              type="button"
-              className={`category-card${selectedCategory === cat.value ? ' selected' : ''}`}
-              onClick={() => handleCategorySelect(cat.value)}
-            >
-              <span className="category-card-emoji">{cat.emoji}</span>
-              <span className="category-card-label">{cat.label}</span>
-            </button>
-          ))}
-        </div>
+        <BusinessCategoryPicker value={selectedCategory} onChange={handleCategorySelect} />
 
         <div className="onboarding-footer">
           <Button onClick={handleContinue} disabled={!selectedCategory}>
@@ -103,7 +93,7 @@ export default function OnboardingPage() {
           ← Back
         </button>
         <div className="onboarding-chosen-badge">
-          <span>{chosen?.emoji}</span>
+          {chosen && <BusinessCategoryIllustration category={chosen.value} compact />}
           <span>{chosen?.label}</span>
         </div>
         <h1 className="onboarding-title">Set up your business</h1>

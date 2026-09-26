@@ -39,8 +39,10 @@ export function FormField({
         autoComplete={autoComplete}
         required={required}
         disabled={disabled}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={error ? `${id}-error` : undefined}
       />
-      {error && <span className="form-error">{error}</span>}
+      {error && <span className="form-error" id={`${id}-error`} role="alert">{error}</span>}
     </div>
   );
 }

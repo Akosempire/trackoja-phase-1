@@ -9,6 +9,7 @@ import { FormField } from '../components/ui/FormField';
 import { PageLoader } from '../components/ui/PageLoader';
 import { BUSINESS_CATEGORIES, type BusinessCategory } from '../config/businessModules';
 import type { Store } from '../types';
+import { ThemeSelect } from '../components/ThemeSelect';
 
 export default function SettingsPage() {
   const { profile } = useAuth();
@@ -105,7 +106,7 @@ export default function SettingsPage() {
   if (permsLoading || loading) return <PageLoader />;
 
   return (
-    <div className="page">
+    <div className="page page-settings">
       <div className="page-header">
         <div>
           <h1 className="page-title">Settings</h1>
@@ -113,6 +114,7 @@ export default function SettingsPage() {
         </div>
       </div>
 
+      <section className="appearance-section" aria-label="Appearance"><ThemeSelect /></section>
       {error && <div className="alert alert-error">{error}</div>}
       {saved && <div className="alert alert-success">Settings saved.</div>}
 

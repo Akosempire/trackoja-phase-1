@@ -11,7 +11,7 @@ import { SaleService } from '../services/sale.service';
 import { PageLoader } from '../components/ui/PageLoader';
 import {
   AlertIcon, ChevronRightIcon, KitchenIcon, ExpiryIcon,
-  SalesIcon, ProductsIcon, ReportsIcon,
+  SalesIcon, ProductsIcon, ReportsIcon, CustomersIcon, PaymentsIcon,
 } from '../components/icons';
 import type { Store, SalesSummary, Product, AuditLog } from '../types';
 
@@ -45,15 +45,13 @@ function timeAgo(iso: string): string {
   return `${days}d ago`;
 }
 
-function activityIcon(action: string): string {
+function activityIcon(action: string) {
   const a = action.toLowerCase();
-  if (a.includes('sale') || a.includes('checkout')) return '🛒';
-  if (a.includes('refund')) return '↩';
-  if (a.includes('product') || a.includes('stock') || a.includes('inventory')) return '📦';
-  if (a.includes('customer')) return '👤';
-  if (a.includes('report')) return '📊';
-  if (a.includes('payment')) return '💳';
-  return '📝';
+  if (a.includes('sale') || a.includes('checkout') || a.includes('refund')) return <SalesIcon width={17} height={17} />;
+  if (a.includes('product') || a.includes('stock') || a.includes('inventory')) return <ProductsIcon width={17} height={17} />;
+  if (a.includes('customer')) return <CustomersIcon width={17} height={17} />;
+  if (a.includes('payment')) return <PaymentsIcon width={17} height={17} />;
+  return <ReportsIcon width={17} height={17} />;
 }
 
 export default function DashboardPage() {
@@ -208,7 +206,7 @@ export default function DashboardPage() {
                     )}
                     {canCustomer && (
                       <Link to="/customers/new" className="dash-action-card">
-                        <span className="dash-action-emoji">👤</span>
+                        <CustomersIcon width={18} height={18} />
                         <span>Add customer</span>
                       </Link>
                     )}

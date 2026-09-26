@@ -1,19 +1,19 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '../components/ui/Button';
-import { SellIllustration } from '../components/illustrations/SellIllustration';
-import { StockIllustration } from '../components/illustrations/StockIllustration';
+import buyImage from '../assets/onboarding/buy.png';
+import stockImage from '../assets/onboarding/stock.png';
 import { TeamIllustration } from '../components/illustrations/TeamIllustration';
 
 const SLIDES = [
   {
-    illustration: <SellIllustration />,
+    illustration: <img src={buyImage} alt="A secure purchase using a phone and payment terminal" width={1536} height={1024} decoding="async" />,
     title: 'Sell in seconds',
     description:
       'Ring up sales from your phone. Search products or scan barcodes with your camera, then accept cash, card, transfer, or customer credit.',
   },
   {
-    illustration: <StockIllustration />,
+    illustration: <img src={stockImage} alt="A shop owner checking inventory on a tablet" width={1024} height={1536} decoding="async" />,
     title: 'Stay on top of stock',
     description:
       'Organize products into categories, track stock levels in real time, and get alerted automatically when items are running low.',
@@ -48,7 +48,7 @@ export default function WelcomePage() {
   };
 
   return (
-    <div className="auth-shell">
+    <div className="auth-shell welcome-shell">
       <div className="auth-bg-glow" />
       <div className="auth-bg-grid" />
       <div className="auth-content">
@@ -80,6 +80,7 @@ export default function WelcomePage() {
                 type="button"
                 className={`welcome-dot${i === index ? ' active' : ''}`}
                 aria-label={`Go to slide ${i + 1}`}
+                aria-current={i === index ? 'step' : undefined}
                 onClick={() => setIndex(i)}
               />
             ))}

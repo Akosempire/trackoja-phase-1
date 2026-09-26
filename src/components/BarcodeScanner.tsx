@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { Button } from './ui/Button';
+import { containDialogFocus } from '../utils/dialog-focus';
 
 interface BarcodeScannerProps {
   onDetect: (value: string) => void;
@@ -24,6 +25,15 @@ const VIDEO_CONSTRAINTS: MediaStreamConstraints[] = [
 ];
 
 export function BarcodeScanner({ onDetect, onClose }: BarcodeScannerProps) {
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  const manualId = useId();
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    dialog?.showModal();
+    const overflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { dialog?.close(); document.body.style.overflow = overflow; };
+  }, []);
   const videoRef = useRef<HTMLVideoElement>(null);
   const trackRef = useRef<MediaStreamTrack | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -181,7 +191,7 @@ export function BarcodeScanner({ onDetect, onClose }: BarcodeScannerProps) {
   };
 
   return (
-    <div className="scanner-overlay">
+    <dialog ref={dialogRef} className="scanner-overlay" aria-label="Scan barcode" aria-modal="true" onKeyDown={containDialogFocus} onCancel={onClose} onClick={event => { if (event.target === event.currentTarget) onClose(); }}>
       <div className="scanner-frame">
         {error ? (
           <div className="alert alert-error">{error}</div>
@@ -203,17 +213,19 @@ export function BarcodeScanner({ onDetect, onClose }: BarcodeScannerProps) {
           </Button>
         </div>
         <form className="scanner-manual" onSubmit={handleManualSubmit}>
+          <label className="form-label" htmlFor={manualId}>Barcode</label>
           <input
+            id={manualId}
             className="form-input"
             placeholder="Or type the code manually"
             value={manualValue}
             onChange={(e) => setManualValue(e.target.value)}
           />
           <Button type="submit" className="btn-sm">
-            Use
+            Use code
           </Button>
         </form>
       </div>
-    </div>
+    </dialog>
   );
 }

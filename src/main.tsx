@@ -6,6 +6,13 @@ import { AuthProvider } from './contexts/AuthContext';
 import './styles/theme.css';
 import './styles/auth.css';
 import './styles/app.css';
+import '@fontsource-variable/geist';
+import '@fontsource/playfair-display/latin-400.css';
+import './styles/tokens.css';
+import './styles/waya.css';
+import { applyTheme, readTheme } from './components/ThemeSelect';
+
+applyTheme(readTheme());
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

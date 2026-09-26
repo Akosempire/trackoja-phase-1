@@ -199,25 +199,25 @@ export default function BulkImportPage() {
             <table className="import-table">
               <thead>
                 <tr>
-                  <th>Row</th>
-                  <th>Name</th>
-                  <th>SKU</th>
-                  <th>Category</th>
-                  <th>Price</th>
-                  <th>Stock</th>
-                  <th>Status</th>
+                  <th scope="col">Row</th>
+                  <th scope="col">Name</th>
+                  <th scope="col">SKU</th>
+                  <th scope="col">Category</th>
+                  <th scope="col">Price</th>
+                  <th scope="col">Stock</th>
+                  <th scope="col">Status</th>
                 </tr>
               </thead>
               <tbody>
                 {rows.map((row) => (
                   <tr key={row.rowNumber}>
-                    <td>{row.rowNumber}</td>
-                    <td>{row.name || '—'}</td>
-                    <td>{row.sku || '—'}</td>
-                    <td>{row.categoryName || '—'}</td>
-                    <td>₦{row.sellingPrice.toLocaleString()}</td>
-                    <td>{row.trackInventory ? row.stockQty : '—'}</td>
-                    <td>
+                    <td data-label="Row">{row.rowNumber}</td>
+                    <td data-label="Name">{row.name || '—'}</td>
+                    <td data-label="SKU">{row.sku || '—'}</td>
+                    <td data-label="Category">{row.categoryName || '—'}</td>
+                    <td data-label="Price">₦{row.sellingPrice.toLocaleString()}</td>
+                    <td data-label="Stock">{row.trackInventory ? row.stockQty : '—'}</td>
+                    <td data-label="Status">
                       {row.errors.length === 0 ? (
                         <span className="badge badge-success">OK</span>
                       ) : (

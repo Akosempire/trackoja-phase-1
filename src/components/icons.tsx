@@ -8,7 +8,8 @@ const base: IconProps = {
   viewBox: '0 0 24 24',
   fill: 'none',
   stroke: 'currentColor',
-  strokeWidth: 1.8,
+  strokeWidth: 1.7,
+  'aria-hidden': true,
   strokeLinecap: 'round',
   strokeLinejoin: 'round',
 };

@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { ThemeSelect } from './ThemeSelect';
 
 interface AuthLayoutProps {
   title: string;
@@ -26,6 +27,7 @@ export function AuthLayout({ title, subtitle, children, footer }: AuthLayoutProp
           {children}
         </div>
         {footer && <div className="auth-footer">{footer}</div>}
+        <div className="auth-appearance"><ThemeSelect /></div>
       </div>
     </div>
   );

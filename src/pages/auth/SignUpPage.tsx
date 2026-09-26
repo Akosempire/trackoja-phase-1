@@ -1,3 +1,5 @@
+import { BusinessCategoryIllustration } from '../../components/BusinessCategoryIllustration';
+import { BusinessCategoryPicker } from '../../components/BusinessCategoryPicker';
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -66,19 +68,7 @@ export default function SignUpPage() {
           <p className="onboarding-subtitle">We'll tailor TrackOja to fit your industry.</p>
         </div>
 
-        <div className="category-grid">
-          {BUSINESS_CATEGORIES.map((cat) => (
-            <button
-              key={cat.value}
-              type="button"
-              className={`category-card${selectedCategory === cat.value ? ' selected' : ''}`}
-              onClick={() => setSelectedCategory(cat.value)}
-            >
-              <span className="category-card-emoji">{cat.emoji}</span>
-              <span className="category-card-label">{cat.label}</span>
-            </button>
-          ))}
-        </div>
+        <BusinessCategoryPicker value={selectedCategory} onChange={setSelectedCategory} />
 
         <div className="onboarding-footer">
           <Button onClick={handleCategoryContinue} disabled={!selectedCategory}>
@@ -105,6 +95,7 @@ export default function SignUpPage() {
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20 }}>
         <button
           type="button"
+          aria-label="Back to business categories"
           onClick={() => setStep(1)}
           style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, color: 'var(--t2)', padding: 0 }}
         >
@@ -112,7 +103,7 @@ export default function SignUpPage() {
         </button>
         {chosen && (
           <span className="onboarding-chosen-badge" style={{ margin: 0 }}>
-            <span>{chosen.emoji}</span>
+            <BusinessCategoryIllustration category={chosen.value} compact />
             <span>{chosen.label}</span>
           </span>
         )}

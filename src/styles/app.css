@@ -15,7 +15,7 @@
   align-items: center;
   justify-content: space-between;
   padding: 12px 20px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: var(--border-hairline) solid var(--border);
   background: var(--sb);
   position: sticky;
   top: 0;
@@ -70,7 +70,7 @@
     top: 0;
     height: 100dvh;
     overflow-y: auto;
-    border-right: 1px solid var(--border);
+    border-right: var(--border-hairline) solid var(--border);
     background: var(--sb);
     padding: 20px 12px;
     gap: 0;
@@ -86,7 +86,7 @@
 
   .side-nav-store {
     padding: 0 4px 16px;
-    border-bottom: 1px solid var(--border);
+    border-bottom: var(--border-hairline) solid var(--border);
     margin-bottom: 12px;
   }
 
@@ -148,7 +148,7 @@
     flex-direction: column;
     gap: 2px;
     padding-top: 12px;
-    border-top: 1px solid var(--border);
+    border-top: var(--border-hairline) solid var(--border);
   }
 
   /* User profile card at sidebar bottom */
@@ -205,7 +205,7 @@
     width: 26px;
     height: 26px;
     border-radius: var(--r1);
-    border: 1px solid var(--border);
+    border: var(--border-hairline) solid var(--border);
     background: none;
     color: var(--t2);
     font-size: 14px;
@@ -247,7 +247,7 @@
   text-decoration: none;
   padding: 8px 12px;
   border-radius: var(--r1);
-  transition: all var(--tr);
+  transition: background var(--tr), color var(--tr), border-color var(--tr);
   white-space: nowrap;
 }
 
@@ -317,7 +317,7 @@
   max-width: 720px;
   margin: 0 auto;
   background: var(--sb);
-  border-top: 1px solid var(--border);
+  border-top: var(--border-hairline) solid var(--border);
   padding: 6px 4px;
   padding-bottom: max(6px, env(safe-area-inset-bottom));
   z-index: 40;
@@ -419,7 +419,7 @@
 
 .stat-card {
   background: var(--surf);
-  border: 1px solid var(--border);
+  border: var(--border-hairline) solid var(--border);
   border-radius: var(--r2);
   padding: 14px;
 }
@@ -439,7 +439,7 @@
 
 .card {
   background: var(--surf);
-  border: 1px solid var(--border);
+  border: var(--border-hairline) solid var(--border);
   border-radius: var(--r2);
   padding: 16px;
   margin-bottom: 12px;
@@ -457,7 +457,7 @@
   justify-content: space-between;
   gap: 12px;
   background: var(--surf);
-  border: 1px solid var(--border);
+  border: var(--border-hairline) solid var(--border);
   border-radius: var(--r2);
   padding: 12px 14px;
   text-decoration: none;
@@ -517,7 +517,7 @@
 
 .badge-danger {
   background: var(--red-s);
-  color: #fca5a5;
+  color: var(--danger);
 }
 
 .empty-state {
@@ -547,7 +547,7 @@
   width: 100%;
   height: 44px;
   background: var(--surf2);
-  border: 1px solid var(--border);
+  border: var(--border-hairline) solid var(--border);
   border-radius: var(--r1);
   color: var(--t1);
   font-family: inherit;
@@ -577,7 +577,7 @@
   align-items: center;
   justify-content: space-between;
   padding: 10px 0;
-  border-bottom: 1px solid var(--border);
+  border-bottom: var(--border-hairline) solid var(--border);
   font-size: 13px;
 }
 
@@ -667,7 +667,7 @@
   justify-content: space-between;
   gap: 12px;
   padding: 10px 0;
-  border-bottom: 1px solid var(--border);
+  border-bottom: var(--border-hairline) solid var(--border);
   font-size: 13px;
 }
 
@@ -690,7 +690,7 @@
   width: 28px;
   height: 28px;
   border-radius: var(--r1);
-  border: 1px solid var(--border);
+  border: var(--border-hairline) solid var(--border);
   background: var(--surf2);
   color: var(--t1);
   font-size: 16px;
@@ -726,7 +726,7 @@
   font-size: 16px;
   font-weight: 700;
   color: var(--t1);
-  border-top: 1px solid var(--border);
+  border-top: var(--border-hairline) solid var(--border);
   padding-top: 8px;
   margin-top: 4px;
 }
@@ -793,7 +793,7 @@
   align-items: center;
   justify-content: space-between;
   padding: 16px 0 10px;
-  border-bottom: 2px solid var(--border);
+  border-bottom: 1px solid var(--border2);
   margin-bottom: 4px;
 }
 
@@ -832,7 +832,7 @@
   flex-direction: column;
   gap: 6px;
   padding: 10px 0;
-  border-bottom: 1px solid var(--border);
+  border-bottom: var(--border-hairline) solid var(--border);
 }
 
 .co-line:last-child {
@@ -891,7 +891,7 @@
 /* Sections (order type, customer, discount, payment) */
 .co-section {
   padding: 10px 0;
-  border-bottom: 1px solid var(--border);
+  border-bottom: var(--border-hairline) solid var(--border);
 }
 
 .co-section:last-of-type {
@@ -961,7 +961,7 @@
   font-size: 17px;
   font-weight: 800;
   color: var(--t1);
-  border-top: 2px solid var(--border);
+  border-top: 1px solid var(--border2);
   padding-top: 10px;
   margin-top: 4px;
 }
@@ -1008,7 +1008,7 @@
 
 .rp-icon-done {
   background: rgba(34, 197, 94, 0.2);
-  color: #22c55e;
+  color: var(--success);
 }
 
 .rp-icon-voided {
@@ -1049,7 +1049,7 @@
 /* Receipt card */
 .rp-card {
   background: var(--surf);
-  border: 1px solid var(--border);
+  border: var(--border-hairline) solid var(--border);
   border-radius: var(--r2);
   overflow: hidden;
 }
@@ -1120,7 +1120,7 @@
   justify-content: space-between;
   gap: 12px;
   padding: 9px 0;
-  border-bottom: 1px solid var(--border);
+  border-bottom: var(--border-hairline) solid var(--border);
 }
 
 .rp-item:last-child {
@@ -1191,7 +1191,7 @@
   font-size: 20px;
   font-weight: 800;
   color: var(--t1);
-  border-top: 2px solid var(--border);
+  border-top: 1px solid var(--border2);
   padding-top: 10px;
   margin-top: 4px;
   letter-spacing: -0.01em;
@@ -1294,7 +1294,7 @@
 
 .dash-kpi {
   background: var(--surf);
-  border: 1px solid var(--border);
+  border: var(--border-hairline) solid var(--border);
   border-radius: var(--r2);
   padding: 16px 18px;
   display: flex;
@@ -1318,7 +1318,7 @@
 
 .dash-kpi-profit .dash-kpi-icon {
   background: rgba(34, 197, 94, 0.12);
-  color: #22c55e;
+  color: var(--success);
 }
 
 .dash-kpi-label {
@@ -1378,7 +1378,7 @@
   gap: 10px;
   padding: 18px 16px;
   background: var(--surf);
-  border: 1px solid var(--border);
+  border: var(--border-hairline) solid var(--border);
   border-radius: var(--r2);
   text-decoration: none;
   color: var(--t1);
@@ -1416,7 +1416,7 @@
   align-items: flex-start;
   gap: 10px;
   padding: 9px 0;
-  border-bottom: 1px solid var(--border);
+  border-bottom: var(--border-hairline) solid var(--border);
 }
 
 .dash-activity-item:last-child {
@@ -1482,7 +1482,7 @@
     top: 0;
     height: 100dvh;
     overflow-y: auto;
-    border-left: 1px solid var(--border);
+    border-left: var(--border-hairline) solid var(--border);
     background: var(--sb);
     padding: 20px 20px 28px;
     display: flex !important;
@@ -1525,7 +1525,7 @@
 
 .scanner-frame {
   background: var(--surf);
-  border: 1px solid var(--border);
+  border: var(--border-hairline) solid var(--border);
   border-radius: var(--r2);
   padding: 16px;
   width: 100%;
@@ -1586,7 +1586,7 @@
 .import-table td {
   text-align: left;
   padding: 8px 10px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: var(--border-hairline) solid var(--border);
 }
 
 .import-table th {
@@ -1619,7 +1619,7 @@
   border-radius: var(--r1);
   object-fit: cover;
   background: var(--surf2);
-  border: 1px solid var(--border);
+  border: var(--border-hairline) solid var(--border);
 }
 
 .product-image-placeholder {
@@ -1642,7 +1642,7 @@
   border-radius: var(--r1);
   object-fit: cover;
   background: var(--surf2);
-  border: 1px solid var(--border);
+  border: var(--border-hairline) solid var(--border);
   flex-shrink: 0;
 }
 
@@ -1680,7 +1680,7 @@
   flex-shrink: 0;
   padding: 6px 12px;
   border-radius: 999px;
-  border: 1px solid var(--border);
+  border: var(--border-hairline) solid var(--border);
   background: var(--surf2);
   color: var(--t2);
   font-size: 12.5px;
@@ -1709,7 +1709,7 @@
   align-items: center;
   gap: 6px;
   background: var(--surf);
-  border: 1px solid var(--border);
+  border: var(--border-hairline) solid var(--border);
   border-radius: var(--r2);
   padding: 10px 6px;
   cursor: pointer;
@@ -1832,7 +1832,7 @@
   gap: 6px;
   padding: 14px 8px;
   background: var(--surf);
-  border: 2px solid var(--border);
+  border: 1px solid var(--border2);
   border-radius: var(--r2);
   cursor: pointer;
   transition: border-color var(--tr), background var(--tr), box-shadow var(--tr);
@@ -1867,7 +1867,7 @@
    Product form: industry-specific attribute section
    ============================================================ */
 .form-section {
-  border-top: 1px solid var(--border);
+  border-top: var(--border-hairline) solid var(--border);
   padding-top: 16px;
   margin-top: 4px;
 }
@@ -1952,7 +1952,7 @@
 
 .kitchen-card {
   background: var(--surf);
-  border: 1.5px solid var(--border);
+  border: var(--border-hairline) solid var(--border);
   border-radius: var(--r2);
   padding: 14px 16px;
   display: flex;
@@ -2072,7 +2072,7 @@
 
 .expiry-red    { color: var(--danger, #ef4444); }
 .expiry-amber  { color: var(--amber, #f59e0b); }
-.expiry-yellow { color: #ca8a04; }
+.expiry-yellow { color: var(--warn); }
 .expiry-green  { color: var(--success, #22c55e); }
 
 .expiry-list {
@@ -2088,7 +2088,7 @@
   padding: 12px 14px;
   background: var(--surf);
   border-radius: var(--r2);
-  border: 1.5px solid var(--border);
+  border: var(--border-hairline) solid var(--border);
   cursor: pointer;
   transition: background var(--tr);
   gap: 12px;
@@ -2167,7 +2167,7 @@
 
 .plat-kpi-card {
   background: var(--surf);
-  border: 1.5px solid var(--border);
+  border: var(--border-hairline) solid var(--border);
   border-radius: var(--r2);
   padding: 14px 12px;
   text-align: center;
@@ -2236,7 +2236,7 @@
 .plat-health-item {
   padding: 14px;
   border-radius: var(--r2);
-  border: 1.5px solid var(--border);
+  border: var(--border-hairline) solid var(--border);
   text-align: center;
 }
 
@@ -2278,14 +2278,14 @@
 .plat-filter-pill {
   padding: 5px 12px;
   border-radius: 999px;
-  border: 1.5px solid var(--border);
+  border: var(--border-hairline) solid var(--border);
   background: var(--surf);
   font-size: 12px;
   font-weight: 600;
   color: var(--t2);
   cursor: pointer;
   font: inherit;
-  transition: all var(--tr);
+  transition: background var(--tr), color var(--tr), border-color var(--tr);
 }
 
 .plat-filter-pill.active {
@@ -2300,7 +2300,7 @@
   align-items: flex-start;
   gap: 12px;
   padding: 12px 0;
-  border-bottom: 1px solid var(--border);
+  border-bottom: var(--border-hairline) solid var(--border);
 }
 
 .plat-org-row:last-child { border-bottom: none; }
@@ -2386,7 +2386,7 @@
 .plat-revenue-highlight {
   text-align: center;
   padding: 20px 0 16px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: var(--border-hairline) solid var(--border);
   margin-bottom: 12px;
 }
 
