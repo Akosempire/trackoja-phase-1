@@ -188,3 +188,110 @@ export function ExpiryIcon(props: IconProps) {
     </svg>
   );
 }
+
+export function BuildingIcon(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <rect x="4" y="3" width="16" height="18" rx="2" />
+      <path d="M9 7h2" />
+      <path d="M13 7h2" />
+      <path d="M9 11h2" />
+      <path d="M13 11h2" />
+      <path d="M10 21v-4h4v4" />
+    </svg>
+  );
+}
+
+export function KeyIcon(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <circle cx="8" cy="15" r="4" />
+      <path d="m11 12 8-8" />
+      <path d="m17 4 3 3" />
+      <path d="m15 6 2 2" />
+    </svg>
+  );
+}
+
+export function PlugIcon(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M9 3v5" />
+      <path d="M15 3v5" />
+      <path d="M6 8h12v3a6 6 0 0 1-6 6 6 6 0 0 1-6-6V8Z" />
+      <path d="M12 17v4" />
+    </svg>
+  );
+}
+
+export function PulseIcon(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M3 12h4l2.5-7 4 14L16 12h5" />
+    </svg>
+  );
+}
+
+export function CodeIcon(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <path d="m9 8-5 4 5 4" />
+      <path d="m15 8 5 4-5 4" />
+    </svg>
+  );
+}
+
+export function ShieldIcon(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M12 3l7 3v6c0 4.4-3 7.6-7 9-4-1.4-7-4.6-7-9V6l7-3Z" />
+      <path d="m9 12 2 2 4-4" />
+    </svg>
+  );
+}
+
+export function TicketIcon(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M3 9V6a1 1 0 0 1 1-1h16a1 1 0 0 1 1 1v3a3 3 0 0 0 0 6v3a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-3a3 3 0 0 0 0-6Z" />
+      <path d="M12 7v10" />
+    </svg>
+  );
+}
+
+export function SearchIcon(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <circle cx="11" cy="11" r="6" />
+      <path d="m20 20-3.5-3.5" />
+    </svg>
+  );
+}
+
+export function RefreshIcon(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M20 11a8 8 0 0 0-13.7-5.3L4 8" />
+      <path d="M4 4v4h4" />
+      <path d="M4 13a8 8 0 0 0 13.7 5.3L20 16" />
+      <path d="M20 20v-4h-4" />
+    </svg>
+  );
+}
+
+export function LockIcon(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <rect x="4" y="10" width="16" height="11" rx="2" />
+      <path d="M8 10V7a4 4 0 0 1 8 0v3" />
+    </svg>
+  );
+}
+
+export function CheckIcon(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <path d="m5 13 4 4L19 7" />
+    </svg>
+  );
+}

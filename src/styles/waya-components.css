@@ -1,0 +1,1338 @@
+/* ============================================================
+   WAYA components
+   Reusable primitives that WAYA did not yet provide, built strictly from
+   WAYA tokens (tokens.css) and mapped by the WAYA layer (waya.css).
+
+   Every value here is a token. There are no raw pixel values, no literal
+   colours, and no per-screen geometry: these classes are shared by the
+   customer product and the platform dashboard alike.
+   ============================================================ */
+
+/* ------------------------------------------------------- section header */
+.section-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-16);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-16);
+}
+
+.section-head-text {
+  min-width: 0;
+}
+
+.section-title {
+  margin: 0;
+  font-size: var(--text-body-lg);
+  font-weight: 600;
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--color-text-strong);
+}
+
+.section-sub {
+  margin: var(--space-4) 0 0;
+  font-size: var(--text-caption);
+  font-weight: 400;
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--color-text-secondary);
+  line-height: var(--leading-body);
+}
+
+.section-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  flex-wrap: wrap;
+}
+
+/* --------------------------------------------------------------- badges */
+/* One tone scale shared by badges, and reused by the table status column.
+   These also settle the older .badge-* rules in app.css, which used literal
+   rgba() values outside the WAYA palette: the semantic tokens win. */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-6);
+  padding: var(--space-2) var(--space-8);
+  border: var(--border-hairline) solid transparent;
+  border-radius: var(--radius-pill);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  line-height: var(--leading-ui);
+  white-space: nowrap;
+}
+
+.badge-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background: currentColor;
+  flex-shrink: 0;
+}
+
+.badge-neutral,
+.badge-default {
+  color: var(--color-text-secondary);
+  background: var(--color-subtle);
+}
+
+.badge-brand {
+  color: var(--color-accent);
+  background: var(--brand-s);
+}
+
+.badge-success {
+  color: var(--color-success-text);
+  background: var(--green-s);
+}
+
+.badge-warning {
+  color: var(--color-warning-text);
+  background: var(--amber-s);
+}
+
+.badge-danger,
+.badge-error {
+  color: var(--color-danger);
+  background: var(--red-s);
+}
+
+.badge-info {
+  color: var(--color-info);
+  background: color-mix(in srgb, var(--color-info) 10%, transparent);
+}
+
+.badge-workspace {
+  color: var(--color-text-strong);
+  background: color-mix(in srgb, var(--color-workspace) 16%, transparent);
+}
+
+.badge-outline {
+  color: var(--color-text-secondary);
+  background: transparent;
+  border-color: var(--color-border-control);
+}
+
+/* --------------------------------------------------------------- alerts */
+/* WAYA shipped .alert-error and .alert-success only. Warning and info
+   complete the family so every state has one obvious treatment. */
+
+.alert-warning {
+  color: var(--color-warning-text);
+  background: var(--amber-s);
+}
+
+.alert-info {
+  color: var(--color-text-secondary);
+  background: var(--color-subtle);
+}
+
+.alert-warning,
+.alert-info,
+.alert-error,
+.alert-success {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-8);
+  font-size: var(--text-body-sm);
+  line-height: var(--leading-body);
+}
+
+.alert-text {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* --------------------------------------------------- environment badge */
+/* The environment is a property of the whole session, so it gets its own
+   treatment rather than borrowing a status tone. */
+
+.env-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-6);
+  padding: var(--space-2) var(--space-8);
+  border: var(--border-hairline) solid;
+  border-radius: var(--radius-pill);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.env-badge-production {
+  color: var(--color-success-text);
+  border-color: color-mix(in srgb, var(--color-success) 40%, transparent);
+  background: var(--green-s);
+}
+
+.env-badge-staging {
+  color: var(--color-warning-text);
+  border-color: color-mix(in srgb, var(--color-warning) 40%, transparent);
+  background: var(--amber-s);
+}
+
+.env-badge-development,
+.env-badge-local {
+  color: var(--color-text-strong);
+  border-color: var(--color-workspace);
+  background: color-mix(in srgb, var(--color-workspace) 14%, transparent);
+}
+
+.env-badge-unknown {
+  color: var(--color-text-muted);
+  border-color: var(--color-border-control);
+  background: var(--color-subtle);
+}
+
+/* --------------------------------------------------------- data tables */
+/* Generalises the .import-table precedent: a real table on wide screens,
+   and a stacked card layout on narrow ones driven by data-label. */
+
+.data-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-body-sm);
+}
+
+.data-table th,
+.data-table td {
+  padding: var(--space-12) var(--space-12);
+  text-align: left;
+  vertical-align: middle;
+  border-bottom: var(--border-hairline) solid var(--color-border);
+}
+
+.data-table th {
+  font-size: var(--text-caption);
+  font-weight: 500;
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+  background: var(--color-page);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.data-table tbody tr:hover {
+  background: var(--color-hover);
+}
+
+.data-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.data-table .is-numeric {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.data-table .is-nowrap {
+  white-space: nowrap;
+}
+
+.data-table-cell-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  justify-content: flex-end;
+}
+
+.data-table-primary {
+  font-weight: 500;
+  color: var(--color-text-strong);
+  overflow-wrap: anywhere;
+}
+
+.data-table-secondary {
+  font-size: var(--text-caption);
+  color: var(--color-text-muted);
+  overflow-wrap: anywhere;
+}
+
+.data-table-sort {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-4);
+  border: 0;
+  background: transparent;
+  padding: 0;
+  font: inherit;
+  font-size: var(--text-caption);
+  font-weight: 500;
+  color: inherit;
+  cursor: pointer;
+  border-radius: var(--radius-tiny);
+}
+
+.data-table-sort:hover {
+  color: var(--color-text-strong);
+}
+
+@media (max-width: 900px) {
+  .data-table.is-stacked,
+  .data-table.is-stacked tbody,
+  .data-table.is-stacked tr,
+  .data-table.is-stacked td {
+    display: block;
+    width: 100%;
+  }
+
+  .data-table.is-stacked thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+
+  .data-table.is-stacked tr {
+    padding: var(--space-16) 0;
+    border-bottom: var(--border-hairline) solid var(--color-border);
+  }
+
+  .data-table.is-stacked tr:last-child {
+    border-bottom: 0;
+  }
+
+  .data-table.is-stacked td {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-16);
+    padding: var(--space-6) 0;
+    border: 0;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .data-table.is-stacked td::before {
+    content: attr(data-label);
+    flex: 0 0 40%;
+    font-size: var(--text-caption);
+    font-weight: 500;
+    color: var(--color-text-secondary);
+  }
+
+  /* A cell with no label (leading identity cell) spans the full width. */
+  .data-table.is-stacked td[data-label=''] {
+    display: block;
+  }
+
+  .data-table.is-stacked td[data-label='']::before {
+    content: none;
+  }
+
+  .data-table.is-stacked .is-numeric {
+    text-align: right;
+  }
+
+  .data-table.is-stacked .data-table-cell-actions {
+    justify-content: flex-end;
+  }
+}
+
+/* --------------------------------------------------------------- toolbar */
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  flex-wrap: wrap;
+}
+
+.toolbar-grow {
+  flex: 1;
+  min-width: 200px;
+}
+
+.toolbar-group {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  flex-wrap: wrap;
+}
+
+.toolbar-end {
+  margin-left: auto;
+}
+
+/* --------------------------------------------------------------- dialogs */
+/* Native <dialog>, matching the scanner and mobile-nav precedent: focus
+   containment, Escape and focus restoration come from the platform. */
+
+.dialog {
+  padding: 0;
+  border: var(--border-hairline) solid var(--color-border-control);
+  border-radius: var(--radius-dialog);
+  background: var(--color-raised);
+  color: var(--color-text);
+  box-shadow: var(--shadow-dialog);
+  width: min(560px, calc(100vw - var(--space-32)));
+  max-height: calc(100dvh - var(--space-48));
+  overflow: hidden;
+}
+
+.dialog:not([open]) {
+  display: none;
+}
+
+.dialog::backdrop {
+  background: rgb(0 0 0 / .35);
+}
+
+.dialog.is-wide {
+  width: min(880px, calc(100vw - var(--space-32)));
+}
+
+.dialog-form {
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100dvh - var(--space-48));
+}
+
+.dialog-head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-12);
+  padding: var(--space-20);
+  border-bottom: var(--border-hairline) solid var(--color-border);
+}
+
+.dialog-head-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.dialog-title {
+  margin: 0;
+  font-size: var(--text-title-sm);
+  font-weight: 600;
+  color: var(--color-text-strong);
+}
+
+.dialog-sub {
+  margin: var(--space-4) 0 0;
+  font-size: var(--text-caption);
+  color: var(--color-text-secondary);
+  line-height: var(--leading-body);
+}
+
+.dialog-body {
+  padding: var(--space-20);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-16);
+}
+
+.dialog-foot {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-8);
+  padding: var(--space-16) var(--space-20);
+  border-top: var(--border-hairline) solid var(--color-border);
+  flex-wrap: wrap;
+}
+
+.dialog-danger .dialog-head {
+  border-bottom-color: color-mix(in srgb, var(--color-danger) 30%, transparent);
+}
+
+@media (max-width: 600px) {
+  .dialog,
+  .dialog.is-wide {
+    width: 100vw;
+    max-width: none;
+    margin: 0;
+    border-radius: var(--radius-sheet) var(--radius-sheet) 0 0;
+    align-self: flex-end;
+    margin-top: auto;
+  }
+
+  .dialog-foot .btn {
+    flex: 1;
+    min-width: 120px;
+  }
+}
+
+/* ---------------------------------------------------------- state blocks */
+/* Extends .empty-state with the truth-telling variants a platform console
+   needs: no data yet, failed to load, not permitted, not configured. */
+
+.state-block {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-12);
+  padding: var(--space-32) var(--space-16);
+  text-align: left;
+}
+
+.state-block.is-centred {
+  align-items: center;
+  text-align: center;
+}
+
+.state-icon {
+  display: grid;
+  place-items: center;
+  width: var(--space-40);
+  height: var(--space-40);
+  border-radius: var(--radius-pill);
+  background: var(--color-subtle);
+  color: var(--color-text-muted);
+}
+
+.state-title {
+  margin: 0;
+  font-size: var(--text-body);
+  font-weight: 600;
+  color: var(--color-text-strong);
+}
+
+.state-body {
+  margin: 0;
+  max-width: 56ch;
+  font-size: var(--text-body-sm);
+  color: var(--color-text-secondary);
+  line-height: var(--leading-relaxed);
+}
+
+.state-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  flex-wrap: wrap;
+}
+
+.state-block.state-error .state-icon {
+  background: var(--red-s);
+  color: var(--color-danger);
+}
+
+.state-block.state-denied .state-icon {
+  background: var(--amber-s);
+  color: var(--color-warning-text);
+}
+
+.state-block.state-unavailable .state-icon {
+  background: var(--color-subtle);
+  color: var(--color-text-muted);
+}
+
+/* ------------------------------------------------------ meters / bar list */
+/* A categorical comparison that reads faster than a pie or a legend.
+   Successor to the ad-hoc .plat-category-bar / .plat-plan-bar rules. */
+
+.meter-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+}
+
+.meter-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-4) var(--space-12);
+  align-items: center;
+}
+
+.meter-label {
+  font-size: var(--text-body-sm);
+  color: var(--color-text);
+  overflow-wrap: anywhere;
+}
+
+.meter-value {
+  font-size: var(--text-body-sm);
+  font-weight: 500;
+  color: var(--color-text-strong);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.meter-track {
+  grid-column: 1 / -1;
+  height: var(--space-8);
+  border-radius: var(--radius-pill);
+  background: var(--color-subtle);
+  overflow: hidden;
+}
+
+.meter-fill {
+  height: 100%;
+  border-radius: var(--radius-pill);
+  background: var(--color-accent);
+  min-width: var(--space-4);
+}
+
+.meter-fill.meter-tone-success { background: var(--color-success); }
+.meter-fill.meter-tone-warning { background: var(--color-warning); }
+.meter-fill.meter-tone-danger { background: var(--color-danger); }
+.meter-fill.meter-tone-muted { background: var(--color-border-control); }
+
+/* --------------------------------------------------------- trend charts */
+/* Inline SVG. Geometry is computed in the component; colour comes from
+   tokens here so light and dark themes stay in step. */
+
+.chart {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+}
+
+.chart-svg {
+  width: 100%;
+  height: auto;
+  display: block;
+  overflow: visible;
+}
+
+.chart-grid-line {
+  stroke: var(--color-border);
+  stroke-width: 1;
+}
+
+.chart-axis-label {
+  fill: var(--color-text-muted);
+  font-size: var(--text-xs);
+  font-family: var(--font-body);
+}
+
+.chart-bar {
+  fill: var(--color-accent);
+}
+
+.chart-bar.is-muted {
+  fill: color-mix(in srgb, var(--color-accent) 30%, transparent);
+}
+
+.chart-line {
+  fill: none;
+  stroke: var(--color-accent);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.chart-area {
+  fill: color-mix(in srgb, var(--color-accent) 12%, transparent);
+  stroke: none;
+}
+
+.chart-point {
+  fill: var(--color-raised);
+  stroke: var(--color-accent);
+  stroke-width: 2;
+}
+
+.chart-legend {
+  display: flex;
+  align-items: center;
+  gap: var(--space-16);
+  flex-wrap: wrap;
+  font-size: var(--text-caption);
+  color: var(--color-text-secondary);
+}
+
+.chart-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-6);
+}
+
+.chart-legend-swatch {
+  width: var(--space-10);
+  height: var(--space-10);
+  border-radius: var(--radius-tiny);
+  background: var(--color-accent);
+  flex-shrink: 0;
+}
+
+.chart-legend-swatch.is-muted {
+  background: color-mix(in srgb, var(--color-accent) 30%, transparent);
+}
+
+/* ------------------------------------------------------------- KPI cards */
+
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--space-16);
+  margin-bottom: var(--space-24);
+}
+
+.kpi-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  padding: var(--space-16);
+  border: var(--border-hairline) solid var(--color-border);
+  border-radius: var(--radius-card);
+  background: var(--color-panel);
+  text-align: left;
+}
+
+/* A KPI that leads somewhere is a control, not decoration. */
+button.kpi-card {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  transition: background var(--tr), border-color var(--tr);
+}
+
+button.kpi-card:hover {
+  background: var(--color-hover);
+  border-color: var(--color-border-control);
+}
+
+.kpi-label {
+  margin: 0;
+  font-size: var(--text-caption);
+  font-weight: 500;
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--color-text-secondary);
+}
+
+.kpi-value {
+  margin: 0;
+  color: var(--color-text-strong);
+  /* Size, weight and figures come from the shared .dash-kpi-value rule in
+     waya.css, so a platform metric and a merchant metric are the same size. */
+}
+
+.kpi-foot {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  flex-wrap: wrap;
+  font-size: var(--text-caption);
+  color: var(--color-text-muted);
+}
+
+.kpi-card.is-danger {
+  border-color: color-mix(in srgb, var(--color-danger) 34%, transparent);
+  background: var(--red-s);
+}
+
+.kpi-card.is-danger .kpi-value {
+  color: var(--color-danger);
+}
+
+.kpi-card.is-warning {
+  border-color: color-mix(in srgb, var(--color-warning) 34%, transparent);
+  background: var(--amber-s);
+}
+
+.kpi-card.is-warning .kpi-value {
+  color: var(--color-warning-text);
+}
+
+.kpi-card.is-brand {
+  border-color: color-mix(in srgb, var(--color-accent) 30%, transparent);
+  background: var(--brand-s);
+}
+
+.kpi-card.is-unavailable .kpi-value {
+  color: var(--color-text-muted);
+  font-size: var(--text-title-sm);
+}
+
+/* -------------------------------------------------------------- timeline */
+
+.timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.timeline-item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--space-12);
+  padding-bottom: var(--space-16);
+  position: relative;
+}
+
+.timeline-item:not(:last-child)::before {
+  content: '';
+  position: absolute;
+  left: var(--space-6);
+  top: var(--space-16);
+  bottom: 0;
+  width: var(--border-hairline);
+  background: var(--color-border-control);
+}
+
+.timeline-dot {
+  width: var(--space-12);
+  height: var(--space-12);
+  border-radius: var(--radius-pill);
+  background: var(--color-selected);
+  border: 1px solid var(--color-border-control);
+  margin-top: var(--space-4);
+  z-index: 1;
+}
+
+.timeline-dot.is-accent { background: var(--color-accent); border-color: var(--color-accent); }
+.timeline-dot.is-success { background: var(--color-success); border-color: var(--color-success); }
+.timeline-dot.is-danger { background: var(--color-danger); border-color: var(--color-danger); }
+
+.timeline-body {
+  min-width: 0;
+}
+
+.timeline-title {
+  margin: 0;
+  font-size: var(--text-body-sm);
+  font-weight: 500;
+  color: var(--color-text-strong);
+  overflow-wrap: anywhere;
+}
+
+.timeline-meta {
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-caption);
+  color: var(--color-text-muted);
+}
+
+.timeline-text {
+  margin: var(--space-6) 0 0;
+  font-size: var(--text-body-sm);
+  color: var(--color-text-secondary);
+  line-height: var(--leading-body);
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+/* ------------------------------------------------------- definition list */
+
+.def-list {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+  margin: 0;
+}
+
+.def-row {
+  display: grid;
+  grid-template-columns: minmax(120px, 34%) minmax(0, 1fr);
+  gap: var(--space-12);
+  padding: var(--space-8) 0;
+  border-bottom: var(--border-hairline) solid var(--color-border);
+}
+
+.def-row:last-child {
+  border-bottom: 0;
+}
+
+.def-term {
+  margin: 0;
+  font-size: var(--text-caption);
+  color: var(--color-text-secondary);
+}
+
+.def-value {
+  margin: 0;
+  font-size: var(--text-body-sm);
+  color: var(--color-text-strong);
+  overflow-wrap: anywhere;
+}
+
+.def-value.is-muted {
+  color: var(--color-text-muted);
+}
+
+/* -------------------------------------------------------------- pager */
+
+.pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-12);
+  flex-wrap: wrap;
+  padding-top: var(--space-16);
+}
+
+.pager-status {
+  font-size: var(--text-caption);
+  color: var(--color-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.pager-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+}
+
+/* --------------------------------------------------- skeleton additions */
+
+.skeleton-text {
+  height: var(--text-body-sm);
+  width: 100%;
+  margin-bottom: var(--space-8);
+}
+
+.skeleton-text.is-short {
+  width: 40%;
+}
+
+.skeleton-card {
+  height: 96px;
+  margin-bottom: var(--space-12);
+}
+
+.skeleton-inline {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  padding: var(--space-16) 0;
+}
+
+/* ------------------------------------------------------- code / secrets */
+/* Masked credentials, key codes and diagnostics. Never used for values
+   that are returned in full to the browser. */
+
+.mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: var(--text-caption);
+  overflow-wrap: anywhere;
+}
+
+.secret-mask {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-6);
+  padding: var(--space-2) var(--space-8);
+  border-radius: var(--radius-tooltip);
+  background: var(--color-subtle);
+  border: var(--border-hairline) solid var(--color-border-control);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.code-panel {
+  margin: 0;
+  padding: var(--space-12);
+  max-height: 360px;
+  overflow: auto;
+  border-radius: var(--radius-card);
+  background: var(--color-panel);
+  border: var(--border-hairline) solid var(--color-border);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: var(--text-sm);
+  line-height: var(--leading-body);
+  color: var(--color-text-secondary);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* --------------------------------------------------------- callout note */
+
+.callout {
+  display: flex;
+  gap: var(--space-10);
+  padding: var(--space-12) var(--space-14);
+  border: var(--border-hairline) solid var(--color-border);
+  border-left-width: 2px;
+  border-radius: var(--radius-input);
+  background: var(--color-panel);
+  font-size: var(--text-caption);
+  line-height: var(--leading-body);
+  color: var(--color-text-secondary);
+}
+
+.callout-title {
+  margin: 0 0 var(--space-4);
+  font-weight: 600;
+  color: var(--color-text-strong);
+}
+
+.callout-text {
+  margin: 0;
+}
+
+.callout.callout-info { border-left-color: var(--color-info); }
+.callout.callout-success { border-left-color: var(--color-success); }
+.callout.callout-warning { border-left-color: var(--color-warning); }
+.callout.callout-danger { border-left-color: var(--color-danger); }
+
+/* --------------------------------------------------- read-only in place */
+/* Used where an operator can see a value but lacks the permission to
+   change it, so the control stays visible and explained. */
+
+.is-locked {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-6);
+  font-size: var(--text-caption);
+  color: var(--color-text-muted);
+}
+
+@media (max-width: 600px) {
+  .kpi-grid {
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: var(--space-8);
+  }
+
+  .kpi-value {
+    font-size: 22px;
+  }
+
+  .def-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-2);
+  }
+
+  .state-block {
+    padding: var(--space-24) var(--space-8);
+  }
+}
+
+/* -------------------------------------------------- grouped navigation */
+/* Extends the WAYA sidebar with labelled groups and an environment marker, so
+   a console with many destinations stays scannable. Both use the existing
+   .nav-label hook, so the collapsed sidebar hides them like every other label. */
+
+.side-nav-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.side-nav-group + .side-nav-group {
+  margin-top: var(--space-20);
+}
+
+.side-nav-group-label {
+  margin: 0 0 var(--space-4);
+  padding: 0 var(--space-10);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--color-text-muted);
+}
+
+.side-nav-env {
+  padding: var(--space-12) 0 0;
+  margin-top: auto;
+}
+
+.is-collapsed .side-nav-env {
+  display: none;
+}
+
+/* The environment marker itself, reused in the sidebar and the page header. */
+.env-marker {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-8);
+  padding: var(--space-8) var(--space-10);
+  border: var(--border-hairline) solid var(--color-border-control);
+  border-radius: var(--radius-input);
+  background: var(--color-subtle);
+}
+
+.env-marker-text {
+  min-width: 0;
+}
+
+.env-marker-title {
+  margin: 0;
+  font-size: var(--text-caption);
+  font-weight: 600;
+  color: var(--color-text-strong);
+}
+
+.env-marker-detail {
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-sm);
+  line-height: var(--leading-body);
+  color: var(--color-text-secondary);
+}
+
+.env-marker.env-marker-production {
+  border-color: color-mix(in srgb, var(--color-success) 34%, transparent);
+  background: var(--green-s);
+}
+
+.env-marker.env-marker-staging {
+  border-color: color-mix(in srgb, var(--color-warning) 34%, transparent);
+  background: var(--amber-s);
+}
+
+.env-marker.env-marker-development,
+.env-marker.env-marker-local {
+  border-color: var(--color-workspace);
+  background: color-mix(in srgb, var(--color-workspace) 12%, transparent);
+}
+
+/* ------------------------------------------------- platform page header */
+/* One consistent header for every platform screen: identity, environment and
+   the actions that apply to the whole area. */
+
+.plat-page-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-16);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-24);
+}
+
+.plat-page-head-text {
+  min-width: 0;
+  flex: 1;
+}
+
+.plat-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  margin: 0 0 var(--space-8);
+  font-size: var(--text-caption);
+  color: var(--color-text-muted);
+  flex-wrap: wrap;
+}
+
+.plat-breadcrumb a {
+  color: var(--color-text-secondary);
+  text-decoration: none;
+}
+
+.plat-breadcrumb a:hover {
+  color: var(--color-text-strong);
+  text-decoration: underline;
+}
+
+.plat-page-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-title);
+  font-weight: 400;
+  letter-spacing: -.02em;
+  color: var(--color-text-strong);
+  overflow-wrap: anywhere;
+}
+
+.plat-page-desc {
+  margin: var(--space-6) 0 0;
+  max-width: 72ch;
+  font-size: var(--text-body-sm);
+  color: var(--color-text-secondary);
+  line-height: var(--leading-body);
+}
+
+.plat-page-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  flex-wrap: wrap;
+}
+
+@media (min-width: 901px) {
+  .plat-page-title {
+    font-size: var(--text-display-mobile);
+  }
+}
+
+/* Coverage note: states plainly which parts of an area the backend cannot
+   serve yet, so a thin screen is never mistaken for a complete one. */
+.plat-coverage {
+  margin-bottom: var(--space-20);
+}
+
+.plat-coverage-list {
+  margin: var(--space-6) 0 0;
+  padding-left: var(--space-20);
+  font-size: var(--text-caption);
+  line-height: var(--leading-relaxed);
+  color: var(--color-text-secondary);
+}
+
+.plat-coverage-list li + li {
+  margin-top: var(--space-2);
+}
+
+/* ============================================================
+   Form and layout helpers
+   Absorbed from the retired platform-admin.css, which held the last of the
+   pre-WAYA geometry. Values are tokens now, and the uppercase micro-labels are
+   gone: WAYA uses sentence case at these sizes.
+   ============================================================ */
+
+.plat-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-12);
+  align-items: flex-end;
+}
+
+.plat-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 160px;
+}
+
+.plat-field-grow {
+  flex: 1;
+}
+
+.plat-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+}
+
+.plat-form-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-12);
+}
+
+.plat-form-row > * {
+  flex: 1;
+  min-width: 180px;
+}
+
+.plat-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+}
+
+/* A subheading inside a section. Previously uppercase with letter-spacing,
+   which contradicted the WAYA rule that these labels stay in sentence case. */
+.plat-section-sub {
+  margin: var(--space-16) 0 var(--space-8);
+  font-size: var(--text-caption);
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: normal;
+  color: var(--color-text-secondary);
+}
+
+.plat-note {
+  margin: 0;
+  font-size: var(--text-caption);
+  line-height: var(--leading-body);
+  color: var(--color-text-secondary);
+}
+
+.plat-check {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  font-size: var(--text-body-sm);
+  color: var(--color-text-secondary);
+}
+
+.plat-setting-main {
+  flex: 1;
+  min-width: 0;
+}
+
+/* The inline editor beside a setting row. The retired rule pinned the control to
+   160px; it flexes instead, so it fits a narrow column without a magic width. */
+.plat-setting-edit {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+.plat-setting-edit .form-input,
+.plat-setting-edit .select-input {
+  width: auto;
+  min-width: 0;
+  flex: 1 1 auto;
+  height: var(--control-small);
+  font-size: var(--text-caption);
+}
+
+.dev-banner-stack {
+  display: flex;
+  flex-direction: column;
+}
+
+.dev-banner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-10);
+  padding: var(--space-8) var(--space-16);
+  font-size: var(--text-caption);
+  line-height: var(--leading-ui);
+  border-bottom: var(--border-hairline) solid var(--color-border);
+}
+
+.dev-banner-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.dev-banner-dot {
+  flex-shrink: 0;
+  width: var(--space-8);
+  height: var(--space-8);
+  border-radius: var(--radius-pill);
+}
+
+/* Deliberately loud: developer mode must be unmistakable. */
+.dev-banner-developer {
+  background: color-mix(in srgb, var(--color-workspace) 14%, var(--color-page));
+  color: var(--color-text-strong);
+  border-bottom-color: var(--color-workspace);
+}
+
+.dev-banner-developer .dev-banner-dot {
+  background: var(--color-workspace);
+}
+
+.dev-banner-impersonation {
+  background: color-mix(in srgb, var(--color-danger) 10%, var(--color-page));
+  color: var(--color-text-strong);
+  border-bottom-color: var(--color-danger);
+}
+
+.dev-banner-impersonation .dev-banner-dot {
+  background: var(--color-danger);
+}
+
+@media (max-width: 600px) {
+  .plat-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .plat-field {
+    min-width: 0;
+  }
+}
+
+

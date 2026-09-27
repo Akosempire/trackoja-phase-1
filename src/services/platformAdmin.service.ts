@@ -41,6 +41,13 @@ export interface ProductPlan {
   userLimit: number | null;
   features: { key: string; label: string; upcoming?: boolean }[];
   onboardingNote: string | null;
+  /**
+   * Which cycle this plan is sold on. Added by migration 089. It must be sent
+   * back on every save: `upsert_product_plan` writes whatever it is given, and
+   * its parameter defaults to 'monthly', so omitting it silently resets an
+   * annual or custom plan to monthly.
+   */
+  billingCycle: 'monthly' | 'annual' | 'custom';
   status: 'active' | 'inactive' | 'draft' | 'retired';
   isDefault: boolean;
   isPublic: boolean;
@@ -235,6 +242,26 @@ export interface BusinessDetail {
 
 // ------------------------------------------------------------- the service
 
+export interface PlatformAuditLog {
+  id: string;
+  actorEmail: string | null;
+  orgId: string | null;
+  orgName: string | null;
+  action: string;
+  resourceType: string;
+  resourceId: string | null;
+  resourceName: string | null;
+  status: string | null;
+  changes: Record<string, unknown> | null;
+  details: Record<string, unknown> | null;
+  createdAt: string;
+}
+
+export interface PlatformAuditPage {
+  entries: PlatformAuditLog[];
+  total: number;
+}
+
 export class PlatformAdminService {
   // ------------------------------------------------------- my access
 
@@ -364,6 +391,8 @@ export class PlatformAdminService {
         userLimit: row.user_limit === null ? null : Number(row.user_limit),
         features: row.features ?? [],
         onboardingNote: row.onboarding_note,
+        // Present since migration 089 appended it to list_product_plans.
+        billingCycle: row.billing_cycle ?? 'monthly',
         status: row.status,
         isDefault: Boolean(row.is_default),
         isPublic: Boolean(row.is_public),
@@ -387,6 +416,7 @@ export class PlatformAdminService {
     userLimit?: number | null;
     features?: { key: string; label: string; upcoming?: boolean }[];
     onboardingNote?: string | null;
+    billingCycle?: 'monthly' | 'annual' | 'custom';
     status?: string;
     isDefault?: boolean;
     isPublic?: boolean;
@@ -394,6 +424,20 @@ export class PlatformAdminService {
     note?: string | null;
   }): Promise<void> {
     try {
+      /*
+       * `upsert_product_plan` writes whatever cycle it is given, and its
+       * parameter defaults to 'monthly'. A caller that simply does not know about
+       * the column would therefore rewrite an annual or custom plan as monthly on
+       * any unrelated edit, so the stored value is read back and preserved unless
+       * the caller deliberately asks for a change. A plan that does not exist yet
+       * legitimately starts on monthly.
+       */
+      let billingCycle = input.billingCycle;
+      if (!billingCycle) {
+        const existing = await PlatformAdminService.listPlans(input.productKey);
+        billingCycle = existing.find((plan) => plan.key === input.planKey)?.billingCycle ?? 'monthly';
+      }
+
       const { error } = await supabase.rpc('upsert_product_plan', {
         p_product_key: input.productKey,
         p_plan_key: input.planKey,
@@ -409,6 +453,7 @@ export class PlatformAdminService {
         p_is_public: input.isPublic ?? true,
         p_sort_order: input.sortOrder ?? null,
         p_note: input.note ?? null,
+        p_billing_cycle: billingCycle,
       });
       if (error) throw error;
     } catch (error) {
@@ -996,6 +1041,63 @@ export class PlatformAdminService {
       };
     } catch (error) {
       console.error('Get active impersonation error:', error);
+      throw error;
+    }
+  }
+
+  // -------------------------------------------------------- audit logs
+
+  /**
+   * Platform-wide audit trail.
+   *
+   * Audit rows with no organisation (every platform-scoped action) are hidden
+   * from tenants by RLS and reachable only through this SECURITY DEFINER
+   * function. Secrets inside `changes`/`details` are redacted server-side.
+   */
+  static async listAuditLogs(filters: {
+    actorId?: string;
+    orgId?: string;
+    action?: string;
+    resourceType?: string;
+    status?: string;
+    from?: string;
+    to?: string;
+    limit?: number;
+    offset?: number;
+  } = {}): Promise<PlatformAuditPage> {
+    try {
+      const { data, error } = await supabase.rpc('list_platform_audit_logs', {
+        p_actor_id: filters.actorId ?? null,
+        p_org_id: filters.orgId ?? null,
+        p_action: filters.action ?? null,
+        p_resource_type: filters.resourceType ?? null,
+        p_status: filters.status ?? null,
+        p_from: filters.from ?? null,
+        p_to: filters.to ?? null,
+        p_limit: filters.limit ?? 50,
+        p_offset: filters.offset ?? 0,
+      });
+      if (error) throw error;
+      const rows = (data ?? []) as any[];
+      return {
+        entries: rows.map((row) => ({
+          id: row.id,
+          actorEmail: row.actor_email,
+          orgId: row.org_id,
+          orgName: row.org_name,
+          action: row.action,
+          resourceType: row.resource_type,
+          resourceId: row.resource_id,
+          resourceName: row.resource_name,
+          status: row.status,
+          changes: row.changes,
+          details: row.details,
+          createdAt: row.created_at,
+        })),
+        total: Number(rows[0]?.total_count ?? rows.length),
+      };
+    } catch (error) {
+      console.error('List platform audit logs error:', error);
       throw error;
     }
   }

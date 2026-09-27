@@ -8,6 +8,8 @@ interface FormFieldProps {
   onChange: (value: string) => void;
   placeholder?: string;
   error?: string;
+  /** Guidance shown below the control. Replaced by the error when one is present. */
+  hint?: string;
   autoComplete?: string;
   required?: boolean;
   disabled?: boolean;
@@ -21,6 +23,7 @@ export function FormField({
   onChange,
   placeholder,
   error,
+  hint,
   autoComplete,
   required,
   disabled,
@@ -61,7 +64,7 @@ export function FormField({
           required={required}
           disabled={disabled}
           aria-invalid={error ? true : undefined}
-          aria-describedby={error ? `${id}-error` : undefined}
+          aria-describedby={error ? `${id}-error` : hint ? `${id}-hint` : undefined}
         />
 
         {isPassword && (
@@ -83,6 +86,7 @@ export function FormField({
       </div>
 
       {error && <span className="form-error" id={`${id}-error`} role="alert">{error}</span>}
+      {!error && hint && <span className="form-hint" id={`${id}-hint`}>{hint}</span>}
     </div>
   );
 }

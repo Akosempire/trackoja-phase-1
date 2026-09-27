@@ -34,7 +34,19 @@ import BillingPage from './pages/billing/BillingPage';
 import MorePage from './pages/MorePage';
 import SettingsPage from './pages/SettingsPage';
 import SupportPage from './pages/SupportPage';
-import PlatformAdminPage from './pages/platform/PlatformAdminPage';
+import { PlatformProvider } from './components/platform/PlatformContext';
+import { PlatformLayout } from './components/platform/PlatformLayout';
+import OverviewArea from './pages/platform/areas/OverviewArea';
+import BusinessesArea from './pages/platform/areas/BusinessesArea';
+import BusinessDetailArea from './pages/platform/areas/BusinessDetailArea';
+import BillingArea from './pages/platform/areas/BillingArea';
+import ActivationArea from './pages/platform/areas/ActivationArea';
+import SupportArea from './pages/platform/areas/SupportArea';
+import IntegrationsArea from './pages/platform/areas/IntegrationsArea';
+import HealthArea from './pages/platform/areas/HealthArea';
+import DeveloperArea from './pages/platform/areas/DeveloperArea';
+import AuditArea from './pages/platform/areas/AuditArea';
+import SettingsArea from './pages/platform/areas/SettingsArea';
 import KitchenPage from './pages/restaurant/KitchenPage';
 import ExpiryAlertsPage from './pages/pharmacy/ExpiryAlertsPage';
 import LandingPage from './pages/landing/LandingPage';
@@ -125,8 +137,34 @@ export default function App() {
           <Route path="/support" element={<SupportPage />} />
           <Route path="/kitchen" element={<KitchenPage />} />
           <Route path="/pharmacy/expiry" element={<ExpiryAlertsPage />} />
-          <Route element={<PlatformAdminRoute />}>
-            <Route path="/platform" element={<PlatformAdminPage />} />
+        </Route>
+
+        {/* The platform console is a sibling of the merchant shell, not a child of
+            it: a platform operator has no store, so the merchant sidebar, store
+            switcher and bottom tabs must not render around these screens. */}
+        <Route element={<PlatformAdminRoute />}>
+          <Route
+            path="/platform"
+            element={
+              <PlatformProvider>
+                <PlatformLayout />
+              </PlatformProvider>
+            }
+          >
+            <Route index element={<OverviewArea />} />
+            <Route path="businesses" element={<BusinessesArea />} />
+            <Route path="businesses/:orgId" element={<BusinessDetailArea />} />
+            {/* Activation is the last area still being implemented. It routes to
+                an honest stand-in rather than a blank page or a mock-up, so the
+                navigation can never dead-end. */}
+            <Route path="billing" element={<BillingArea />} />
+            <Route path="activation" element={<ActivationArea />} />
+            <Route path="support" element={<SupportArea />} />
+            <Route path="integrations" element={<IntegrationsArea />} />
+            <Route path="health" element={<HealthArea />} />
+            <Route path="developer" element={<DeveloperArea />} />
+            <Route path="audit" element={<AuditArea />} />
+            <Route path="settings" element={<SettingsArea />} />
           </Route>
         </Route>
       </Route>

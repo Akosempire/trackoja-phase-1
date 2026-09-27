@@ -10,6 +10,7 @@ import '@fontsource-variable/geist';
 import '@fontsource/playfair-display/latin-400.css';
 import './styles/tokens.css';
 import './styles/waya.css';
+import './styles/waya-components.css';
 import './styles/toast.css';
 import './styles/bottom-nav.css';
 import './styles/form-controls.css';
