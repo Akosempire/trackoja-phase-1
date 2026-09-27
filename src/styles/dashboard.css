@@ -1,0 +1,67 @@
+/* Business-type dashboard.
+   Cards come from the business experience, so a tailor, a restaurant and a
+   pharmacy see different metrics. Surfaces and tokens follow the Waya system. */
+
+.dash-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-8);
+  margin-bottom: var(--space-16);
+}
+
+.dash-actions .btn {
+  width: auto;
+}
+
+.dash-metrics {
+  margin-bottom: var(--space-16);
+}
+
+/* A metric card is a link to the filtered list behind the number. */
+.dash-metric {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+  transition: border-color var(--tr), background var(--tr);
+}
+
+a.dash-metric:hover {
+  border-color: var(--color-border-control);
+  background: var(--color-hover);
+}
+
+a.dash-metric:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.dash-metric-sub {
+  margin: var(--space-4) 0 0;
+  font-size: var(--text-caption);
+  color: var(--color-text-muted);
+}
+
+.dash-value-warn {
+  color: var(--color-warning-text);
+}
+
+.dash-value-danger {
+  color: var(--color-danger);
+}
+
+.dash-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-8);
+}
+
+.dash-empty .page-subtitle {
+  margin: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dash-metric {
+    transition: none;
+  }
+}

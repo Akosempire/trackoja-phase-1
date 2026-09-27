@@ -18,6 +18,7 @@ import {
   type BusinessExperience,
 } from '../src/config/businessExperience';
 import { CATEGORY_CONFIGS } from '../src/config/businessModules';
+import { RESOLVABLE_METRIC_KEYS, isResolvableMetric } from '../src/config/dashboardMetrics';
 
 // Routes that exist in the router.
 const appSource = readFileSync(join(process.cwd(), 'src', 'App.tsx'), 'utf8');
@@ -257,6 +258,45 @@ describe('Every experience is fully populated', () => {
       expect(experience.emptyStates.dashboard.length, where).toBeGreaterThan(0);
       expect(experience.emptyStates.primaryList.length, where).toBeGreaterThan(0);
       expect(experience.terminology.record.length, where).toBeGreaterThan(0);
+    }
+  });
+});
+
+describe('Dashboard metric contract', () => {
+  it('only marks a metric implemented when the dashboard can actually source it', () => {
+    // This is the guard against a card that claims to exist and then renders
+    // nothing - the failure would be invisible without it.
+    const unsourced: string[] = [];
+    for (const experience of ALL_EXPERIENCES) {
+      for (const metric of experience.dashboard) {
+        if (metric.implemented && !isResolvableMetric(metric.key)) {
+          unsourced.push(`${experience.category}/${metric.key}`);
+        }
+      }
+    }
+    expect(unsourced).toEqual([]);
+  });
+
+  it('uses every resolvable metric key, so none is unused machinery', () => {
+    const used = new Set(
+      ALL_EXPERIENCES.flatMap((e) => e.dashboard.filter((m) => m.implemented).map((m) => m.key))
+    );
+    const unused = RESOLVABLE_METRIC_KEYS.filter((key) => !used.has(key));
+    expect(unused).toEqual([]);
+  });
+
+  it('explains every metric that is not available', () => {
+    for (const experience of ALL_EXPERIENCES) {
+      for (const metric of experience.dashboard.filter((m) => !m.implemented)) {
+        expect(metric.gap, `${experience.category}/${metric.key} needs a gap note`).toBeTruthy();
+      }
+    }
+  });
+
+  it('gives every business type at least one real metric', () => {
+    for (const experience of ALL_EXPERIENCES) {
+      const live = experience.dashboard.filter((m) => m.implemented);
+      expect(live.length, `${experience.category} has no live metric`).toBeGreaterThan(0);
     }
   });
 });

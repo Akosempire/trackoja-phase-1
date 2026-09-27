@@ -63,6 +63,8 @@ export interface DashboardMetric {
   linkTo?: string;
   tone?: 'default' | 'warn' | 'danger' | 'brand';
   implemented: boolean;
+  /** Why the card is not available, when implemented is false. */
+  gap?: string;
 }
 
 export interface ExperienceAction {
@@ -254,7 +256,7 @@ function retailLike(overrides: Partial<BusinessExperience> = {}): BusinessExperi
   };
 }
 
-export const BUSINESS_EXPERIENCES: Record<BusinessCategory, BusinessExperience> = {
+const RAW_EXPERIENCES: Record<BusinessCategory, BusinessExperience> = {
   // ---------------------------------------------------------------- retail
   general_retail: retailLike(),
 
@@ -424,6 +426,34 @@ export const BUSINESS_EXPERIENCES: Record<BusinessCategory, BusinessExperience> 
     staffRoles: ['owner', 'manager', 'tailor', 'cashier'],
     dashboard: [
       {
+        key: 'clients',
+        label: 'Clients',
+        source: 'customers',
+        calculation: 'COUNT of active customers for this store',
+        period: 'current',
+        linkTo: '/customers',
+        implemented: true,
+      },
+      {
+        key: 'sales_today',
+        label: 'Payments today',
+        source: 'sales',
+        calculation: 'SUM(total) of completed sales today - deposits and balance payments',
+        period: 'business-local day',
+        linkTo: '/sales/history',
+        implemented: true,
+      },
+      {
+        key: 'low_stock',
+        label: 'Materials low',
+        source: 'products',
+        calculation: 'Materials where track_inventory and stock_qty <= reorder_level',
+        period: 'current',
+        linkTo: '/inventory/products',
+        tone: 'warn',
+        implemented: true,
+      },
+      {
         key: 'jobs_due_soon',
         label: 'Jobs due soon',
         source: 'jobs',
@@ -547,7 +577,8 @@ export const BUSINESS_EXPERIENCES: Record<BusinessCategory, BusinessExperience> 
         calculation: 'Revenue by product over the last 30 days, descending',
         period: 'last 30 days',
         linkTo: '/reports',
-        implemented: true,
+        implemented: false,
+        gap: 'The Top products report exists; no per-type card is wired to it yet.',
       },
       {
         key: 'returns',
@@ -980,7 +1011,8 @@ export const BUSINESS_EXPERIENCES: Record<BusinessCategory, BusinessExperience> 
         calculation: 'Revenue by product over the last 30 days, descending',
         period: 'last 30 days',
         linkTo: '/reports',
-        implemented: true,
+        implemented: false,
+        gap: 'The Top products report exists; no per-type card is wired to it yet.',
       },
       {
         key: 'low_stock_shades',
@@ -1121,7 +1153,8 @@ export const BUSINESS_EXPERIENCES: Record<BusinessCategory, BusinessExperience> 
         calculation: 'SUM of positive customer balances for this store',
         period: 'current',
         linkTo: '/customers',
-        implemented: true,
+        implemented: false,
+        gap: 'The Customer balances report exists; no card is wired to it yet.',
       },
     ],
     reports: [
@@ -1187,7 +1220,8 @@ export const BUSINESS_EXPERIENCES: Record<BusinessCategory, BusinessExperience> 
         calculation: 'Quantity sold by product over the last 30 days, descending',
         period: 'last 30 days',
         linkTo: '/reports',
-        implemented: true,
+        implemented: false,
+        gap: 'The Top products report exists; no per-type card is wired to it yet.',
       },
       {
         key: 'low_stock',
@@ -1261,6 +1295,27 @@ export const BUSINESS_EXPERIENCES: Record<BusinessCategory, BusinessExperience> 
     },
   },
 };
+
+/**
+ * Makes the honesty guarantee structural: an unavailable metric must state why,
+ * so a dashboard can never be quietly missing a card with no recorded reason.
+ * Applying it here means a new metric cannot forget the annotation.
+ */
+function normaliseExperience(experience: BusinessExperience): BusinessExperience {
+  return {
+    ...experience,
+    dashboard: experience.dashboard.map((metric) =>
+      metric.implemented || metric.gap
+        ? metric
+        : { ...metric, gap: `No card is wired to ${metric.source} yet.` }
+    ),
+  };
+}
+
+export const BUSINESS_EXPERIENCES: Record<BusinessCategory, BusinessExperience> =
+  Object.fromEntries(
+    Object.entries(RAW_EXPERIENCES).map(([key, experience]) => [key, normaliseExperience(experience)])
+  ) as Record<BusinessCategory, BusinessExperience>;
 
 // ================================================================ accessors
 
