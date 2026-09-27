@@ -128,7 +128,7 @@
   height: 26px;
   border-radius: var(--radius-control);
   background: var(--color-workspace); /* restrained orange brand mark */
-  color: #fff;
+  color: var(--color-on-accent);
   font-size: var(--text-label);
   font-weight: 700;
 }
@@ -431,7 +431,7 @@
   padding: 0 5px;
   border-radius: var(--radius-pill);
   background: var(--color-warning);
-  color: #fff;
+  color: var(--color-on-accent);
   font-size: var(--text-xs);
   font-weight: 700;
 }
@@ -1123,7 +1123,7 @@
   padding: 1px var(--space-6);
   border-radius: var(--radius-pill);
   background: var(--color-workspace);
-  color: #fff;
+  color: var(--color-on-accent);
   font-size: var(--text-xs);
   font-weight: 700;
 }
@@ -1165,7 +1165,7 @@
   padding: 2px var(--space-8);
   border-radius: var(--radius-pill);
   background: var(--color-workspace);
-  color: #fff;
+  color: var(--color-on-accent);
   font-size: var(--text-sm);
   font-weight: 700;
 }

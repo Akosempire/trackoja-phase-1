@@ -1,4 +1,4 @@
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { AuthService } from '../services/auth.service';
 import { Button } from './ui/Button';
 import { StoreSwitcher } from './StoreSwitcher';
@@ -14,6 +14,11 @@ import { containDialogFocus } from '../utils/dialog-focus';
 export function AppLayout() {
   const navigate = useNavigate();
   const { profile } = useAuth();
+  const location = useLocation();
+  // A platform owner manages the whole platform, not a store. The merchant
+  // sidebar, store switcher and bottom tabs are meaningless there and must not be
+  // rendered - they belong to the merchant experience, not this one.
+  const isPlatformArea = location.pathname.startsWith('/platform');
   const drawer = useRef<HTMLDialogElement>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   useEffect(() => {
@@ -37,16 +42,18 @@ export function AppLayout() {
       <a className="skip-link" href="#main-content">Skip to content</a>
       {/* ── Mobile top header (hidden on desktop) ── */}
       <header className="app-header">
-        <button className="icon-button" aria-label="Open navigation" aria-expanded={menuOpen} aria-controls="mobile-navigation" onClick={() => setMenuOpen(true)}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
-        <span className="app-header-logo">TrackOja</span>
+        {!isPlatformArea && (
+          <button className="icon-button" aria-label="Open navigation" aria-expanded={menuOpen} aria-controls="mobile-navigation" onClick={() => setMenuOpen(true)}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+        )}
+        <span className="app-header-logo">{isPlatformArea ? 'TrackOja Platform' : 'TrackOja'}</span>
         <div className="app-header-actions">
-          <StoreSwitcher />
-          {profile?.isPlatformAdmin && (
+          {!isPlatformArea && <StoreSwitcher />}
+          {!isPlatformArea && profile?.isPlatformAdmin && (
             <NavLink to="/platform" className={({ isActive }) => `app-nav-link${isActive ? ' active' : ''}`}>
               Platform
             </NavLink>
           )}
-          <Button variant="ghost" onClick={handleLogout} style={{ width: 'auto', height: 36, padding: '0 14px' }}>
+          <Button variant="ghost" className="btn-sm" onClick={handleLogout}>
             Log out
           </Button>
         </div>
@@ -54,10 +61,14 @@ export function AppLayout() {
 
       <BusinessProvider>
         {/* ── Desktop sidebar (hidden on mobile) ── */}
-        <SideNav onLogout={handleLogout} />
-        <dialog ref={drawer} id="mobile-navigation" className="mobile-nav-dialog" aria-label="Navigation" onKeyDown={containDialogFocus} onCancel={() => setMenuOpen(false)} onClick={event => { if (event.target === event.currentTarget) setMenuOpen(false); }}>
-          {menuOpen && <SideNav mobile onClose={() => setMenuOpen(false)} onLogout={handleLogout} />}
-        </dialog>
+        {!isPlatformArea && (
+          <>
+            <SideNav onLogout={handleLogout} />
+            <dialog ref={drawer} id="mobile-navigation" className="mobile-nav-dialog" aria-label="Navigation" onKeyDown={containDialogFocus} onCancel={() => setMenuOpen(false)} onClick={event => { if (event.target === event.currentTarget) setMenuOpen(false); }}>
+              {menuOpen && <SideNav mobile onClose={() => setMenuOpen(false)} onLogout={handleLogout} />}
+            </dialog>
+          </>
+        )}
 
         {/* ── Main content area ── */}
         <div className="app-main">
@@ -66,8 +77,8 @@ export function AppLayout() {
           <main className="app-content" id="main-content" tabIndex={-1}>
             <Outlet />
           </main>
-          {/* Mobile bottom nav only */}
-          <BottomNav />
+          {/* Mobile bottom nav only, and never in the platform area */}
+          {!isPlatformArea && <BottomNav />}
         </div>
       </BusinessProvider>
     </div>

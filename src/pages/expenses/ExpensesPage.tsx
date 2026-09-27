@@ -150,8 +150,8 @@ export default function ExpensesPage() {
       {notice && <div className="alert alert-success">{notice}</div>}
 
       {/* Period selector: expenses are reported on the date money was spent. */}
-      <div className="card" style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-16)', alignItems: 'flex-end' }}>
-        <div style={{ minWidth: 150 }}>
+      <div className="card">
+        <div className="auth-form-row">
           <FormField
             id="expense-from"
             label="From"
@@ -159,8 +159,6 @@ export default function ExpensesPage() {
             value={range.from}
             onChange={(v) => setRange({ ...range, from: v })}
           />
-        </div>
-        <div style={{ minWidth: 150 }}>
           <FormField
             id="expense-to"
             label="To"
@@ -169,7 +167,7 @@ export default function ExpensesPage() {
             onChange={(v) => setRange({ ...range, to: v })}
           />
         </div>
-        <div style={{ marginLeft: 'auto' }}>
+        <div>
           <p className="stat-label">Total in period</p>
           <p className="stat-value">{formatMoney(periodTotal)}</p>
           <p className="page-subtitle">

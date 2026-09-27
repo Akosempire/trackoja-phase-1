@@ -389,7 +389,7 @@ export default function JobsPage() {
                   </div>
 
                   {reasonFor === job.id && (
-                    <div style={{ width: '100%' }}>
+                    <div className="card">
                       <FormField
                         id={`reason-${job.id}`}
                         label="Why is this job going back a step?"
@@ -417,7 +417,7 @@ export default function JobsPage() {
                   )}
 
                   {payingId === job.id && (
-                    <div style={{ width: '100%' }}>
+                    <div className="card">
                       <FormField
                         id={`pay-${job.id}`}
                         label={`Amount (${formatMoney(job.balance)} outstanding)`}
