@@ -161,7 +161,30 @@ and entitlement rows are byte-identical to before, per-table md5.
 | **`organizations.billing_email` is not returned** by `get_platform_business` | Not this migration's surface. | The business detail's Billing email row always reads "Not set". |
 | **No `featured` flag** | Not asked for; adding it would change `list_published_plans`' shape. | Marketing emphasis is derived from price, so it will follow a future price change. `is_default` means "the plan a business lands on", which is a different fact. |
 
-## A correction the verification forced
+## A second correction: a fixture I left behind, and how it was caught
+
+The end-to-end check runs a real purchase, so `start_plan_checkout` creates a
+legacy `subscription_plans` mirror row for the plan it charges. That row belongs to
+**no organization**, so deleting the temporary business did not remove it, and my
+first version of the check reported "cleanup left no verification fixture" while a
+`Premium` row sat in the legacy table.
+
+It was caught by re-running 092's own 85-check suite after 094, which asserts a
+baseline of three legacy plans and failed two checks because there were four. That
+is the value of re-running a verification rather than trusting its previous
+result.
+
+The row was removed (it had zero subscriptions referencing it), 092's suite is back
+to 85/85, and the check now takes the set of legacy plan ids at baseline and deletes
+anything that appeared during the run — so it reports the mirror it caused:
+
+    removed 1 mirror row(s) this run created: Premium
+
+Final state of the live database, measured after all three suites: 3 legacy plans
+(`Free`, `Pro`, `Starter`), 8 organizations, 8 subscriptions, **0** transactions,
+8 entitlements, 12 accounts, 1 platform admin, 0 fixtures, 4 published plans.
+
+## A third correction: two claims the work made and got wrong
 
 My first draft of migration 094 said "the eleven live rows keep activating exactly
 as they did". That was wrong, and the verification caught it. The eight live
