@@ -67,7 +67,10 @@ export default function PlatformAdminPage() {
   const visibleTabs = useMemo(() => {
     if (!access) return [];
     return TABS.filter((tab) => {
-      if (tab.developerOnly && !access.developerMode) return false;
+      // A super admin must always be able to reach the Developer area: it is the
+      // only place developer mode can be granted from, so hiding it until a grant
+      // exists would make the first grant impossible.
+      if (tab.developerOnly) return access.developerMode || access.isSuperAdmin;
       if (tab.permission === null) return true;
       return access.permissions.includes(tab.permission);
     });
