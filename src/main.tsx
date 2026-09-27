@@ -10,6 +10,8 @@ import '@fontsource-variable/geist';
 import '@fontsource/playfair-display/latin-400.css';
 import './styles/tokens.css';
 import './styles/waya.css';
+import './styles/toast.css';
+import { ToastProvider } from './components/ui/Toast';
 import { applyTheme, readTheme } from './components/ThemeSelect';
 
 applyTheme(readTheme());
@@ -18,7 +20,9 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <BrowserRouter>
       <AuthProvider>
-        <App />
+        <ToastProvider>
+          <App />
+        </ToastProvider>
       </AuthProvider>
     </BrowserRouter>
   </StrictMode>

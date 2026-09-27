@@ -12,6 +12,7 @@ import {
 import { Button } from '../../components/ui/Button';
 import { FormField } from '../../components/ui/FormField';
 import { PageLoader } from '../../components/ui/PageLoader';
+import { useToast } from '../../components/ui/Toast';
 import { getBusinessExperience } from '../../config/businessExperience';
 
 function formatMoney(value: number, currency = 'NGN'): string {
@@ -38,6 +39,7 @@ export default function ExpensesPage() {
   const { hasPermission, loading: permsLoading } = usePermissions();
   const storeId = profile?.currentStoreId;
   const experience = getBusinessExperience(category);
+  const toast = useToast();
 
   const canCreate = hasPermission('expense:create');
   const canDelete = hasPermission('expense:delete');
@@ -47,7 +49,6 @@ export default function ExpensesPage() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [range, setRange] = useState({ from: startOfMonth(), to: today() });
   const [showForm, setShowForm] = useState(false);
@@ -86,25 +87,35 @@ export default function ExpensesPage() {
 
   const submit = async () => {
     if (!storeId) return;
+    const amount = Number(form.amount);
+    // A waiting toast that becomes the outcome in place, so the merchant sees one
+    // message for the whole operation rather than nothing then a banner elsewhere.
+    const pending = toast.loading('Recording expense…', { description: form.description });
     setSaving(true);
-    setError(null);
-    setNotice(null);
     try {
       await ExpenseService.create({
         storeId,
         description: form.description,
-        amount: Number(form.amount),
+        amount,
         category: form.category,
         spentOn: form.spentOn,
         paymentMethod: form.paymentMethod,
         supplierId: form.supplierId || null,
       });
-      setNotice(`Recorded ${formatMoney(Number(form.amount))} · ${form.description}`);
+      toast.update(pending, {
+        variant: 'success',
+        message: `Recorded ${formatMoney(amount)}`,
+        description: form.description,
+      });
       setForm({ ...form, description: '', amount: '', supplierId: '' });
       setShowForm(false);
       load();
     } catch (err) {
-      setError((err as Error)?.message ?? 'Could not record the expense');
+      toast.update(pending, {
+        variant: 'error',
+        message: 'Could not record the expense',
+        description: (err as Error)?.message ?? undefined,
+      });
     } finally {
       setSaving(false);
     }
@@ -112,14 +123,18 @@ export default function ExpensesPage() {
 
   const remove = async (expense: Expense) => {
     if (!window.confirm(`Delete "${expense.description}"? This cannot be undone.`)) return;
+    const pending = toast.loading('Deleting expense…', { description: expense.description });
     setSaving(true);
-    setError(null);
     try {
       await ExpenseService.remove(expense.id);
-      setNotice('Expense deleted');
+      toast.update(pending, { variant: 'success', message: 'Expense deleted' });
       load();
     } catch (err) {
-      setError((err as Error)?.message ?? 'Could not delete the expense');
+      toast.update(pending, {
+        variant: 'error',
+        message: 'Could not delete the expense',
+        description: (err as Error)?.message ?? undefined,
+      });
     } finally {
       setSaving(false);
     }
@@ -147,7 +162,6 @@ export default function ExpensesPage() {
       </div>
 
       {error && <div className="alert alert-error">{error}</div>}
-      {notice && <div className="alert alert-success">{notice}</div>}
 
       {/* Period selector: expenses are reported on the date money was spent. */}
       <div className="card">
