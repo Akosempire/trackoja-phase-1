@@ -196,13 +196,6 @@ export default function BillingPage() {
   const currentPlan = plans.find((plan) => plan.id === currentPlanId) ?? null;
   const featureList = currentPlan?.features ?? [];
 
-  /**
-   * Annual billing is not enabled for purchase until the checkout can bill it
-   * correctly. The annual price is still shown, because it is a real published
-   * figure worth comparing.
-   */
-  const annualNotYetBillable = cycle === 'annual';
-
   function priceFor(plan: PublishedPlan, which: BillingCycle): number | null {
     return which === 'monthly' ? plan.monthlyPrice : plan.annualPrice;
   }
@@ -414,19 +407,6 @@ export default function BillingPage() {
                     <a className="btn btn-outline" href={`mailto:${CONTACT_FALLBACK}?subject=TrackOja%20${encodeURIComponent(plan.name)}`}>
                       <span className="btn-label">Talk to us</span>
                     </a>
-                  ) : annualNotYetBillable ? (
-                    /*
-                     * The annual price is real and worth showing, but the checkout
-                     * cannot bill it correctly yet: `start_plan_checkout` reuses
-                     * the legacy mirror row, which holds one billing interval per
-                     * plan name, so an annual purchase of Starter would charge the
-                     * annual amount and then activate a monthly period. Taking the
-                     * money and granting a month is worse than not offering the
-                     * option, so the control is disabled and says why.
-                     */
-                    <Button variant="outline" disabled>
-                      Annual coming soon
-                    </Button>
                   ) : (
                     <Button
                       onClick={() => handleCheckout(plan)}

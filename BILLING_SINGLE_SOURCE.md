@@ -123,14 +123,53 @@ existing readers.
 | `landingContent.ts` prices removed | They are the duplicate that drifted; the page fetches published plans instead. |
 | Admin Billing area reorganised | Seven sections, as the brief lists. |
 
-## Open questions I am not deciding alone
+## Outcome
 
-1. **The ₦90,000 retired tier.** It is `retired` and private, so it is invisible to
-   customers and correctly excluded. It stays as history.
-2. **`Free` and `Pro` in the legacy table** are retired but still present. They are
-   left untouched: deleting rows that historical subscriptions may reference is
-   not a cleanup, it is data loss.
-3. **Trial length** currently lives in two places — `platform_settings.billing.trial_days`
-   (14) and `platform_products.access_settings.trial_days` (14) — and neither is
-   read by any code. The redesigned flow reads trial days from the **plan**, which
-   is where the brief puts it, and the two older settings are marked inert.
+Shipped in `5660319`, `7c0df48` and `0f266c4`.
+
+**One catalogue, four readers.** Published plans now feed the public pricing
+page, the customer Billing page, checkout and the entitlement that grants access.
+The public page contains no price literal (a test asserts that, reading the source
+as text), and the customer page shows all four published tiers including Standard
+at ₦22,500/₦225,000 — which, before this, no customer could buy.
+
+**Verified against live data and real sessions.** Migration 092 carries 85
+verification checks; anon reads exactly four published plans, proved by *becoming*
+the anon role rather than by reading grants. As a real business owner, the
+customer page renders status, usage and the catalogue at 1440 and 390 with no
+errors or overflow. The console's seven sections render and switch correctly, and
+at support tier the navigator drops to two sections with the rest denied by URL.
+Subscription and entitlement rows are byte-identical to before, per-table md5.
+
+## Gaps, stated rather than hidden
+
+| Gap | Why it is not fixed | Its effect today |
+| --- | --- | --- |
+| **Annual checkout is disabled** | `start_plan_checkout` reuses the legacy mirror row, and `subscription_plans.name` is UNIQUE, so one plan name holds one billing interval. An annual purchase of Starter would charge the annual amount and activate a monthly period. | The annual price renders for comparison; the checkout is disabled with a reason. No customer can be overcharged. The fix is a per-cycle mirror row or a period derived from the transaction amount — a payment-path change. |
+| **`trial_days` and `setup_fee` are inert** | Nothing applies them: `start_plan_checkout` charges the plan price alone and `activate_subscription` leaves `trial_ends_at` NULL. | Both are stored and editable in the console, marked there as not charged, and deliberately not advertised to customers. All plans hold 0 and NULL, so nothing visible changed. |
+| **No invoices, receipts or refunds** | No table exists. | Stated in one line in the console rather than rendered as empty rows. |
+| **No platform-facing transaction list** | The only transaction view is the last 20 inside `get_platform_business`. | Stated. |
+| **`organizations.billing_email` is not returned** by `get_platform_business` | Not this migration's surface. | The business detail's Billing email row always reads "Not set". |
+| **No `featured` flag** | Not asked for; adding it would change `list_published_plans`' shape. | Marketing emphasis is derived from price, so it will follow a future price change. `is_default` means "the plan a business lands on", which is a different fact. |
+
+## A deliberate deviation from the brief
+
+The brief says "editing a plan leaves it a draft". Migration 092 does the
+opposite on purpose: `published_at` is absent from `upsert_product_plan`'s update
+list, so editing a live plan cannot hide it from paying customers — the reasoning
+is that a typo fix must not unpublish. The console states the real four-condition
+rule (active, public, published, effective) rather than forcing the brief's
+behaviour on top of a server that does not implement it.
+
+## Left deliberately alone
+
+- **The ₦90,000 retired tier.** `retired` and private, so invisible to customers
+  and correctly excluded. It stays as history.
+- **`Free` and `Pro` in the legacy table.** Retired but still present. Deleting
+  rows that historical subscriptions may reference is not a cleanup, it is data
+  loss. They are unreachable from the new path and labelled as legacy.
+- **Trial length in three places.** `platform_settings.billing.trial_days` (14) and
+  `platform_products.access_settings.trial_days` (14) are read by no code. The
+  brief puts trial length on the plan, so that is where the redesigned flow reads
+  it from; the two older settings are marked inert rather than quietly deleted.
+
