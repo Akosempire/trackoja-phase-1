@@ -39,7 +39,7 @@ export default function SupportPage() {
           Reach our support team and we'll get back to you as soon as possible.
         </p>
         <div className="btn-row" style={{ flexWrap: 'wrap' }}>
-          <a className="btn btn-primary btn-sm" href="mailto:ibroakoss@gmail.com">
+          <a className="btn btn-primary btn-sm" href="mailto:mercuriusmerchandise@gmail.com">
             Email support
           </a>
         </div>

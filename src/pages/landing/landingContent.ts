@@ -31,7 +31,12 @@ export interface LandingPlan {
   featured?: boolean;
 }
 
-export const CONTACT_EMAIL = 'ibroakoss@gmail.com';
+/**
+ * The published contact address. Deliberately the operating company's address
+ * rather than a personal mailbox: this is what appears on the pricing section's
+ * "Talk to Sales" button and on the Privacy and Terms pages.
+ */
+export const CONTACT_EMAIL = 'mercuriusmerchandise@gmail.com';
 export const COMPANY_NAME = 'Mercurius Merchandise Limited';
 
 // ---------------------------------------------------------------- pricing

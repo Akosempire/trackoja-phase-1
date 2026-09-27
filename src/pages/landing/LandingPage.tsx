@@ -5,7 +5,6 @@ import {
   BUSINESS_TYPES,
   CAPABILITIES,
   COMPANY_NAME,
-  CONTACT_EMAIL,
   NAV_LINKS,
   OTHER_BUSINESSES,
   OWNER_VIEW_ROWS,
@@ -514,14 +513,6 @@ export default function LandingPage() {
               Reset password
             </Link>
           </nav>
-
-          <div className="lp-footer-col">
-            <p className="lp-footer-heading">Contact</p>
-            <a className="lp-footer-link" href={`mailto:${CONTACT_EMAIL}`}>
-              {CONTACT_EMAIL}
-            </a>
-            <p className="lp-footer-muted">Support replies on business days.</p>
-          </div>
 
           <div className="lp-footer-col">
             <p className="lp-footer-heading">Legal</p>
