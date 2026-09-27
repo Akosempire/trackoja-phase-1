@@ -1,0 +1,52 @@
+/* Form control additions: the password reveal button.
+   Waya tokens only. Loaded after waya.css so these win at equal specificity. */
+
+.form-input-wrap {
+  position: relative;
+  display: block;
+}
+
+/* Keep typed characters from running underneath the reveal button. */
+.form-input-wrap .form-input {
+  padding-right: 46px;
+}
+
+/* Blends with the field: the control matters, not the chrome. */
+.form-input-reveal {
+  position: absolute;
+  top: 50%;
+  right: var(--space-4);
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* 36px inside a 44px field keeps the field height intact while staying a
+     comfortable target for a thumb. */
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.form-input-reveal:hover:not(:disabled) {
+  color: var(--color-text-strong);
+}
+
+.form-input-reveal:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.form-input-reveal:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -2px;
+}
+
+/* Revealed state reads as active without becoming loud. */
+.form-input-reveal[aria-pressed='true'] {
+  color: var(--color-accent);
+}

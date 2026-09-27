@@ -12,6 +12,7 @@ import './styles/tokens.css';
 import './styles/waya.css';
 import './styles/toast.css';
 import './styles/bottom-nav.css';
+import './styles/form-controls.css';
 import { ToastProvider } from './components/ui/Toast';
 import { applyTheme, readTheme } from './components/ThemeSelect';
 
