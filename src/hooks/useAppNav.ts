@@ -77,9 +77,10 @@ export function useAppNav() {
     .map((key) => navByKey.get(key))
     .filter((item): item is NavItem => Boolean(item));
 
-  const leftItems: NavItem[] = bottomItems.slice(0, 1);
+  // Two either side, so Scan holds the exact centre column of the five-slot bar.
+  const leftItems: NavItem[] = bottomItems.slice(0, 2);
   const rightItems: NavItem[] = [
-    ...bottomItems.slice(1),
+    ...bottomItems.slice(2),
     { to: '/more', label: 'More', icon: MoreIcon },
   ];
 

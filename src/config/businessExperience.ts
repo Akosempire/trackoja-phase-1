@@ -171,7 +171,7 @@ function retailLike(overrides: Partial<BusinessExperience> = {}): BusinessExperi
     primaryQuestion: 'What sold today, and what needs restocking?',
     defaultModules: ['inventory', 'sales', 'customers'],
     nav: [OVERVIEW(), ...GENERAL_RETAIL_NAV],
-    bottomNav: ['overview', 'checkout', 'products'],
+    bottomNav: ['overview', 'products', 'checkout'],
     primaryAction: { label: 'New sale', route: '/sales/checkout', implemented: true },
     secondaryActions: [
       { label: 'Add product', route: '/inventory/products/new', implemented: true },
@@ -533,7 +533,7 @@ const RAW_EXPERIENCES: Record<BusinessCategory, BusinessExperience> = {
       wanted('suppliers', 'Suppliers', '/suppliers', 'customers', 'No supplier records exist yet.'),
       live('reports', 'Reports', '/reports', 'reports', 'reports:view'),
     ],
-    bottomNav: ['overview', 'checkout', 'products'],
+    bottomNav: ['overview', 'products', 'checkout'],
     primaryAction: { label: 'New sale', route: '/sales/checkout', implemented: true },
     terminology: {
       record: 'Sale',
@@ -705,7 +705,7 @@ const RAW_EXPERIENCES: Record<BusinessCategory, BusinessExperience> = {
       live('staff', 'Staff', '/staff', 'staff', 'member:manage'),
       live('reports', 'Reports', '/reports', 'reports', 'reports:view'),
     ],
-    bottomNav: ['overview', 'checkout', 'products'],
+    bottomNav: ['overview', 'products', 'checkout'],
     primaryAction: { label: 'Start checkout', route: '/sales/checkout', implemented: true },
     terminology: {
       record: 'Sale',
@@ -1186,7 +1186,7 @@ const RAW_EXPERIENCES: Record<BusinessCategory, BusinessExperience> = {
       wanted('purchases', 'Purchases', '/purchases', 'payments', 'No purchase records exist yet.'),
       live('reports', 'Reports', '/reports', 'reports', 'reports:view'),
     ],
-    bottomNav: ['overview', 'checkout', 'products'],
+    bottomNav: ['overview', 'products', 'checkout'],
     primaryAction: { label: 'New sale', route: '/sales/checkout', implemented: true },
     terminology: {
       record: 'Sale',

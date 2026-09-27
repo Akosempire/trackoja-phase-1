@@ -1,0 +1,177 @@
+/* Mobile bottom navigation.
+   Scan is the primary action: centred, elevated, brand purple, labelled. The other
+   four are deliberately quiet so nothing competes with it. Waya tokens only.
+
+   Loaded after waya.css so these rules win at equal specificity. */
+
+.bottom-nav {
+  /* Five fixed columns rather than a flex row: the centre slot stays geometrically
+     centred no matter how long a label is, which a self-sizing row cannot promise. */
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  align-items: end;
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: var(--z-nav);
+  background: var(--color-surface);
+  border-top: var(--border-hairline) solid var(--color-border);
+  /* Respect the home indicator / gesture bar. */
+  padding: var(--space-6) var(--space-4) calc(var(--space-4) + env(safe-area-inset-bottom, 0px));
+  overflow: visible;
+}
+
+.bottom-nav-link {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  /* Comfortably above the 44px minimum touch target. */
+  min-height: 48px;
+  padding: var(--space-6) var(--space-2);
+  text-decoration: none;
+  color: var(--color-text-muted);
+  font-size: var(--text-2xs);
+  font-weight: 500;
+  border-radius: var(--radius-control);
+  transition: color var(--tr);
+}
+
+.bottom-nav-label {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: var(--leading-ui);
+}
+
+.bottom-nav-icon {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 22px;
+}
+
+/* Selected state: clear, but not loud enough to rival Scan. */
+.bottom-nav-link.active {
+  color: var(--color-accent);
+  font-weight: 600;
+}
+
+.bottom-nav-link.active::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  width: 18px;
+  height: 2px;
+  border-radius: var(--radius-pill);
+  background: var(--color-accent);
+}
+
+.bottom-nav-link:focus-visible,
+.bottom-nav-scan:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+/* ---------------------------------------------------------------- scan */
+
+.bottom-nav-scan {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  /* Fill the grid column so the face lands on the bar's true centre. Without this
+     the button shrink-wraps its content and sits off-centre. */
+  width: 100%;
+  justify-self: center;
+  /* No horizontal padding: any asymmetry shifts the face off the bar's centre line. */
+  padding: 0 0 var(--space-6);
+  /* The face plus label is already ~66px; a fixed floor here would make the content
+     overflow its own box and push the face too low. */
+  min-height: 44px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-family: inherit;
+  color: var(--color-accent);
+  /* No transition: the scanner must open on the first tap with nothing in the way. */
+}
+
+/* A transform lifts the button clear of the bar without disturbing the grid row, so
+   nothing below it moves and the bar height stays constant across business types. */
+.bottom-nav-scan:active .bottom-nav-scan-face {
+  background: var(--color-accent-hover);
+}
+
+.bottom-nav-scan-face {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 54px;
+  height: 54px;
+  border-radius: var(--radius-pill);
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+  box-shadow: var(--shadow-popover);
+  border: 3px solid var(--color-surface);
+  transform: translateY(-20px);
+}
+
+.bottom-nav-scan-label {
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--color-accent);
+}
+
+/* --------------------------------------------------------- cart badge */
+
+.bottom-nav-badge {
+  position: absolute;
+  top: -6px;
+  right: -10px;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-pill);
+  background: var(--color-workspace);
+  color: var(--color-on-accent);
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  line-height: 17px;
+  text-align: center;
+}
+
+/* The bar is mobile-only; the sidebar takes over from 768px up. */
+@media (min-width: 768px) {
+  .bottom-nav {
+    display: none;
+  }
+}
+
+/* Very narrow screens: tighten so five slots still fit without truncating Scan. */
+@media (max-width: 340px) {
+  .bottom-nav-link {
+    padding: var(--space-4) var(--space-2);
+  }
+  .bottom-nav-link .bottom-nav-label {
+    font-size: var(--text-2xs);
+  }
+  .bottom-nav-scan-face {
+    width: 48px;
+    height: 48px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bottom-nav-link {
+    transition: none;
+  }
+}

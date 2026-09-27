@@ -12,6 +12,7 @@ import { FormField } from '../../components/ui/FormField';
 import { PageLoader } from '../../components/ui/PageLoader';
 import { BarcodeScanner } from '../../components/BarcodeScanner';
 import { OfflineSalesService, isNetworkError } from '../../services/offlineSales.service';
+import { setCartCount } from '../../utils/cart-count';
 import type { Customer, CreateSaleRequest, PaymentMethod, Product, ProductCategory, StoreSettings, OrderType } from '../../types';
 
 interface CartLine {
@@ -73,6 +74,12 @@ export default function CheckoutPage() {
   const [pendingVerification, setPendingVerification] = useState(false);
   const [orderType, setOrderType] = useState<OrderType>('dine_in');
   const [tableNumber, setTableNumber] = useState('');
+
+  // Publish the cart size so the bottom navigation can badge Checkout while the
+  // cashier is elsewhere in the app. Only the count travels, never the lines.
+  useEffect(() => {
+    setCartCount(cart.length);
+  }, [cart.length]);
 
   useEffect(() => {
     if (!storeId) return;
