@@ -98,17 +98,32 @@ function useDeveloperData(options: { includeGrants: boolean; includeBusinesses: 
   const load = useCallback(async () => {
     setLoading(true);
 
+    const next: Partial<DeveloperData> = {};
+    const failures: string[] = [];
+
+    /*
+     * Status is fetched first and on its own. Everything else in this area is
+     * gated on developer mode, so calling the gated endpoints before knowing
+     * whether it is active only produces refusals that have to be explained away,
+     * log errors for a screen that is working correctly, and waste a round trip.
+     */
+    let developerMode = false;
+    try {
+      const status = await PlatformAdminService.getDeveloperStatus();
+      next.status = status;
+      developerMode = status.developerMode;
+    } catch {
+      failures.push('status');
+    }
+
     const sources: Array<[keyof DeveloperData, Promise<unknown>]> = [
-      ['status', PlatformAdminService.getDeveloperStatus()],
-      ['sandboxes', PlatformAdminService.listSandboxBusinesses()],
       ['impersonation', PlatformAdminService.getActiveImpersonation()],
     ];
+    if (developerMode) sources.push(['sandboxes', PlatformAdminService.listSandboxBusinesses()]);
     if (includeGrants) sources.push(['grants', PlatformAdminService.listDeveloperGrants()]);
     if (includeBusinesses) sources.push(['businesses', PlatformAdminService.listBusinesses({ limit: 200 })]);
 
     const results = await Promise.allSettled(sources.map(([, promise]) => promise));
-    const next: Partial<DeveloperData> = {};
-    const failures: string[] = [];
 
     results.forEach((result, index) => {
       const [key] = sources[index];
@@ -731,7 +746,12 @@ export default function DeveloperArea() {
           title="Sandbox businesses"
           sub="Test records, excluded from every customer figure and every revenue total."
           actions={
-            <Button variant="outline" className="btn-sm" onClick={() => setSandboxOpen(true)} disabled={busy !== null}>
+            <Button
+              variant="outline"
+              className="btn-sm"
+              onClick={() => setSandboxOpen(true)}
+              disabled={busy !== null || !status?.developerMode}
+            >
               Create sandbox business
             </Button>
           }
@@ -751,7 +771,19 @@ export default function DeveloperArea() {
 
         <SectionState
           loading={loading && !data.sandboxes}
-          error={failed.includes('sandboxes') ? 'list_sandbox_businesses did not answer.' : null}
+          /*
+           * Listing sandboxes requires an active developer grant, so without one
+           * the call is refused by design. That is a permission state, not a
+           * failure: a platform owner reaches this area precisely in order to
+           * grant developer mode in the first place, and showing them an error
+           * for a refusal they caused on purpose reads as a broken screen.
+           */
+          unavailable={
+            !status?.developerMode
+              ? 'Developer mode is not active on this account, so sandbox businesses cannot be listed. Grant it in the section above, then start a session.'
+              : null
+          }
+          error={failed.includes('sandboxes') && status?.developerMode ? 'list_sandbox_businesses did not answer.' : null}
           empty={sandboxes.length === 0}
           emptyTitle="No sandbox businesses"
           emptyBody="Nothing has been created through developer mode on this platform yet."

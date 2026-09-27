@@ -22,6 +22,13 @@
   min-width: 0;
 }
 
+/* A flex item defaults to min-width: auto, so an action row containing a
+   horizontally scrollable chip strip can refuse to shrink and push the whole
+   page wider than the viewport. Zeroing it lets the strip scroll in place. */
+.section-actions {
+  min-width: 0;
+}
+
 .section-title {
   margin: 0;
   font-size: var(--text-body-lg);
@@ -29,6 +36,7 @@
   letter-spacing: normal;
   text-transform: none;
   color: var(--color-text-strong);
+  overflow-wrap: anywhere;
 }
 
 .section-sub {
@@ -39,6 +47,7 @@
   text-transform: none;
   color: var(--color-text-secondary);
   line-height: var(--leading-body);
+  overflow-wrap: anywhere;
 }
 
 .section-actions {
@@ -510,6 +519,7 @@
   font-size: var(--text-body-sm);
   color: var(--color-text-secondary);
   line-height: var(--leading-relaxed);
+  overflow-wrap: anywhere;
 }
 
 .state-actions {
@@ -919,6 +929,16 @@ button.kpi-card:hover {
   overflow-wrap: anywhere;
 }
 
+/* Hints carry server requirements and identifiers, which are long unbroken
+   strings; without this a single one widens its card past the viewport. */
+.form-hint,
+.form-error,
+.state-title,
+.kpi-foot,
+.kpi-label {
+  overflow-wrap: anywhere;
+}
+
 .secret-mask {
   display: inline-flex;
   align-items: center;
@@ -965,14 +985,24 @@ button.kpi-card:hover {
   color: var(--color-text-secondary);
 }
 
+/* The callout body is a flex item, so without this it keeps min-width: auto and
+   a long unbroken string — a UUID, a migration filename, a JSON fragment — makes
+   the whole callout wider than its card and the page wider than the screen. */
+.callout > * {
+  min-width: 0;
+  flex: 1;
+}
+
 .callout-title {
   margin: 0 0 var(--space-4);
   font-weight: 600;
   color: var(--color-text-strong);
+  overflow-wrap: anywhere;
 }
 
 .callout-text {
   margin: 0;
+  overflow-wrap: anywhere;
 }
 
 .callout.callout-info { border-left-color: var(--color-info); }
@@ -1172,6 +1202,12 @@ button.kpi-card:hover {
   font-size: var(--text-caption);
   line-height: var(--leading-relaxed);
   color: var(--color-text-secondary);
+}
+
+/* These lines name migration files, table columns and identifiers, so they must
+   be able to break anywhere rather than widening the card. */
+.plat-coverage-list li {
+  overflow-wrap: anywhere;
 }
 
 .plat-coverage-list li + li {

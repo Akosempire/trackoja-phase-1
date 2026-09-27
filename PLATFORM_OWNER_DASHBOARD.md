@@ -382,9 +382,84 @@ runner exists, `background_jobs` is empty and the UI shows **No data**.
 
 ---
 
-## 7. Journeys to verify
+## 7. Journeys, and what was actually verified
 
-Onboarding a business · assigning a plan · confirming payment · activating access ·
-handling a failed payment · responding to a ticket · diagnosing an incident ·
-updating an integration. Each verified against the live database, plus responsive
-layouts at 1440/1024/820/390/320 and the permission-denied and error states.
+Each journey is marked with how far it was verified. "Database-verified" means a
+query against the live project, not a reading of the SQL.
+
+| # | Journey | Status |
+| --- | --- | --- |
+| 1 | **Onboarding a business** | **Verified.** Creating an organization fires `handle_new_organization_subscription` (a Starter `trialing` row) and `handle_new_organization_product_entitlement` (one TrackOja entitlement, `status='pending'`, `source='trial'`, prices and the 2-seat limit snapshotted from the default plan, `trial_ends_at` copied from the organization). Migration 090 asserts every organization on the platform now has exactly one `subscriptions` row (0 with none, 0 with more than one). |
+| 2 | **Assigning a plan** | **Verified server-side.** `record_subscription_adjustment` handles all twelve change types, snapshots `previous_values`/`new_values`, requires a reason of at least five characters, writes a support note, and (since 089) writes an audit row. Its fifteen distinct refusal messages were enumerated from the migration and the Billing screen validates against the server's own wording. |
+| 3 | **Confirming payment** | **Verified behaviourally.** Before 089, a paid transaction left the entitlement untouched; the fix was proven by a self-rolling-back transaction: `entitlements 5 → 6`, `status=active`, `source=payment`, plan resolved, `agreed_monthly=5000.00`, `agreed_user_limit=2`, `expires_at` set, a repeat activation idempotent, and zero rows left behind. Migration 090 additionally proves that an organization with no `subscriptions` row now gets one created rather than a NULL expiry. |
+| 4 | **Activating access** | **Verified server-side.** `issue_activation_key` → `redeem_activation_key` upserts the entitlement with `source='activation_key'`, snapshotting the plan prices, the key's seat limit and `valid_until` as `expires_at`, under `SELECT … FOR UPDATE` so a key cannot be redeemed twice. Every refusal the customer can hit is enumerated in the migration and mirrored on the Activation screen, along with the fact that a key is masked after issue and cannot be recovered. |
+| 5 | **Handling a failed payment** | **Verified.** `mark_subscription_transaction_failed` is now reachable only by `service_role` (asserted in migration 090's verification), so a customer cannot mark their own payment failed or, more importantly, activate one. |
+| 6 | **Responding to a ticket** | **Cannot be performed: no backend.** There is no ticket table and no ticket RPC. The Support screen states this and specifies the required tables, functions and permission key rather than showing an empty queue that would read as "no tickets". |
+| 7 | **Diagnosing an incident** | **Cannot be performed: no backend.** There is no incident table. The System Health screen renders the four signals that genuinely exist as measured values, renders the seven that do not as **Not configured** rather than green, and specifies the incident model. |
+| 8 | **Updating an integration** | **Cannot be performed: no backend.** There is no registry, no connection test and no credential store; the two payment integrations are configured through Edge Function environment variables that this application cannot read. The Integrations screen shows the real status of each (`configured` / `not configured`), shows `No data` for last-checked and recent events, and states plainly that a green indicator would be fabricated. |
+
+**Permission and error states** are covered by the migrations' verification scripts
+(42 checks for 089, 37 for 090) and by `tests/platform-areas.test.ts`, which asserts
+that a platform owner sees every area, that an admin without a grant cannot see the
+developer area, that a support agent sees only support and overview, and that a user
+holding no platform permission sees nothing at all. The interface hides what a role
+cannot do, and every mutating RPC re-authorises server-side regardless.
+
+## 8. Browser verification
+
+Measured against the production bundle (`index-20ccb78b.js`) served from
+`vite preview`, signed in as real accounts against the live database. Screenshots
+are in `artifacts/platform-console/`.
+
+**Every area renders.** All ten routes return their own heading with no error
+state, no permission-denied state and **zero console errors**, at 1440px. That was
+not true before this pass: the Developer area showed an error for a super admin,
+because listing sandboxes is refused without an active developer grant. That
+refusal is expected — a platform owner reaches the area *in order to grant
+developer mode* — so it now renders as an unavailable state with the reason, the
+gated call is skipped rather than made and refused, and the create control is
+disabled until a grant exists.
+
+**No horizontal overflow at any width.** `documentElement.scrollWidth` equals the
+viewport at 1440, 1024, 820, 390 and 320 on the overview, businesses, billing and
+activation screens — the standard `WAYA_DESIGN_SYSTEM.md` sets. Billing and
+activation previously forced a **400px** layout viewport into a 320px screen:
+`.callout` and `.section-head` are flex containers whose children keep
+`min-width: auto`, so one long unbroken string — a UUID, a migration filename —
+made the callout wider than its card and the page wider than the screen. Fixed in
+the Waya layer with `min-width: 0` on the flex children and `overflow-wrap:
+anywhere` on the text, so every screen using those primitives benefits.
+
+**Shell behaviour.** The sidebar is 247px, collapses to 60px and persists the
+choice. At 820px and below it is hidden and the drawer opens with all ten entries
+and closes on Escape. The merchant bottom navigation is absent at every width, as
+it must be for a console with no store.
+
+**Permissions, measured against the live server.**
+
+| Account | Sidebar offers | Direct visit to a forbidden area |
+| --- | --- | --- |
+| Owner (`super_admin`) | all ten | — |
+| Support agent (`platform:view`, `platform:support`) | Overview, Support, Health, Audit | Activation → denied; Audit allowed, because the RPC accepts `platform:support` as a fallback gate |
+| Finance operator (`platform:view`, `platform:view_payments`, `platform:manage_subscriptions`) | Overview, Billing, Health | Activation → denied; Audit → denied |
+
+One thing to note rather than celebrate: a support agent can open **Platform
+Settings** read-only, because `list_platform_settings` is gated on
+`platform:view`, which they hold, while *changing* a setting needs
+`platform:manage_settings`, which they do not. The page renders read-only with no
+edit controls, so nothing is exposed that the backend did not already permit — but
+the sidebar hides an area that is reachable and showing data. Narrowing that would
+need a settings-specific read permission, which does not exist.
+
+**Honest states, confirmed in the browser.** Integrations renders `Not configured`
+and `No data` (4 and 11 occurrences) with **no** healthy claim; System Health
+renders seven signals as `Not instrumented` and never as OK; Support states that
+the ticket backend does not exist. No screen claims a green status for a system
+with no working check.
+
+**Cleanup.** The three temporary verification accounts were deleted from
+production: `auth.users` 13 → 10, `platform_admins` 4 → 1, with zero rows left in
+`public.users`, `platform_admin_permissions` or `audit_logs`. The only platform
+admin remaining is the platform owner.
+
+
