@@ -3,25 +3,17 @@ import { useNavigate } from 'react-router-dom';
 import { PlatformAdminService, type PlatformAuditLog } from '../../../services/platformAdmin.service';
 import { PlatformService } from '../../../services/platform.service';
 import { usePlatform } from '../../../components/platform/PlatformContext';
-import { AreaCoverage, PlatformPageHead, RefreshButton } from '../../../components/platform/PlatformPageHead';
-import { KpiCard, KpiGrid } from '../../../components/ui/KpiCard';
-import { MeterList, type MeterItem } from '../../../components/ui/MeterList';
+import { PlatformPageHead, RefreshButton } from '../../../components/platform/PlatformPageHead';
+import { AttentionList, HealthyStrip, type AttentionItem } from '../../../components/ui/AttentionList';
+import { MetricStrip, type Metric } from '../../../components/ui/MetricStrip';
 import { SectionHead } from '../../../components/ui/SectionHead';
-import { StatusBadge } from '../../../components/ui/StatusBadge';
 import { Timeline, type TimelineEntry } from '../../../components/ui/Timeline';
 import { Button } from '../../../components/ui/Button';
 import { StateBlock } from '../../../components/ui/StateBlock';
 import { PLATFORM_AREAS } from '../../../config/platformAreas';
-import { getReportDateRange, REPORT_DATE_RANGE_PRESETS, type ReportDateRangePreset } from '../../../utils/report-date-ranges';
-import { daysUntil, formatMoney, formatMoneyCompact, formatNumber, formatRelative, humaniseToken } from '../../../utils/format';
-import type {
-  PlatformInventoryOverview,
-  PlatformOrganization,
-  PlatformOverview,
-  PlatformRevenueByPlan,
-  PlatformRevenueSummary,
-  PlatformRecentError,
-} from '../../../types';
+import { daysUntil, formatMoneyCompact, formatNumber, formatRelative, humaniseToken } from '../../../utils/format';
+import { getReportDateRange } from '../../../utils/report-date-ranges';
+import type { PlatformInventoryOverview, PlatformOrganization, PlatformOverview, PlatformRecentError, PlatformRevenueSummary } from '../../../types';
 import type { PlatformOverviewV2, ProductBusiness } from '../../../services/platformAdmin.service';
 
 const AREA = PLATFORM_AREAS.find((area) => area.id === 'overview')!;
@@ -32,27 +24,29 @@ interface OverviewData {
   inventory: PlatformInventoryOverview;
   organizations: PlatformOrganization[];
   entitlements: ProductBusiness[];
-  revenueSummary: PlatformRevenueSummary;
-  revenueByPlan: PlatformRevenueByPlan[];
+  revenue: PlatformRevenueSummary;
   recentErrors: PlatformRecentError[];
   audit: PlatformAuditLog[];
+  unredeemedKeys: number;
 }
 
 /**
- * Reads every Overview source, keeping the ones that worked.
+ * Reads the Overview sources, keeping whichever answered.
  *
- * Platform reads have different permission gates and one of them failing must
- * not blank the screen — but it must not be hidden either, so the failures are
- * returned and the page says the figures are partial.
+ * A failing source must not blank the screen, but it must not be hidden either:
+ * how many failed is returned so the page can say the figures are partial. The
+ * activation-key read is skipped entirely when the operator lacks the
+ * permission, so an expected refusal is never reported as a failure.
  */
-function useOverviewData(preset: ReportDateRangePreset) {
+function useOverviewData(canSeeActivation: boolean) {
   const [data, setData] = useState<Partial<OverviewData>>({});
-  const [failed, setFailed] = useState<string[]>([]);
+  const [failed, setFailed] = useState(0);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
     setLoading(true);
-    const { from, to } = getReportDateRange(preset);
+    const { from, to } = getReportDateRange('last30');
 
     const sources: Array<[keyof OverviewData, Promise<unknown>]> = [
       ['v2', PlatformAdminService.getOverview()],
@@ -60,439 +54,365 @@ function useOverviewData(preset: ReportDateRangePreset) {
       ['inventory', PlatformService.getInventoryOverview()],
       ['organizations', PlatformService.listOrganizations()],
       ['entitlements', PlatformAdminService.listBusinesses({ limit: 200 })],
-      ['revenueSummary', PlatformService.getRevenueSummary(from, to)],
-      ['revenueByPlan', PlatformService.getRevenueByPlan(from, to)],
+      ['revenue', PlatformService.getRevenueSummary(from, to)],
       ['recentErrors', PlatformService.getRecentErrors(15)],
-      ['audit', PlatformAdminService.listAuditLogs({ limit: 12 }).then((page) => page.entries)],
+      ['audit', PlatformAdminService.listAuditLogs({ limit: 6 }).then((page) => page.entries)],
     ];
+
+    if (canSeeActivation) {
+      // A key that was issued and never redeemed is a customer who has paid and
+      // still has no access — worth surfacing, not just listed on its own screen.
+      sources.push([
+        'unredeemedKeys',
+        PlatformAdminService.listActivationKeys({ status: 'issued', limit: 100 }).then((rows) => rows.length),
+      ]);
+    }
 
     const results = await Promise.allSettled(sources.map(([, promise]) => promise));
     const next: Partial<OverviewData> = {};
-    const failures: string[] = [];
+    let failures = 0;
 
     results.forEach((result, index) => {
       const [key] = sources[index];
-      if (result.status === 'fulfilled') {
-        (next as Record<string, unknown>)[key] = result.value;
-      } else {
-        failures.push(key);
-      }
+      if (result.status === 'fulfilled') (next as Record<string, unknown>)[key] = result.value;
+      else failures += 1;
     });
 
     setData(next);
     setFailed(failures);
+    setTotal(sources.length);
     setLoading(false);
-  }, [preset]);
+  }, [canSeeActivation]);
 
   useEffect(() => {
     void load();
   }, [load]);
 
-  return { data, failed, loading, reload: load };
+  return { data, failed, total, loading, reload: load };
 }
 
 export default function OverviewArea() {
   const navigate = useNavigate();
-  const { access, environment } = usePlatform();
-  const [preset, setPreset] = useState<ReportDateRangePreset>('last30');
-  const { data, failed, loading, reload } = useOverviewData(preset);
+  const { access, can } = usePlatform();
+  const canSeeActivation = can('platform:manage_activation');
+  const { data, failed, total, loading, reload } = useOverviewData(canSeeActivation);
 
   const organizations = data.organizations ?? [];
   const entitlements = data.entitlements ?? [];
 
-  /**
-   * Sandbox business ids.
-   *
-   * `list_platform_organizations` does not return the sandbox flag (it predates
-   * the column), so the flag is taken from the entitlement rows, which do carry
-   * it, and matched by organisation id.
-   */
+  /** `list_platform_organizations` predates the sandbox column, so it is read off the entitlements. */
   const sandboxOrgIds = useMemo(
     () => new Set(entitlements.filter((row) => row.isSandbox).map((row) => row.orgId)),
     [entitlements],
   );
 
-  /**
-   * Business lifecycle counts.
-   *
-   * `billing_status` is the legacy organisation column and is the only place a
-   * suspended business is recorded today, because no suspend endpoint exists.
-   */
-  const businessCounts = useMemo(() => {
+  const counts = useMemo(() => {
     const live = organizations.filter((org) => !sandboxOrgIds.has(org.orgId));
-    return {
-      total: data.v2?.totalBusinesses ?? live.length,
-      trial: live.filter((org) => org.billingStatus === 'trial').length,
-      active: live.filter((org) => org.billingStatus === 'active').length,
-      suspended: live.filter((org) => org.billingStatus === 'suspended').length,
-      new30d: data.legacy?.newOrganizations30d ?? 0,
-      stores: data.legacy?.totalStores ?? 0,
-      users: data.legacy?.totalUsers ?? 0,
-    };
-  }, [organizations, sandboxOrgIds, data.v2, data.legacy]);
+    const liveEntitlements = entitlements.filter((row) => !row.isSandbox);
 
-  /** Entitlement-derived counts. These are the numbers billing actually keys off. */
-  const entitlementCounts = useMemo(() => {
-    const live = entitlements.filter((row) => !row.isSandbox);
     const now = Date.now();
     let expiring = 0;
     let expired = 0;
-    let renewalsNext30 = 0;
-    for (const row of live) {
+    let soonestExpiry: string | null = null;
+
+    for (const row of liveEntitlements) {
       const days = daysUntil(row.expiresAt, now);
       if (days === null) continue;
       if (days < 0) expired += 1;
       else if (days <= 30) {
         expiring += 1;
-        renewalsNext30 += 1;
+        if (!soonestExpiry || (row.expiresAt ?? '') < soonestExpiry) soonestExpiry = row.expiresAt;
       }
     }
+
     return {
-      active: live.filter((row) => row.entitlementStatus === 'active').length,
-      trialing: live.filter((row) => row.entitlementStatus === 'pending').length,
-      pastDue: live.filter((row) => row.entitlementStatus === 'past_due').length,
-      suspended: live.filter((row) => row.entitlementStatus === 'suspended').length,
-      cancelled: live.filter((row) => row.entitlementStatus === 'cancelled').length,
+      businesses: live.length,
+      trial: live.filter((org) => org.billingStatus === 'trial').length,
+      paying: live.filter((org) => org.billingStatus === 'active').length,
+      suspendedBusinesses: live.filter((org) => org.billingStatus === 'suspended').length,
+      new30d: data.legacy?.newOrganizations30d ?? 0,
+      activeSubs: liveEntitlements.filter((row) => row.entitlementStatus === 'active').length,
+      trialingSubs: liveEntitlements.filter((row) => row.entitlementStatus === 'pending').length,
+      pastDueSubs: liveEntitlements.filter((row) => row.entitlementStatus === 'past_due').length,
       expiring,
-      renewalsNext30,
       expired,
+      soonestExpiry,
+      failedPayments: data.revenue?.failedCount ?? data.v2?.failedPayments30d ?? 0,
+      revenue30d: data.revenue?.totalRevenue ?? data.v2?.revenue30d ?? 0,
+      successfulPayments: data.revenue?.successfulCount ?? 0,
+      failedEvents: (data.recentErrors ?? []).length,
+      sandbox: data.v2?.sandboxBusinesses ?? 0,
+      unredeemedKeys: data.unredeemedKeys ?? 0,
     };
-  }, [entitlements]);
+  }, [organizations, entitlements, sandboxOrgIds, data.legacy, data.revenue, data.v2, data.recentErrors, data.unredeemedKeys]);
 
-  const revenueMeters = useMemo<MeterItem[]>(() => {
-    const rows = data.revenueByPlan ?? [];
-    return rows
-      .filter((row) => row.revenue > 0)
-      .map((row) => ({
-        label: row.planName,
-        value: row.revenue,
-        display: formatMoneyCompact(row.revenue),
-        detail: `${formatNumber(row.transactionCount)} txn`,
-      }));
-  }, [data.revenueByPlan]);
+  /*
+   * The queue. Every entry is something an operator can act on today, in the
+   * order that costs the most if it is left: money that did not arrive, access
+   * about to lapse, access already lapsed, then a business that is switched off.
+   */
+  const attention = useMemo<AttentionItem[]>(() => {
+    const items: AttentionItem[] = [];
 
-  const activityEntries = useMemo<TimelineEntry[]>(() => {
+    if (counts.failedPayments > 0) {
+      items.push({
+        id: 'failed-payments',
+        tone: 'danger',
+        title: `${formatNumber(counts.failedPayments)} failed payment${counts.failedPayments === 1 ? '' : 's'}`,
+        meta: `Last 30 days. ${formatNumber(counts.successfulPayments)} succeeded in the same period.`,
+        action: (
+          <Button variant="outline" className="btn-sm" onClick={() => navigate('/platform/billing?filter=failed')}>
+            Review
+          </Button>
+        ),
+      });
+    }
+
+    if (counts.pastDueSubs > 0) {
+      items.push({
+        id: 'past-due',
+        tone: 'danger',
+        title: `${formatNumber(counts.pastDueSubs)} subscription${counts.pastDueSubs === 1 ? '' : 's'} past due`,
+        meta: 'Access continues until the seat check next runs.',
+        action: (
+          <Button variant="outline" className="btn-sm" onClick={() => navigate('/platform/billing?filter=past_due')}>
+            Review
+          </Button>
+        ),
+      });
+    }
+
+    if (counts.expiring > 0) {
+      items.push({
+        id: 'expiring',
+        tone: 'warning',
+        title: `${formatNumber(counts.expiring)} expiring within 30 days`,
+        meta: counts.soonestExpiry
+          ? `Soonest ${formatRelative(counts.soonestExpiry)}.`
+          : 'Renewals to confirm.',
+        action: (
+          <Button variant="outline" className="btn-sm" onClick={() => navigate('/platform/billing?filter=expiring')}>
+            Review
+          </Button>
+        ),
+      });
+    }
+
+    if (counts.expired > 0) {
+      items.push({
+        id: 'expired',
+        tone: 'danger',
+        title: `${formatNumber(counts.expired)} past their expiry date`,
+        meta: 'Nothing sweeps these, so they still read as active in the counts below.',
+        action: (
+          <Button variant="outline" className="btn-sm" onClick={() => navigate('/platform/billing?filter=expired')}>
+            Review
+          </Button>
+        ),
+      });
+    }
+
+    if (counts.suspendedBusinesses > 0) {
+      items.push({
+        id: 'suspended',
+        tone: 'warning',
+        title: `${formatNumber(counts.suspendedBusinesses)} suspended`,
+        meta: 'Billing status suspended.',
+        action: (
+          <Button variant="outline" className="btn-sm" onClick={() => navigate('/platform/businesses?billing=suspended')}>
+            Review
+          </Button>
+        ),
+      });
+    }
+
+    if (counts.unredeemedKeys > 0) {
+      items.push({
+        id: 'unredeemed-keys',
+        tone: 'warning',
+        title: `${formatNumber(counts.unredeemedKeys)} activation key${counts.unredeemedKeys === 1 ? '' : 's'} not redeemed`,
+        meta: 'Issued but unused — the customer may have paid and still have no access.',
+        action: (
+          <Button variant="outline" className="btn-sm" onClick={() => navigate('/platform/activation')}>
+            Review
+          </Button>
+        ),
+      });
+    }
+
+    // Support tickets, integrations and incidents are named in the brief as
+    // things to prioritise. None has a backend, so this states that once
+    // instead of inventing a queue that would read as "no problems".
+    items.push({
+      id: 'unmonitored',
+      tone: 'muted',
+      title: 'Tickets, integrations and incidents are not monitored',
+      meta: 'No backend for any of the three, so nothing here can report them.',
+      action: (
+        <Button variant="ghost" className="btn-sm" onClick={() => navigate('/platform/support')}>
+          Details
+        </Button>
+      ),
+    });
+
+    return items;
+  }, [counts, navigate]);
+
+  const metrics = useMemo<Metric[]>(
+    () => [
+      {
+        id: 'businesses',
+        label: 'Businesses',
+        value: formatNumber(counts.businesses),
+        foot: `${formatNumber(counts.new30d)} new in 30 days`,
+        onClick: () => navigate('/platform/businesses'),
+      },
+      {
+        id: 'paying',
+        label: 'Paying',
+        value: formatNumber(counts.paying),
+        onClick: () => navigate('/platform/businesses?billing=active'),
+      },
+      { id: 'trial', label: 'On trial', value: formatNumber(counts.trial), onClick: () => navigate('/platform/businesses?billing=trial') },
+      {
+        id: 'suspended',
+        label: 'Suspended',
+        value: formatNumber(counts.suspendedBusinesses),
+        tone: counts.suspendedBusinesses > 0 ? 'warning' : 'default',
+        onClick: () => navigate('/platform/businesses?billing=suspended'),
+      },
+      {
+        id: 'active-subs',
+        label: 'Active access',
+        value: formatNumber(counts.activeSubs),
+        onClick: () => navigate('/platform/billing?filter=active'),
+      },
+      {
+        id: 'trialing',
+        label: 'Trialing',
+        value: formatNumber(counts.trialingSubs),
+        onClick: () => navigate('/platform/billing?filter=trialing'),
+      },
+      {
+        id: 'revenue',
+        label: 'Revenue',
+        value: formatMoneyCompact(counts.revenue30d),
+        foot: 'Last 30 days',
+      },
+      {
+        id: 'failed',
+        label: 'Failed payments',
+        value: formatNumber(counts.failedPayments),
+        tone: counts.failedPayments > 0 ? 'danger' : 'default',
+        foot: 'Last 30 days',
+        onClick: () => navigate('/platform/billing?filter=failed'),
+      },
+      {
+        id: 'signals',
+        label: 'Failed events',
+        value: formatNumber(counts.failedEvents),
+        tone: counts.failedEvents > 0 ? 'warning' : 'default',
+        foot: 'Recent, not a 24h total',
+        onClick: () => navigate('/platform/health'),
+      },
+    ],
+    [counts, navigate],
+  );
+
+  const activity = useMemo<TimelineEntry[]>(() => {
     if (data.audit && data.audit.length > 0) {
       return data.audit.map((entry) => ({
         id: entry.id,
         title: humaniseToken(entry.action),
-        meta: `${entry.actorEmail ?? 'System'} · ${entry.orgName ?? 'Platform-wide'} · ${formatRelative(entry.createdAt)}`,
-        text: entry.resourceName ? `${humaniseToken(entry.resourceType)}: ${entry.resourceName}` : undefined,
+        meta: `${entry.actorEmail ?? 'System'} · ${entry.orgName ?? 'Platform'} · ${formatRelative(entry.createdAt)}`,
         tone: entry.status === 'failed' ? 'danger' : entry.status === 'attempted' ? 'accent' : 'success',
       }));
     }
-    return (data.recentErrors ?? []).map((entry) => ({
+    return (data.recentErrors ?? []).slice(0, 6).map((entry) => ({
       id: entry.id,
       title: humaniseToken(entry.action),
-      meta: `${entry.actorEmail ?? 'System'} · ${entry.orgName ?? 'Platform-wide'} · ${formatRelative(entry.createdAt)}`,
-      text: entry.resourceName ?? undefined,
+      meta: `${entry.actorEmail ?? 'System'} · ${entry.orgName ?? 'Platform'} · ${formatRelative(entry.createdAt)}`,
       tone: entry.status === 'failed' ? 'danger' : 'accent',
     }));
   }, [data.audit, data.recentErrors]);
 
-  const signal = data.v2;
-  const partial = failed.length > 0;
+  const actionable = attention.filter((item) => item.tone !== 'muted');
+  const unmonitored = attention.filter((item) => item.tone === 'muted');
 
   return (
     <>
       <PlatformPageHead
         area={AREA}
-        description={`What needs attention across every business. Signed in as ${access?.isSuperAdmin ? 'platform owner' : 'platform admin'} in ${environment.label.toLowerCase()}.`}
+        description={`Signed in as ${access?.isSuperAdmin ? 'platform owner' : 'platform admin'}.`}
         actions={<RefreshButton onClick={reload} loading={loading} />}
       />
 
-      {partial && (
-        <div className="callout callout-warning" role="status">
-          <div>
-            <p className="callout-title">Some figures could not be loaded</p>
-            <p className="callout-text">
-              {failed.length} of 9 sources failed to return data ({failed.join(', ')}). Everything shown below is
-              correct for the sources that answered; treat the rest as unknown rather than zero.
-            </p>
-          </div>
+      {failed > 0 && (
+        <div className="alert alert-warning" role="status">
+          <span className="alert-text">
+            {failed} of {total} sources did not answer. The rest is correct; treat the remainder as unknown, not zero.
+          </span>
         </div>
       )}
 
-      <AreaCoverage gaps={AREA.gaps} title="What this page cannot show yet" />
-
-      {/* ── Needs attention ───────────────────────────────────────── */}
-      <section className="card" aria-labelledby="overview-attention">
+      <section className="card" aria-labelledby="needs-attention">
         <SectionHead
-          id="overview-attention"
+          id="needs-attention"
           title="Needs attention"
-          sub="Each figure opens the filtered list behind it."
+          actions={actionable.length > 0 ? <span className="badge badge-warning">{actionable.length}</span> : undefined}
         />
-        <KpiGrid>
-          <KpiCard
-            label="Failed payments (30 days)"
-            value={loading ? '—' : formatNumber(signal?.failedPayments30d)}
-            tone={(signal?.failedPayments30d ?? 0) > 0 ? 'danger' : 'default'}
-            foot={signal?.failedPayments30d ? 'Money that did not arrive' : 'Nothing failed'}
-            onClick={() => navigate(`/platform/billing?filter=failed`)}
-          />
-          <KpiCard
-            label="Past due"
-            value={loading ? '—' : formatNumber(entitlementCounts.pastDue)}
-            tone={entitlementCounts.pastDue > 0 ? 'danger' : 'default'}
-            foot={entitlementCounts.pastDue > 0 ? 'Access at risk' : 'Nothing overdue'}
-            onClick={() => navigate(`/platform/billing?filter=past_due`)}
-          />
-          <KpiCard
-            label="Renewals in 30 days"
-            value={loading ? '—' : formatNumber(entitlementCounts.renewalsNext30)}
-            tone={entitlementCounts.renewalsNext30 > 0 ? 'warning' : 'default'}
-            foot="Entitlements expiring soon"
-            onClick={() => navigate(`/platform/billing?filter=expiring`)}
-          />
-          <KpiCard
-            label="Expired access"
-            value={loading ? '—' : formatNumber(entitlementCounts.expired)}
-            tone={entitlementCounts.expired > 0 ? 'danger' : 'default'}
-            foot={entitlementCounts.expired > 0 ? 'Businesses locked out' : 'None lapsed'}
-            onClick={() => navigate(`/platform/billing?filter=expired`)}
-          />
-        </KpiGrid>
-      </section>
 
-      {/* ── Businesses ────────────────────────────────────────────── */}
-      <section className="card" aria-labelledby="overview-businesses">
-        <SectionHead
-          id="overview-businesses"
-          title="Businesses"
-          sub="Live customer businesses, excluding sandbox records."
-        />
-        <KpiGrid>
-          <KpiCard
-            label="Total businesses"
-            value={loading ? '—' : formatNumber(businessCounts.total)}
-            foot={`${formatNumber(businessCounts.stores)} stores · ${formatNumber(businessCounts.users)} users`}
-            onClick={() => navigate('/platform/businesses')}
-          />
-          <KpiCard
-            label="On trial"
-            value={loading ? '—' : formatNumber(businessCounts.trial)}
-            foot="Convert before the trial ends"
-            onClick={() => navigate('/platform/businesses?billing=trial')}
-          />
-          <KpiCard
-            label="Paying"
-            value={loading ? '—' : formatNumber(businessCounts.active)}
-            foot="Billing status active"
-            onClick={() => navigate('/platform/businesses?billing=active')}
-          />
-          <KpiCard
-            label="Suspended"
-            value={loading ? '—' : formatNumber(businessCounts.suspended)}
-            tone={businessCounts.suspended > 0 ? 'warning' : 'default'}
-            foot={businessCounts.suspended > 0 ? 'Access withdrawn' : 'None suspended'}
-            onClick={() => navigate('/platform/businesses?billing=suspended')}
-          />
-          <KpiCard
-            label="New in 30 days"
-            value={loading ? '—' : formatNumber(businessCounts.new30d)}
-            foot="Signed up recently"
-            onClick={() => navigate('/platform/businesses?sort=newest')}
-          />
-        </KpiGrid>
-      </section>
-
-      {/* ── Subscriptions ─────────────────────────────────────────── */}
-      <section className="card" aria-labelledby="overview-subscriptions">
-        <SectionHead
-          id="overview-subscriptions"
-          title="Subscriptions & access"
-          sub="Entitlement status is what actually grants a business access, and what the seat limit enforces."
-          actions={
-            <Button variant="ghost" className="btn-sm" onClick={() => navigate(`/platform/billing`)}>
-              Open billing
-            </Button>
-          }
-        />
-        <KpiGrid>
-          <KpiCard
-            label="Active entitlements"
-            value={loading ? '—' : formatNumber(entitlementCounts.active)}
-            foot="Current access"
-            onClick={() => navigate('/platform/billing?filter=active')}
-          />
-          <KpiCard
-            label="Trialing"
-            value={loading ? '—' : formatNumber(entitlementCounts.trialing)}
-            foot="Trial period, not yet paid"
-            onClick={() => navigate('/platform/billing?filter=trialing')}
-          />
-          <KpiCard
-            label="Suspended"
-            value={loading ? '—' : formatNumber(entitlementCounts.suspended)}
-            foot="Entitlement withdrawn"
-            onClick={() => navigate('/platform/billing?filter=suspended')}
-          />
-          <KpiCard
-            label="Cancelled"
-            value={loading ? '—' : formatNumber(entitlementCounts.cancelled)}
-            foot="Ended by request"
-            onClick={() => navigate('/platform/billing?filter=cancelled')}
-          />
-        </KpiGrid>
-        {entitlementCounts.expired > 0 && (
-          <div className="callout callout-danger">
-            <div>
-              <p className="callout-title">{entitlementCounts.expired} entitlements have passed their expiry date</p>
-              <p className="callout-text">
-                Nothing sweeps lapsed entitlements, so these still read as active in the counts above. Their access
-                ends when the seat check next runs, not on the expiry date.
-              </p>
-            </div>
+        {actionable.length > 0 ? (
+          <AttentionList items={attention} />
+        ) : loading ? (
+          <div className="skeleton-inline" role="status" aria-label="Loading">
+            <span className="skeleton skeleton-text" />
+            <span className="skeleton skeleton-text is-short" />
           </div>
+        ) : (
+          <>
+            <HealthyStrip>
+              Nothing needs attention. No failed payments, nothing past due, and no subscription expiring in the next
+              30 days.
+            </HealthyStrip>
+            <AttentionList items={unmonitored} />
+          </>
         )}
       </section>
 
-      {/* ── Revenue ───────────────────────────────────────────────── */}
-      <section className="card" aria-labelledby="overview-revenue">
+      <section className="card" aria-labelledby="at-a-glance">
         <SectionHead
-          id="overview-revenue"
-          title="Revenue"
-          sub="Platform subscription payments in the selected period. Sandbox transactions are excluded."
-          actions={
-            <div className="toolbar-group">
-              {REPORT_DATE_RANGE_PRESETS.map((option) => (
-                <button
-                  key={option.value}
-                  type="button"
-                  className={`chip${preset === option.value ? ' active' : ''}`}
-                  aria-pressed={preset === option.value}
-                  onClick={() => setPreset(option.value)}
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
-          }
-        />
-        <KpiGrid>
-          <KpiCard
-            label="Revenue in period"
-            value={loading ? '—' : formatMoney(data.revenueSummary?.totalRevenue ?? 0)}
-            foot={`${formatNumber(data.revenueSummary?.successfulCount ?? 0)} successful payments`}
-          />
-          <KpiCard
-            label="Failed payments"
-            value={loading ? '—' : formatNumber(data.revenueSummary?.failedCount ?? 0)}
-            tone={(data.revenueSummary?.failedCount ?? 0) > 0 ? 'warning' : 'default'}
-            foot={`${formatNumber(data.revenueSummary?.transactionCount ?? 0)} attempts in total`}
-            onClick={() => navigate('/platform/billing?filter=failed')}
-          />
-          <KpiCard
-            label="Revenue (30 days)"
-            value={loading ? '—' : formatMoneyCompact(signal?.revenue30d)}
-            foot="Rolling window from the entitlement table"
-          />
-        </KpiGrid>
-
-        <div style={{ marginTop: 'var(--space-16)' }}>
-          <SectionHead title="Revenue by plan" sub="Which tiers are actually earning." />
-          {revenueMeters.length > 0 ? (
-            <MeterList items={revenueMeters} />
-          ) : (
-            <StateBlock
-              variant="empty"
-              title="No revenue recorded in this period"
-              body="No subscription payment succeeded in the selected range. Try a longer period."
-            />
-          )}
-        </div>
-      </section>
-
-      {/* ── Platform signals ──────────────────────────────────────── */}
-      <section className="card" aria-labelledby="overview-signals">
-        <SectionHead
-          id="overview-signals"
-          title="Platform signals"
-          sub="Counters derived from business records over the last 24 hours. These are not infrastructure health checks."
+          id="at-a-glance"
+          title="At a glance"
           actions={
             <Button variant="ghost" className="btn-sm" onClick={() => navigate('/platform/health')}>
               System health
             </Button>
           }
         />
-        {data.recentErrors || data.v2 ? (
-          <KpiGrid>
-            <KpiCard
-              label="Recent failed events"
-              value={formatNumber((data.recentErrors ?? []).length)}
-              tone={(data.recentErrors ?? []).length > 0 ? 'warning' : 'default'}
-              foot="Audit rows recorded as failed or attempted"
-              onClick={() => navigate('/platform/audit?status=failed')}
-            />
-            <KpiCard
-              label="Sandbox businesses"
-              value={formatNumber(signal?.sandboxBusinesses)}
-              foot="Excluded from every figure above"
-              onClick={() => navigate('/platform/developer')}
-            />
-            <KpiCard
-              label="Inventory value (retail)"
-              value={formatMoneyCompact(data.inventory?.inventoryValueRetail)}
-              foot={`${formatNumber(data.inventory?.totalProducts)} products across all businesses`}
-            />
-            <KpiCard
-              label="Staff accounts"
-              value={formatNumber(data.inventory?.totalStaff)}
-              foot="Seat usage across all businesses"
-            />
-          </KpiGrid>
-        ) : (
-          <StateBlock variant="unavailable" title="Not configured" body="The platform signal counters did not return." />
-        )}
+        <MetricStrip metrics={metrics} />
+        <p className="section-sub">
+          Revenue and failed payments cover the last 30 days. Sandbox businesses are excluded
+          {counts.sandbox > 0 ? ` (${formatNumber(counts.sandbox)} excluded)` : ''}.
+        </p>
       </section>
 
-      {/* ── Activity ──────────────────────────────────────────────── */}
-      <section className="card" aria-labelledby="overview-activity">
+      <section className="card" aria-labelledby="recent-activity">
         <SectionHead
-          id="overview-activity"
-          title="Recent platform activity"
-          sub={
-            data.audit
-              ? 'Administrative actions recorded in the audit trail.'
-              : 'The audit browse endpoint is unavailable, so this falls back to failed and attempted events only.'
-          }
+          id="recent-activity"
+          title="Recent activity"
           actions={
             <Button variant="ghost" className="btn-sm" onClick={() => navigate('/platform/audit')}>
               All audit logs
             </Button>
           }
         />
-        <Timeline items={activityEntries} />
+        {activity.length > 0 ? (
+          <Timeline items={activity} />
+        ) : (
+          <StateBlock variant="empty" title="Nothing recorded yet" body="Administrative actions appear here." />
+        )}
       </section>
-
-      {/* ── Not wired yet ─────────────────────────────────────────── */}
-      <section className="card" aria-labelledby="overview-unavailable">
-        <SectionHead
-          id="overview-unavailable"
-          title="Not connected yet"
-          sub="These areas have no backend, so they show nothing rather than a placeholder figure."
-        />
-        <ul className="list">
-          {PLATFORM_AREAS.filter((area) => area.capability === 'specified').map((area) => (
-            <li className="list-item" key={area.id}>
-              <div>
-                <p className="list-item-title">
-                  {area.label} <StatusBadge status="not_configured" />
-                </p>
-                <p className="list-item-subtitle">{area.gaps?.[0]}</p>
-              </div>
-              <button type="button" className="btn btn-outline btn-sm" onClick={() => navigate(`/platform/${area.path}`)}>
-                <span className="btn-label">Open</span>
-              </button>
-            </li>
-          ))}
-        </ul>
-      </section>
-
-      <p className="section-sub">
-        Sandbox records are excluded from every figure on this page. Counts are a snapshot taken when the page
-        loaded; press Refresh to re-read them.
-      </p>
     </>
   );
 }

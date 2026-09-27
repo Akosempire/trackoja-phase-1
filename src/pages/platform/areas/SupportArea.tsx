@@ -15,6 +15,7 @@ import { Badge } from '../../../components/ui/Badge';
 import { Button } from '../../../components/ui/Button';
 import { DefList } from '../../../components/ui/DefList';
 import { Dialog } from '../../../components/ui/Dialog';
+import { Disclosure } from '../../../components/ui/Disclosure';
 import { SectionHead } from '../../../components/ui/SectionHead';
 import { StateBlock } from '../../../components/ui/StateBlock';
 import { StatusBadge } from '../../../components/ui/StatusBadge';
@@ -26,14 +27,10 @@ import { formatDateTime, formatNumber, formatRelative, humaniseToken } from '../
 const AREA = PLATFORM_AREAS.find((area) => area.id === 'support')!;
 
 /**
- * Every note type the database will accept.
- *
- * This restates the CHECK constraint on platform_support_notes.note_type
- * (supabase/migrations/20260926000066_platform_operations_schema.sql, lines
- * 19-21); `add_support_note` re-validates the identical list before inserting
- * (20260927000089_platform_owner_hardening.sql, lines 644-647). The select is
- * built from this list rather than free text so a note cannot be rejected for a
- * reason the operator cannot see coming.
+ * Every note type the database will accept, restating the CHECK constraint on
+ * platform_support_notes.note_type that `add_support_note` re-validates. The
+ * select is built from this list rather than free text so a note cannot be
+ * rejected for a reason the operator cannot see coming.
  */
 const NOTE_TYPES = [
   'note',
@@ -47,16 +44,9 @@ const NOTE_TYPES = [
 ] as const;
 
 /**
- * The exact schema the ticket capability needs.
- *
- * Nothing here exists: there is no `support_tickets` or `support_ticket_messages`
- * table, and no ticket RPC, in any migration in this repository (the support
- * surface is `platform_support_notes`, 20260926000066, plus add/list functions,
- * 20260926000071 and 20260927000089). It is rendered as a specification rather
- * than dropped, because a screen that hides the missing contract is the reason
- * this one cannot be finished — and every status/severity/category token below
- * is already in the shared StatusBadge vocabulary, so the vocabulary is agreed
- * even though the table is not.
+ * The exact schema the ticket capability needs. None of it exists: no
+ * `support_tickets` or `support_ticket_messages` table and no ticket RPC in any
+ * migration in this repository.
  */
 const TICKET_SCHEMA_SQL = `-- NOT PRESENT IN THIS REPOSITORY. Specification only.
 CREATE TABLE public.support_tickets (
@@ -107,7 +97,7 @@ const TICKET_RPCS: { term: string; value: string }[] = [
     term: 'create_support_ticket',
     value:
       'p_org_id, p_subject, p_body, p_category, p_severity, p_requester_email → support_tickets. ' +
-      'The only path by which a business owner can open a conversation; today no such path exists.',
+      'The only path by which a business owner can open a conversation.',
   },
   {
     term: 'list_support_tickets',
@@ -135,13 +125,13 @@ const TICKET_RPCS: { term: string; value: string }[] = [
     term: 'add_ticket_message',
     value:
       'p_ticket_id, p_body, p_visibility, p_attachments → appends to the thread; sets ' +
-      'first_response_at on the first customer-visible reply and audits the visibility used.',
+      'first_response_at on the first customer-visible reply.',
   },
   {
     term: 'support_ticket_stats',
     value:
-      'p_from, p_to → the trend figures this page cannot compute: counts by category, unresolved ' +
-      'counts by severity, median first-response time and resolved-per-day series.',
+      'p_from, p_to → counts by category, unresolved counts by severity, median first-response ' +
+      'time and a resolved-per-day series.',
   },
 ];
 
@@ -257,11 +247,9 @@ export default function SupportArea() {
   const [saving, setSaving] = useState(false);
 
   /**
-   * `list_support_notes` already orders by created_at DESC
-   * (20260926000071_platform_activation_support_functions.sql, line 492), so the
-   * timeline is newest-first without re-sorting in the browser. The sandbox flag
-   * comes from the note row itself, not from the business, because the flag is
-   * frozen at write time. (20260927000089, line 670.)
+   * `list_support_notes` already orders by created_at DESC, so the timeline is
+   * newest-first without re-sorting in the browser. The sandbox flag comes from
+   * the note row itself, because the flag is frozen at write time.
    */
   const noteEntries = useMemo<TimelineEntry[]>(
     () =>
@@ -336,7 +324,7 @@ export default function SupportArea() {
     <>
       <PlatformPageHead
         area={AREA}
-        description="What has been recorded against a business, and the ticket capability this area still needs."
+        description="Notes recorded against a business, and the ticket backend this area has none of."
         actions={
           <RefreshButton
             onClick={() => {
@@ -352,47 +340,37 @@ export default function SupportArea() {
 
       {/* ── Tickets: the contract, not a placeholder ──────────────── */}
       <section className="card" aria-labelledby="support-tickets">
-        <SectionHead
-          id="support-tickets"
-          title="Support tickets"
-          sub="The queue, assignment and reply workflow this area is named after."
-        />
+        <SectionHead id="support-tickets" title="Support tickets" />
 
         <StateBlock
           variant="unavailable"
           title="Not configured"
           body={
             <>
-              There is no ticket backend. No <span className="mono">support_tickets</span> table, no
-              ticket RPC and no inbound channel exists in this repository, so a business owner cannot
-              open a conversation and an operator has nothing to queue. This panel shows the contract
-              that would be needed instead of sample rows, because sample rows would be indistinguishable
-              from real ones.
+              There is no support ticket backend: no <span className="mono">support_tickets</span> table, no
+              ticket RPC and no inbound channel, so a business owner cannot open a conversation and an
+              operator has nothing to queue.
             </>
           }
         />
 
-        <div className="plat-section">
-          <p className="plat-section-sub">Tables and constraints</p>
+        <Disclosure summary="What the backend would need">
           <pre className="code-panel">{TICKET_SCHEMA_SQL}</pre>
-        </div>
-
-        <div className="plat-section">
-          <p className="plat-section-sub">Functions</p>
           <DefList
             rows={TICKET_RPCS.map((rpc) => ({
               term: rpc.term,
               value: rpc.value,
             }))}
           />
-        </div>
-
-        <div className="plat-section">
-          <p className="plat-section-sub">Vocabulary already agreed</p>
           <p className="plat-note">
-            These tokens are already mapped in the shared status vocabulary, so the ticket states are
-            decided even though the table is not.
+            <span className="mono">support_ticket_messages.visibility</span> must be applied in SQL by{' '}
+            <span className="mono">get_support_ticket</span>: sending internal rows to the browser and hiding
+            them with CSS leaves the text in the network response. <span className="mono">list_support_notes</span>{' '}
+            already decides access before it selects anything.
           </p>
+        </Disclosure>
+
+        <Disclosure summary="Ticket vocabulary already agreed">
           <DefList
             rows={[
               {
@@ -426,34 +404,12 @@ export default function SupportArea() {
               },
             ]}
           />
-        </div>
+        </Disclosure>
 
-        <div className="callout callout-warning">
-          <div>
-            <p className="callout-title">Internal notes must be filtered server-side</p>
-            <p className="callout-text">
-              <span className="mono">support_ticket_messages.visibility</span> decides who may read a
-              message, and <span className="mono">get_support_ticket</span> must apply it in SQL. Sending
-              internal rows to the browser and hiding them with CSS or a boolean leaves the text in the
-              network response and in the operator&apos;s dev tools. The existing note reader already
-              works this way: <span className="mono">list_support_notes</span> decides access before it
-              selects anything, and raises rather than returning a filtered set
-              (20260926000071_platform_activation_support_functions.sql, lines 468-478).
-            </p>
-          </div>
-        </div>
-
-        <div className="callout callout-info">
-          <div>
-            <p className="callout-title">Permission key</p>
-            <p className="callout-text">
-              Ticket actions would require <span className="mono">platform:manage_tickets</span>. The key
-              is declared (20260927000089_platform_owner_hardening.sql, line 385) but nothing consumes it
-              yet, so this page deliberately requires only <span className="mono">platform:support</span>{' '}
-              and does not gate anything on the newer key.
-            </p>
-          </div>
-        </div>
+        <p className="form-hint">
+          Ticket actions would require <span className="mono">platform:manage_tickets</span> — declared, but
+          nothing consumes it — so this page requires only <span className="mono">platform:support</span>.
+        </p>
       </section>
 
       {/* ── Notes: real reads and a real write ────────────────────── */}
@@ -461,7 +417,7 @@ export default function SupportArea() {
         <SectionHead
           id="support-notes"
           title="Support notes"
-          sub="Recorded against a business. This is the only support record that exists, and it is append-only."
+          sub="The only support record that exists, and it is append-only."
           actions={
             <Button variant="outline" className="btn-sm" onClick={openDialog} disabled={!selected}>
               Add note
@@ -528,7 +484,7 @@ export default function SupportArea() {
             title={search ? 'No business matches that search' : 'No businesses returned'}
             body={
               search
-                ? 'The directory searched by name, owner email and slug and found nothing. Clear the search to widen it.'
+                ? 'Searched by name, owner email and slug; clear the search to widen it.'
                 : 'The business directory returned no rows, so there is nothing to attach a note to.'
             }
           />
@@ -605,13 +561,8 @@ export default function SupportArea() {
               <div>
                 <p className="callout-title">Notes are append-only</p>
                 <p className="callout-text">
-                  There is no edit and no delete path.{' '}
-                  <span className="mono">platform_support_notes</span> carries a select policy only and
-                  every write goes through <span className="mono">add_support_note</span>, which inserts
-                  and never updates (20260926000066_platform_operations_schema.sql, lines 120-127;
-                  20260927000089_platform_owner_hardening.sql, lines 667-673). A correction therefore
-                  requires another note that says what it corrects — the original stays in the history,
-                  which is the point of the table.
+                  There is no edit and no delete path, so a correction means another note — the original stays
+                  in the history.
                 </p>
               </div>
             </div>
@@ -630,34 +581,28 @@ export default function SupportArea() {
           <StateBlock
             variant="empty"
             title="Choose a business"
-            body="Support notes are attached to a business, so pick one above to read its history."
+            body="Support notes are attached to a business."
           />
         )}
       </section>
 
       {/* ── Triage and trend: not measurable, said plainly ────────── */}
       <section className="card" aria-labelledby="support-triage">
-        <SectionHead
-          id="support-triage"
-          title="Frequent issues and urgent backlog"
-          sub="The two figures an operator would open this page for."
-        />
+        <SectionHead id="support-triage" title="Frequent issues and urgent backlog" />
 
         <StateBlock
           variant="unavailable"
           title="Not configured"
           body={
             <>
-              Neither figure is measurable today. &quot;Frequent issues&quot; needs a category on every
-              contact and &quot;unresolved urgent&quot; needs a severity, a status and an assignee — none
-              of which exists, because there are no tickets. An empty chart here would read as &quot;zero
-              urgent issues&quot;, which is a claim this application cannot make.
+              Neither figure is measurable: there are no tickets, so there is no category, severity, status
+              or assignee to count. An empty chart here would read as &quot;zero urgent issues&quot;, which
+              is a claim this application cannot make.
             </>
           }
         />
 
-        <div className="plat-section">
-          <p className="plat-section-sub">What support_ticket_stats would return</p>
+        <Disclosure summary="What the backend would need">
           <pre className="code-panel">{`-- NOT PRESENT IN THIS REPOSITORY. Specification only.
 support_ticket_stats(p_from TIMESTAMPTZ, p_to TIMESTAMPTZ) RETURNS TABLE (
   category              TEXT,     -- billing | account | bug | how_to | feature_request | other
@@ -669,17 +614,16 @@ support_ticket_stats(p_from TIMESTAMPTZ, p_to TIMESTAMPTZ) RETURNS TABLE (
   day                   DATE      -- one row per day, so the trend is a series not a total
 );`}</pre>
           <p className="plat-note">
-            That function is what would let this panel draw a trend. Until it exists, the only support
-            figures this page can state are the note counts above, which are counts of administrative
-            notes and not of customer issues.
+            Until that function exists, the only support figures on this page are the note counts above, which
+            count administrative notes and not customer issues.
           </p>
-        </div>
+        </Disclosure>
       </section>
 
       <p className="section-sub">
-        The business directory is read through <span className="mono">list_product_businesses</span> and
-        lists only businesses that hold an entitlement row. Notes shown are the 100 most recent for the
-        selected business; press Refresh to re-read them.
+        The business directory is read through <span className="mono">list_product_businesses</span> and lists
+        only businesses that hold an entitlement row. Notes shown are the 100 most recent for the selected
+        business.
       </p>
 
       <Dialog
@@ -715,10 +659,7 @@ support_ticket_stats(p_from TIMESTAMPTZ, p_to TIMESTAMPTZ) RETURNS TABLE (
               </option>
             ))}
           </select>
-          <p className="form-hint">
-            The type is stored as written and cannot be changed afterwards, because there is no update
-            path. Choose the one that describes what actually happened.
-          </p>
+          <p className="form-hint">Stored as written; there is no update path.</p>
         </div>
 
         <div className="form-group">
@@ -745,9 +686,8 @@ support_ticket_stats(p_from TIMESTAMPTZ, p_to TIMESTAMPTZ) RETURNS TABLE (
           <div>
             <p className="callout-title">This cannot be edited or deleted</p>
             <p className="callout-text">
-              Write what should be true for good: a correction means another note. The note body is not
-              copied into the audit trail, so the audit row records that a note of this type exists and
-              who wrote it, not its text (20260927000089_platform_owner_hardening.sql, lines 675-693).
+              A correction means another note. The audit row records the note type and who wrote it, not the
+              text.
             </p>
           </div>
         </div>

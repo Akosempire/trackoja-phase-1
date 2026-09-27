@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import type { PlatformArea } from '../../config/platformAreas';
 import { Button } from '../ui/Button';
+import { Disclosure } from '../ui/Disclosure';
 
 interface PlatformPageHeadProps {
   area: PlatformArea;
@@ -16,31 +17,26 @@ interface PlatformPageHeadProps {
 /**
  * One header shape for every platform screen: where you are, what the screen is
  * for, and the actions that apply to the whole area.
+ *
+ * The breadcrumb only appears for a detail view. On a top-level area it would
+ * read "Platform / Platform settings" above a heading that already says
+ * "Platform settings", which is text spent saying nothing.
  */
 export function PlatformPageHead({ area, description, parent, current, actions }: PlatformPageHeadProps) {
   return (
     <div className="plat-page-head">
       <div className="plat-page-head-text">
-        <nav className="plat-breadcrumb" aria-label="Breadcrumb">
-          <Link to="/platform">Platform</Link>
-          {parent ? (
-            <>
-              <span aria-hidden="true">/</span>
-              <Link to={parent.to}>{parent.label}</Link>
-              <span aria-hidden="true">/</span>
-              <span>{current ?? area.label}</span>
-            </>
-          ) : (
-            area.path !== '' && (
-              <>
-                <span aria-hidden="true">/</span>
-                <span>{area.label}</span>
-              </>
-            )
-          )}
-        </nav>
+        {parent && (
+          <nav className="plat-breadcrumb" aria-label="Breadcrumb">
+            <Link to="/platform">Platform</Link>
+            <span aria-hidden="true">/</span>
+            <Link to={parent.to}>{parent.label}</Link>
+            <span aria-hidden="true">/</span>
+            <span>{current ?? area.label}</span>
+          </nav>
+        )}
         <h1 className="plat-page-title">{current ?? area.label}</h1>
-        <p className="plat-page-desc">{description ?? area.description}</p>
+        {description && <p className="plat-page-desc">{description}</p>}
       </div>
       {actions && <div className="plat-page-actions">{actions}</div>}
     </div>
@@ -50,23 +46,21 @@ export function PlatformPageHead({ area, description, parent, current, actions }
 /**
  * States plainly which parts of an area the backend cannot serve yet.
  *
- * The brief's rule is that an unfinished capability must be visible rather than
- * dressed up, and a page that looks complete but is backed by three of its nine
- * endpoints is the most misleading thing an admin console can do.
+ * Collapsed by default. The fact that something is missing stays visible in the
+ * summary, and the detail is one click away — a warning box listing every gap
+ * competed with the data it sat above, and the areas that lack a capability
+ * already say `Not configured` where the capability would have been.
  */
-export function AreaCoverage({ gaps, title = 'Not built yet in this area' }: { gaps?: string[]; title?: string }) {
+export function AreaCoverage({ gaps, title = 'Not built here' }: { gaps?: string[]; title?: string }) {
   if (!gaps || gaps.length === 0) return null;
   return (
-    <div className="callout callout-warning plat-coverage">
-      <div>
-        <p className="callout-title">{title}</p>
-        <ul className="plat-coverage-list">
-          {gaps.map((gap) => (
-            <li key={gap}>{gap}</li>
-          ))}
-        </ul>
-      </div>
-    </div>
+    <Disclosure summary={`${title} (${gaps.length})`}>
+      <ul className="plat-coverage-list">
+        {gaps.map((gap) => (
+          <li key={gap}>{gap}</li>
+        ))}
+      </ul>
+    </Disclosure>
   );
 }
 

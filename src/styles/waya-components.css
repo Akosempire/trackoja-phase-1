@@ -406,6 +406,15 @@
   width: min(880px, calc(100vw - var(--space-32)));
 }
 
+/* A detail view is where extra screen width is actually worth spending: the
+   reading column stays comfortable, and opening a record gives you the room to
+   see it whole rather than by scrolling a narrow sheet. */
+@media (min-width: 1440px) {
+  .dialog.is-wide {
+    width: min(1040px, calc(100vw - var(--space-64)));
+  }
+}
+
 .dialog-form {
   display: flex;
   flex-direction: column;
@@ -1067,6 +1076,11 @@ button.kpi-card:hover {
   color: var(--color-text-muted);
 }
 
+/* The group you are currently in, so ten peer links do not all look alike. */
+.side-nav-group-label.is-active {
+  color: var(--color-text-strong);
+}
+
 .side-nav-env {
   padding: var(--space-12) 0 0;
   margin-top: auto;
@@ -1125,13 +1139,46 @@ button.kpi-card:hover {
 /* One consistent header for every platform screen: identity, environment and
    the actions that apply to the whole area. */
 
+/*
+ * The console's reading column.
+ *
+ * `.page` (waya.css) is `max-width: none` so the merchant screens can use the
+ * full window, which on a wide monitor stretched console cards and prose across
+ * the whole viewport — measured at 2313px of content and 378-character lines on
+ * a 2560px screen. The console is therefore capped and centred, and the space
+ * that frees up is used deliberately: tables stay in the column, and detail is
+ * shown in a wider dialog or a disclosure rather than by widening the page.
+ */
+.plat-page {
+  max-width: var(--content-readable);
+  margin-inline: auto;
+}
+
+/* Anything that reads as running text is capped at a comfortable measure,
+   however wide its card becomes. This is deliberately broad: the offending
+   elements were not one class but every paragraph the console renders, because
+   a block element fills its card no matter how short its text. Layout rows (the
+   attention list, the timeline, list items) are left alone so their grid still
+   spans the card — only the text inside them is capped. */
+.plat-page :is(p, dd, li, span.form-hint, span.metric-foot, span.metric-label),
+.plat-page .plat-coverage-list li {
+  max-width: var(--measure-prose);
+}
+
+/* Layout rows span their card; only the text inside them is capped. Without
+   this reset, capping `li` would shrink the attention queue and the timeline
+   to the reading measure and leave the card looking half-empty. */
+.plat-page :is(.attention-item, .timeline-item, .list-item, .chip, .def-row) {
+  max-width: none;
+}
+
 .plat-page-head {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: var(--space-16);
   flex-wrap: wrap;
-  margin-bottom: var(--space-24);
+  margin-bottom: var(--space-20);
 }
 
 .plat-page-head-text {
@@ -1212,6 +1259,208 @@ button.kpi-card:hover {
 
 .plat-coverage-list li + li {
   margin-top: var(--space-2);
+}
+
+/* ============================================================
+   Attention, compact metrics and on-demand detail
+   The console is read to decide something, so a figure that leads nowhere and
+   a paragraph that restates its own heading both cost the operator time.
+   ============================================================ */
+
+/* ------------------------------------------------------ attention list */
+/* One row per thing that needs a decision: what it is, how bad, and the
+   action. Rows are deliberately dense — a queue of six should be scannable
+   without scrolling. */
+
+.attention-list {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.attention-item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-12);
+  padding: var(--space-12) 0;
+  border-bottom: var(--border-hairline) solid var(--color-border);
+}
+
+.attention-item:last-child {
+  border-bottom: 0;
+}
+
+.attention-dot {
+  width: var(--space-8);
+  height: var(--space-8);
+  border-radius: var(--radius-pill);
+  background: var(--color-border-control);
+  flex-shrink: 0;
+}
+
+.attention-item.is-danger .attention-dot { background: var(--color-danger); }
+.attention-item.is-warning .attention-dot { background: var(--color-warning); }
+.attention-item.is-info .attention-dot { background: var(--color-info); }
+.attention-item.is-ok .attention-dot { background: var(--color-success); }
+.attention-item.is-muted .attention-dot { background: var(--color-border-control); }
+
+.attention-body {
+  min-width: 0;
+}
+
+.attention-title {
+  margin: 0;
+  font-size: var(--text-body-sm);
+  font-weight: 500;
+  color: var(--color-text-strong);
+  overflow-wrap: anywhere;
+}
+
+.attention-meta {
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-caption);
+  color: var(--color-text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.attention-action {
+  flex-shrink: 0;
+}
+
+/* -------------------------------------------------------- healthy state */
+/* Shown when nothing needs attention. One compact line, not a large empty
+   panel pretending to be information. */
+
+.healthy-strip {
+  display: flex;
+  align-items: center;
+  gap: var(--space-10);
+  padding: var(--space-12) var(--space-14);
+  border: var(--border-hairline) solid color-mix(in srgb, var(--color-success) 30%, transparent);
+  border-radius: var(--radius-input);
+  background: var(--green-s);
+  font-size: var(--text-body-sm);
+  line-height: var(--leading-body);
+  color: var(--color-success-text);
+}
+
+.healthy-strip .attention-dot {
+  background: var(--color-success);
+}
+
+/* -------------------------------------------------------- metric strip */
+/* Counts with a label and a time range, small enough that they inform rather
+   than dominate. A metric with somewhere to go becomes a control. */
+
+.metric-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(148px, 1fr));
+  gap: var(--space-16);
+}
+
+.metric {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  min-width: 0;
+}
+
+button.metric {
+  cursor: pointer;
+  border-radius: var(--radius-control);
+}
+
+button.metric:hover .metric-value {
+  color: var(--color-accent);
+}
+
+.metric-label {
+  font-size: var(--text-caption);
+  color: var(--color-text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.metric-value {
+  font-size: var(--text-title-sm);
+  font-weight: 500;
+  line-height: var(--leading-ui);
+  color: var(--color-text-strong);
+  font-variant-numeric: tabular-nums;
+  transition: color var(--tr);
+}
+
+.metric-value.is-danger { color: var(--color-danger); }
+.metric-value.is-warning { color: var(--color-warning-text); }
+.metric-value.is-muted { color: var(--color-text-muted); font-weight: 400; }
+
+.metric-foot {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  overflow-wrap: anywhere;
+}
+
+/* ---------------------------------------------------------- disclosure */
+/* Deeper explanation on request. Native <details>, so it is keyboard
+   accessible and costs no JavaScript. */
+
+.disclosure {
+  border-top: var(--border-hairline) solid var(--color-border);
+  margin-top: var(--space-12);
+  padding-top: var(--space-12);
+}
+
+.disclosure > summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  cursor: pointer;
+  font-size: var(--text-caption);
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  list-style: none;
+  border-radius: var(--radius-tiny);
+}
+
+.disclosure > summary::-webkit-details-marker {
+  display: none;
+}
+
+.disclosure > summary::before {
+  content: '▸';
+  font-size: var(--text-sm);
+  line-height: 1;
+}
+
+.disclosure[open] > summary::before {
+  content: '▾';
+}
+
+.disclosure > summary:hover {
+  color: var(--color-text-strong);
+}
+
+.disclosure-body {
+  padding-top: var(--space-12);
+}
+
+@media (max-width: 600px) {
+  .attention-item {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .attention-action {
+    grid-column: 2;
+    justify-self: start;
+  }
 }
 
 /* ============================================================

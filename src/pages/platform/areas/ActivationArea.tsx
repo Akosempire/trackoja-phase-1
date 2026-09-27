@@ -18,7 +18,9 @@ import { Button } from '../../../components/ui/Button';
 import { ConfirmDialog, Dialog } from '../../../components/ui/Dialog';
 import { DataTable, type DataTableColumn } from '../../../components/ui/DataTable';
 import { DefList } from '../../../components/ui/DefList';
+import { Disclosure } from '../../../components/ui/Disclosure';
 import { FormField } from '../../../components/ui/FormField';
+import { MetricStrip } from '../../../components/ui/MetricStrip';
 import { SectionHead } from '../../../components/ui/SectionHead';
 import { StateBlock } from '../../../components/ui/StateBlock';
 import { StatusBadge } from '../../../components/ui/StatusBadge';
@@ -47,43 +49,43 @@ const LIMIT_OPTIONS = [25, 50, 100, 200] as const;
 const REDEMPTION_FAILURES: { message: string; means: string }[] = [
   {
     message: 'That activation key is not valid',
-    means: 'No key row matches the code. The code was mistyped, or belongs to a different environment.',
+    means: 'No key matches the code: mistyped, or from another environment.',
   },
   {
     message: 'That activation key has already been used',
-    means: 'The key was redeemed. Redemption is one-shot; a renewal needs a new key or an extend_expiry adjustment.',
+    means: 'Already redeemed; one-shot. Renew with a new key or an extend_expiry adjustment.',
   },
   {
     message: 'That activation key is no longer usable',
-    means: 'The key is revoked or expired. Revoking is the usual cause when a refund or a chargeback happened.',
+    means: 'Revoked or expired. Revocation usually follows a refund.',
   },
   {
     message: 'That activation key is not active yet',
-    means: 'valid_from is in the future. Issuing always stamps valid_from with now(), so this points at a key written outside this screen.',
+    means: 'valid_from is in the future: a key written outside this screen.',
   },
   {
     message: 'That activation key has expired',
-    means: 'valid_until has passed. Nothing sweeps lapsed keys, so the row still reads Issued in the table above until someone redeems it.',
+    means: 'valid_until has passed; nothing sweeps keys, so it reads Issued above.',
   },
   {
     message: 'That activation key was issued for a different business',
-    means: 'The key is bound to another organisation. An unbound key has no such restriction; a bound one cannot be redirected.',
+    means: 'Bound to another organisation; a bound key cannot be redirected.',
   },
   {
     message: 'A sandbox key can only activate a sandbox business, and a live key only a live business',
-    means: 'The key and the redeeming business disagree about sandbox. Issue the key from the matching environment.',
+    means: 'The key and the redeeming business disagree about sandbox.',
   },
   {
     message: 'Only the business owner can redeem an activation key',
-    means: 'A staff member tried to redeem. The owner of the business must enter the code.',
+    means: 'A staff member tried; the owner must enter the code.',
   },
   {
     message: 'Your account belongs to more than one business. Select a store before redeeming an activation key',
-    means: 'The redeeming account is not tied to exactly one business, so the platform cannot tell who is activating.',
+    means: 'The account is not tied to exactly one business.',
   },
   {
     message: 'No business is linked to your account',
-    means: 'The account has no organisation. Signup did not finish, or the owner was removed.',
+    means: 'The account has no organisation: signup unfinished, or the owner was removed.',
   },
 ];
 
@@ -97,32 +99,27 @@ const NOT_BUILT: { title: string; detail: string }[] = [
   {
     title: 'No key re-display',
     detail:
-      'A key is masked the moment it leaves the issuing call. list_activation_keys builds ••••-••••-XXXX from right(key_code, 4) and never returns the code itself (20260926000071_platform_activation_support_functions.sql, lines 346-347), so a lost key can only be replaced with a new one.',
+      'A key is never returned again: the list masks it from right(key_code, 4).',
   },
   {
     title: 'No validity extension',
-    detail:
-      'activation_key_events allows a validity_extended event type (20260926000064_platform_activation_keys_schema.sql, line 62) but no function writes one, and nothing updates valid_until after issuance.',
+    detail: 'Nothing extends valid_until after issuance.',
   },
   {
     title: 'No expiry sweep',
-    detail:
-      'No function sets an activation key to expired. A key whose valid_until has passed keeps the status Issued until a customer tries to redeem it and is refused — the table marks those rows rather than pretending they are live.',
+    detail: 'Nothing sets a key to expired; a lapsed key still reads Issued.',
   },
   {
     title: 'No per-key event history endpoint',
-    detail:
-      'activation_key_events records issuance, redemption and revocation, but no function returns those rows to any screen, so the table can show the current state and not the trail that produced it.',
+    detail: 'Key events are recorded but no endpoint returns them.',
   },
   {
     title: 'No bulk issue',
-    detail:
-      'issue_activation_key issues exactly one key per call. Producing a batch for a reseller means one call per key from outside this console.',
+    detail: 'One key per call, from outside this console.',
   },
   {
     title: 'No approval workflow',
-    detail:
-      'Anyone holding platform:manage_activation issues a key directly; the key becomes redeemable immediately and nothing reviews or countersigns it. The audit row is written after the fact, not before.',
+    detail: 'Keys become redeemable immediately; nothing reviews them.',
   },
 ];
 
@@ -365,7 +362,7 @@ function IssueKeyDialog({
         open
         onClose={onClose}
         title="Activation key issued"
-        description="This is the only moment the full code exists in this interface."
+        description="The only moment the full code exists here."
         footer={
           <Button onClick={onClose}>Done</Button>
         }
@@ -374,8 +371,8 @@ function IssueKeyDialog({
           <div>
             <p className="callout-title">Copy this code now</p>
             <p className="callout-text">
-              The key list masks every code as ••••-••••-XXXX and no endpoint returns the rest of it, so this value cannot
-              be recovered here afterwards. If it is lost, revoke the key and issue another one.
+              The key list masks every code and nothing returns the rest, so this cannot be recovered afterwards. If it is
+              lost, revoke the key and issue another.
             </p>
           </div>
         </div>
@@ -385,11 +382,11 @@ function IssueKeyDialog({
         <DefList
           rows={[
             { term: 'Product', value: form.productKey },
-            { term: 'Plan', value: form.planKey || 'No plan — the entitlement will have no plan' },
-            { term: 'Bound to', value: bound ? bound.name : 'Unbound — any business may redeem it once' },
+            { term: 'Plan', value: form.planKey || 'No plan' },
+            { term: 'Bound to', value: bound ? bound.name : 'Unbound' },
             {
               term: 'Valid for',
-              value: `${form.validDays} day${Number(form.validDays) === 1 ? '' : 's'} from now, and that expiry becomes the entitlement's expiry`,
+              value: `${form.validDays} day${Number(form.validDays) === 1 ? '' : 's'} from now; becomes the entitlement's expiry`,
             },
             {
               term: 'Seat limit carried by the key',
@@ -397,15 +394,15 @@ function IssueKeyDialog({
                 const plan = plans.find(
                   (candidate) => candidate.productKey === form.productKey && candidate.key === form.planKey,
                 );
-                if (!form.planKey) return 'Custom — no plan was chosen, so no seat limit was captured';
-                return plan ? formatSeatLimit(plan.userLimit) : 'Not readable — the plan could not be loaded';
+                if (!form.planKey) return 'Custom — no plan chosen';
+                return plan ? formatSeatLimit(plan.userLimit) : 'Plan could not be loaded';
               })(),
             },
             {
               term: 'Payment reference',
               value: form.paymentReference.trim() || 'None supplied',
             },
-            { term: 'Sandbox', value: form.isSandbox ? 'Yes — sandbox businesses only' : 'No — live businesses only' },
+            { term: 'Sandbox', value: form.isSandbox ? 'Sandbox businesses only' : 'Live businesses only' },
           ]}
         />
       </Dialog>
@@ -417,7 +414,7 @@ function IssueKeyDialog({
       open
       onClose={onClose}
       title="Issue an activation key"
-      description="For offline or manually approved purchases. The key becomes redeemable the moment it is issued."
+      description="For offline or manually approved purchases; redeemable the moment it is issued."
       wide
       footer={
         <>
@@ -477,12 +474,12 @@ function IssueKeyDialog({
         </select>
         <p className="form-hint">
           {productHasNoPlans
-            ? 'This product has no plans: TrackOja Works was seeded as a product row deliberately without prices or limits, so a key for it carries no plan.'
+            ? 'This product has no plans, so a key for it carries no plan.'
             : form.planKey
-              ? 'The plan supplies the seat limit and the prices the entitlement will snapshot at redemption.'
+              ? 'The plan supplies the seat limit and the prices snapshotted at redemption.'
               : form.productKey && plans.length === 0
-                ? 'No plans could be read, so this key will carry no plan: redemption would create an entitlement with no plan, a custom seat limit and no agreed prices.'
-                : 'With no plan, redemption creates an entitlement with no plan, a custom seat limit and no agreed prices — the key grants access without a priced deal.'}
+                ? 'No plans could be read, so this key carries no plan, seat limit or agreed prices.'
+                : 'With no plan, redemption grants access with no plan, seat limit or agreed prices.'}
         </p>
       </div>
 
@@ -501,8 +498,8 @@ function IssueKeyDialog({
           disabled={busy}
         />
         <p className="form-hint">
-          Between 1 and 3650. The key becomes valid now and its expiry is copied onto the entitlement at redemption, so
-          the validity you choose here is the length of the access it grants.
+          Between 1 and 3650. The key is valid now and its expiry is copied onto the entitlement at redemption, so this
+          is the length of access granted.
         </p>
       </div>
 
@@ -510,11 +507,9 @@ function IssueKeyDialog({
         <div>
           <p className="callout-title">Bound or unbound</p>
           <p className="callout-text">
-            A bound key names one business at issue time and only that business can redeem it. An unbound key carries no
-            organisation: the first business to redeem it wins, is written onto the key permanently, and the key closes
-            at the same moment. Bind when the sale is already attributed; leave it unbound for printed vouchers and
-            resellers. Binding needs platform:manage_businesses to search the directory — without that key, issue the key
-            unbound.
+            A bound key is redeemable only by the business it names. An unbound key is claimed by the first business to
+            redeem it, and closes at that moment. Binding needs platform:manage_businesses to search the directory;
+            without it, issue unbound.
           </p>
         </div>
       </div>
@@ -605,9 +600,8 @@ function IssueKeyDialog({
         disabled={busy}
       />
       <p className="form-hint">
-        The reference is written onto the key row. It is not returned by list_activation_keys, which has no
-        payment_reference column, so it cannot be read back from this screen afterwards — record it wherever the money is
-        reconciled as well.
+        Written onto the key row but not returned by list_activation_keys, so it cannot be read back here. Record it
+        wherever the money is reconciled as well.
       </p>
 
       <label className="plat-check" htmlFor="issue-sandbox">
@@ -618,13 +612,12 @@ function IssueKeyDialog({
           onChange={(event) => setForm({ ...form, isSandbox: event.target.checked })}
           disabled={busy || !developerMode}
         />
-        Sandbox key — test only, activates sandbox businesses and never counts as revenue
+        Sandbox key — test only, never counts as revenue
       </label>
       {!developerMode && (
         <p className="form-hint">
-          Developer mode is not active for this account, so sandbox issuance is refused by the server: &ldquo;Developer
-          mode is required to issue sandbox activation keys&rdquo;. The control stays visible and disabled rather than
-          disappearing.
+          Developer mode is not active, so the server refuses sandbox issuance: &ldquo;Developer mode is required to issue
+          sandbox activation keys&rdquo;. The control stays visible and disabled.
         </p>
       )}
 
@@ -702,12 +695,7 @@ export default function ActivationArea() {
         key: 'code',
         header: 'Key',
         label: '',
-        render: (key) => (
-          <div>
-            <span className="secret-mask">{key.keyCodeMasked}</span>
-            <p className="data-table-secondary">Only the last group is stored in this column's payload</p>
-          </div>
-        ),
+        render: (key) => <span className="secret-mask">{key.keyCodeMasked}</span>,
       },
       {
         key: 'product',
@@ -728,7 +716,7 @@ export default function ActivationArea() {
           key.planName ? (
             <span className="data-table-primary">{key.planName}</span>
           ) : (
-            <span className="data-table-secondary">Any plan — none captured</span>
+            <span className="data-table-secondary">No plan</span>
           ),
       },
       {
@@ -739,7 +727,7 @@ export default function ActivationArea() {
           key.orgName ? (
             <span className="data-table-primary">{key.orgName}</span>
           ) : (
-            <span className="data-table-secondary">Unbound — redeemable once by any business</span>
+            <span className="data-table-secondary">Unbound</span>
           ),
       },
       {
@@ -755,10 +743,7 @@ export default function ActivationArea() {
                 <>
                   {' '}
                   <Badge tone="warning">past its window</Badge>
-                  <p className="data-table-secondary">
-                    Nothing sweeps keys, so this row still reads Issued. A redemption would be refused with &ldquo;That
-                    activation key has expired&rdquo;.
-                  </p>
+                  <p className="data-table-secondary">Nothing sweeps keys; still reads Issued.</p>
                 </>
               )}
             </div>
@@ -863,7 +848,7 @@ export default function ActivationArea() {
     <>
       <PlatformPageHead
         area={AREA}
-        description={`Issue, trace and revoke the keys that turn a payment into access. Signed in as ${
+        description={`Signed in as ${
           access?.isSuperAdmin ? 'platform owner' : 'platform admin'
         } in ${environment.label.toLowerCase()}.`}
         actions={
@@ -883,7 +868,7 @@ export default function ActivationArea() {
         <SectionHead
           id="activation-keys"
           title="Activation keys"
-          sub="Newest first. Every code is masked in the response itself, not by the interface."
+          sub="Newest first. Codes are masked by the server."
           actions={
             <div className="chip-row">
               <button
@@ -909,28 +894,12 @@ export default function ActivationArea() {
           }
         />
 
-        <div className="callout callout-info">
-          <div>
-            <p className="callout-title">Why every code reads ••••-••••-XXXX</p>
-            <p className="callout-text">
-              The masking happens on the server, not in this screen: list_activation_keys composes
-              &lsquo;••••-••••-&rsquo; with right(key_code, 4), so a listing can never yield a usable key
-              (20260926000071_platform_activation_support_functions.sql, lines 346-347). The full code is returned once,
-              by the issuing call, and never again. A masked column here is the feature working, not a broken interface.
-            </p>
-          </div>
-        </div>
-
         <div className="callout callout-warning">
           <div>
-            <p className="callout-title">Two columns of activation_keys are not readable from here</p>
+            <p className="callout-title">Two columns are not readable from here</p>
             <p className="callout-text">
-              payment_reference is written when a key is issued but is not in list_activation_keys&rsquo; column list, so
-              it cannot be shown in the table — the value this screen collects is stored and then unreadable.
-              bound_email and subscription_transaction_id are worse: issue_activation_key never sets them, and no other
-              function does either, so they are not shown as empty columns but left out entirely
-              (20260926000064_platform_activation_keys_schema.sql, lines 18 and 26;
-              20260926000071_platform_activation_support_functions.sql, lines 85-98).
+              payment_reference is written at issue but not returned by list_activation_keys; bound_email and
+              subscription_transaction_id are never written, so they are left out.
             </p>
           </div>
         </div>
@@ -987,18 +956,21 @@ export default function ActivationArea() {
           )}
         </div>
 
-        <DefList
-          rows={[
-            { term: 'Keys on this page', value: formatNumber(keys.rows.length) },
+        <MetricStrip
+          metrics={[
+            { id: 'shown', label: 'Keys shown', value: formatNumber(keys.rows.length) },
             {
-              term: 'Past their validity window',
-              value: lapsedCount > 0 ? `${formatNumber(lapsedCount)} still marked Issued` : 'None on this page',
-              muted: lapsedCount === 0,
+              id: 'lapsed',
+              label: 'Past validity',
+              value: lapsedCount > 0 ? formatNumber(lapsedCount) : 'None',
+              foot: lapsedCount > 0 ? 'still marked Issued' : undefined,
+              tone: lapsedCount > 0 ? 'warning' : 'muted',
             },
             {
-              term: 'Sandbox keys on this page',
-              value: sandboxCount > 0 ? formatNumber(sandboxCount) : 'None on this page',
-              muted: sandboxCount === 0,
+              id: 'sandbox',
+              label: 'Sandbox keys',
+              value: sandboxCount > 0 ? formatNumber(sandboxCount) : 'None',
+              tone: 'muted',
             },
           ]}
         />
@@ -1036,8 +1008,8 @@ export default function ActivationArea() {
                 title={filtersActive ? 'No keys match these filters' : 'No activation keys yet'}
                 body={
                   filtersActive
-                    ? 'Clear the filters to see every key. The endpoint filters on product and status only.'
-                    : 'Keys appear here as they are issued. Nothing issues one automatically.'
+                    ? 'Clear the filters to see every key.'
+                    : 'Keys appear here as they are issued, never automatically.'
                 }
               />
             }
@@ -1045,105 +1017,82 @@ export default function ActivationArea() {
         )}
 
         <p className="form-hint">
-          list_activation_keys takes a limit but no offset and returns no total, so the newest {formatNumber(limit)} rows
-          are shown and no page count can be offered honestly. Raise the row count or filter instead of paging.
+          Newest {formatNumber(limit)} rows; no offset and no total, so there is no page count.
         </p>
       </section>
 
       {/* ── How a key becomes access ──────────────────────────────── */}
       <section className="card" aria-labelledby="activation-model">
-        <SectionHead
-          id="activation-model"
-          title="How activation interacts with subscription status"
-          sub="organization_products is the entitlement. A key is only a way of writing one."
-        />
-        <ul className="list">
-          <li className="list-item">
-            <div>
-              <p className="list-item-title">1. The entitlement is the access, not the key</p>
-              <p className="list-item-subtitle">
-                organization_products holds one row per business per product, and that row is what grants access and
-                what the seat-limit trigger reads (20260926000063_platform_products_schema.sql, lines 113-152). Allowing
-                a key does not by itself put a customer on a plan.
-              </p>
-            </div>
-          </li>
-          <li className="list-item">
-            <div>
-              <p className="list-item-title">2. Redemption upserts that row</p>
-              <p className="list-item-subtitle">
-                redeem_activation_key inserts or updates the entitlement with source = &lsquo;activation_key&rsquo; and
-                status = &lsquo;active&rsquo;, snapshotting agreed_monthly_price and agreed_annual_price from the plan and
-                agreed_user_limit from the key (20260926000071_platform_activation_support_functions.sql, lines 204-228).
-                A business that already held the product has its existing deal overwritten rather than stacked.
-              </p>
-            </div>
-          </li>
-          <li className="list-item">
-            <div>
-              <p className="list-item-title">3. The key&rsquo;s expiry becomes the entitlement&rsquo;s expiry</p>
-              <p className="list-item-subtitle">
-                expires_at is set from the key&rsquo;s valid_until, so the validity chosen when issuing is the length of
-                the access granted. Extending access afterwards means recording an extend_expiry adjustment on the
-                entitlement — not editing the key, which nothing can do.
-              </p>
-            </div>
-          </li>
-          <li className="list-item">
-            <div>
-              <p className="list-item-title">4. The seat limit travels with the key</p>
-              <p className="list-item-subtitle">
-                The key captured the plan&rsquo;s seat limit when it was issued — &ldquo;Seat limit captured when the key
-                was issued, so a later plan edit cannot widen it&rdquo;
-                (20260926000064_platform_activation_keys_schema.sql, lines 49-50) — and redemption copies that figure onto
-                the entitlement.
-              </p>
-            </div>
-          </li>
-          <li className="list-item">
-            <div>
-              <p className="list-item-title">5. An unbound key is bound by whoever redeems it</p>
-              <p className="list-item-subtitle">
-                Redemption writes the redeeming business onto the key and closes it to &lsquo;redeemed&rsquo; in the same
-                transaction, so the first business to use it wins and the key cannot be redirected afterwards.
-              </p>
-            </div>
-          </li>
-          <li className="list-item">
-            <div>
-              <p className="list-item-title">6. Only the owner of a single business can redeem</p>
-              <p className="list-item-subtitle">
-                The function requires the signed-in user to own the business and to belong to exactly one business, and
-                the key and the business must agree about sandbox. This screen issues keys; it never redeems them, so
-                these conditions are the customer&rsquo;s to meet.
-              </p>
-            </div>
-          </li>
-        </ul>
+        <SectionHead id="activation-model" title="How activation interacts with subscription status" />
+        <Disclosure summary="How a key becomes access">
+          <ul className="list">
+            <li className="list-item">
+              <div>
+                <p className="list-item-title">The entitlement is the access, not the key</p>
+                <p className="list-item-subtitle">
+                  organization_products grants access; the seat-limit trigger reads it.
+                </p>
+              </div>
+            </li>
+            <li className="list-item">
+              <div>
+                <p className="list-item-title">Redemption upserts that row</p>
+                <p className="list-item-subtitle">
+                  Status active, prices snapshotted from the plan, seat limit from the key. An existing deal is
+                  overwritten, not stacked.
+                </p>
+              </div>
+            </li>
+            <li className="list-item">
+              <div>
+                <p className="list-item-title">The key&rsquo;s expiry becomes the entitlement&rsquo;s expiry</p>
+                <p className="list-item-subtitle">
+                  Extending access means an extend_expiry adjustment; the key cannot be edited.
+                </p>
+              </div>
+            </li>
+            <li className="list-item">
+              <div>
+                <p className="list-item-title">The seat limit travels with the key</p>
+                <p className="list-item-subtitle">
+                  Captured at issue; a later plan edit cannot widen it.
+                </p>
+              </div>
+            </li>
+            <li className="list-item">
+              <div>
+                <p className="list-item-title">An unbound key is bound by whoever redeems it</p>
+                <p className="list-item-subtitle">The first business to redeem it wins; the key then closes.</p>
+              </div>
+            </li>
+            <li className="list-item">
+              <div>
+                <p className="list-item-title">Only the owner of a single business can redeem</p>
+                <p className="list-item-subtitle">
+                  They must also agree about sandbox. This screen never redeems.
+                </p>
+              </div>
+            </li>
+          </ul>
+        </Disclosure>
       </section>
 
       {/* ── Failure states ────────────────────────────────────────── */}
       <section className="card" aria-labelledby="activation-failures">
-        <SectionHead
-          id="activation-failures"
-          title="When a redemption fails"
-          sub="The exact sentences a customer sees, so a support call can be answered from this page."
-        />
-        <ul className="list">
-          {REDEMPTION_FAILURES.map((failure) => (
-            <li className="list-item" key={failure.message}>
-              <div>
-                <p className="list-item-title">&ldquo;{failure.message}&rdquo;</p>
-                <p className="list-item-subtitle">{failure.means}</p>
-              </div>
-            </li>
-          ))}
-        </ul>
-        <p className="form-hint">
-          These are raised by redeem_activation_key on the customer&rsquo;s side. The issue form above refuses the same
-          conditions in the same words before it calls the server, so a key this screen accepts should not fail on a
-          detail the operator could have seen.
-        </p>
+        <SectionHead id="activation-failures" title="When a redemption fails" />
+        <Disclosure summary="The exact sentences a customer sees">
+          <ul className="list">
+            {REDEMPTION_FAILURES.map((failure) => (
+              <li className="list-item" key={failure.message}>
+                <div>
+                  <p className="list-item-title">&ldquo;{failure.message}&rdquo;</p>
+                  <p className="list-item-subtitle">{failure.means}</p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </Disclosure>
+        <p className="form-hint">The issue form above refuses the same conditions.</p>
       </section>
 
       {/* ── Not built yet ─────────────────────────────────────────── */}
@@ -1151,7 +1100,6 @@ export default function ActivationArea() {
         <SectionHead
           id="activation-not-built"
           title="Not built yet"
-          sub="Capabilities with no backend behind them. Nothing on this page stands in for them."
         />
         <ul className="list">
           {NOT_BUILT.map((item) => (
@@ -1166,9 +1114,8 @@ export default function ActivationArea() {
           ))}
         </ul>
         <p className="form-hint">
-          Every action on this page is gated on <span className="mono">{MANAGE_PERMISSION}</span> in the database, so
-          hiding a control is convenience rather than the control. The audit trail records issuance and revocation with
-          the key&rsquo;s last four characters only — the full code is never copied into it.
+          Gated on <span className="mono">{MANAGE_PERMISSION}</span> in the database, so hiding a control is never the
+          control. The audit trail records only the last four characters.
         </p>
       </section>
 
@@ -1191,14 +1138,14 @@ export default function ActivationArea() {
         danger
         requireReason
         reasonLabel="Reason"
-        reasonHint="At least 5 characters. The server only demands a reason for a key that was already redeemed, but this interface asks every time because a revocation has to be explainable later."
+        reasonHint="At least 5 characters. The server only demands a reason for a key that was already redeemed, but this interface asks every time."
         consequence={
           revokeTarget
             ? `${
                 revokeTarget.keyCodeMasked
-              } will be marked revoked and stamped with the time, and can no longer be redeemed. Revoking does not remove the entitlement the key already granted: it only updates the key row, so a business that already redeemed it keeps its plan, its agreed prices and its seat limit. ${
+              } will be marked revoked and stamped with the time, and can no longer be redeemed. The entitlement it already granted is untouched: the business keeps its plan, agreed prices and seat limit. ${
                 revokeTarget.status === 'redeemed' && revokeTarget.orgName
-                  ? `${revokeTarget.orgName} has already redeemed this key, so its access is unaffected — record an extend_expiry, cancel or seat change against that business if the access is what needs to change.`
+                  ? `${revokeTarget.orgName} has already redeemed this key, so its access is unaffected — record an extend_expiry, cancel or seat change against that business to change the access.`
                   : 'This key has not been redeemed, so nothing downstream changes.'
               }`
             : ''

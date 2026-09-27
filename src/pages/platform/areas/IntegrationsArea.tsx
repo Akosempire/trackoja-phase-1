@@ -1,9 +1,11 @@
 import { useMemo } from 'react';
 import { usePlatform } from '../../../components/platform/PlatformContext';
 import { AreaCoverage, PlatformPageHead } from '../../../components/platform/PlatformPageHead';
+import { AttentionList } from '../../../components/ui/AttentionList';
 import { Badge } from '../../../components/ui/Badge';
 import { DataTable, type DataTableColumn } from '../../../components/ui/DataTable';
 import { DefList } from '../../../components/ui/DefList';
+import { Disclosure } from '../../../components/ui/Disclosure';
 import { SectionHead } from '../../../components/ui/SectionHead';
 import { StateBlock } from '../../../components/ui/StateBlock';
 import { StatusBadge } from '../../../components/ui/StatusBadge';
@@ -13,18 +15,11 @@ import { formatDateTime } from '../../../utils/format';
 const AREA = PLATFORM_AREAS.find((area) => area.id === 'integrations')!;
 
 /**
- * The shape a registry will have, so adding a fourth integration is a row and
- * not a rewrite.
- *
- * `status` deliberately offers two values only. There is no `connected`,
- * `healthy` or `degraded`, because deciding any of those needs a connection test
- * and no such endpoint exists — the field can only report whether the code and
- * its server-side secret are in place.
- *
- * `environment` is part of the shape because test and live credentials must
- * never be mixed, and it is null for all three entries for the same reason
- * `lastCheckedAt` is: nothing records it. The key mode of the Paystack and OPay
- * secrets is not readable from this application at all.
+ * The shape a registry will have. `status` offers two values only: there is no
+ * `connected` or `healthy` because no connection test endpoint exists, so the
+ * field can only report whether the code and its server-side secret are in
+ * place. `environment` is null for all three entries, like `lastCheckedAt`,
+ * because nothing records either.
  */
 interface IntegrationEntry {
   key: string;
@@ -45,13 +40,9 @@ interface IntegrationEntry {
 }
 
 /**
- * The three integrations that exist, with their real status.
- *
- * This array is declared in the page on purpose: there is no
- * `integration_registry` table and no listing RPC, so reading it from a service
- * would mean inventing an endpoint. Every `configured` below means "the code and
- * its server-side secret exist", never "it works"; when the registry lands these
- * rows come from it and the status can start measuring something.
+ * The three integrations that exist. Declared on the page because there is no
+ * `integration_registry` table and no listing RPC; every `configured` below
+ * means "the code and its server-side secret exist", never "it works".
  */
 const INTEGRATIONS: IntegrationEntry[] = [
   {
@@ -66,9 +57,9 @@ const INTEGRATIONS: IntegrationEntry[] = [
     credentialHome: 'PAYSTACK_SECRET_KEY, an Edge Function environment variable',
     codeRef: 'supabase/functions/paystack-initialize/index.ts, supabase/functions/paystack-webhook/index.ts',
     notes: [
-      'Signature verification is real: HMAC-SHA512 over the raw body, compared with the x-paystack-signature header (paystack-webhook/index.ts, lines 20-53).',
+      'HMAC-SHA512 over the raw body, compared with the x-paystack-signature header (paystack-webhook/index.ts, lines 20-53).',
       'Drives initiate_subscription_checkout, activate_subscription and mark_subscription_transaction_failed (20260614000031_subscriptions_functions.sql; activate_subscription re-issued by 20260927000089_platform_owner_hardening.sql, lines 117-255).',
-      'The checkout function runs in mock mode when the secret is unset: it activates the transaction immediately and returns a MOCK- access code (paystack-initialize/index.ts, lines 71-91). Nothing on this page can tell you which mode a deployment is in.',
+      'Mock mode when the secret is unset: the transaction is activated immediately and a MOCK- access code is returned (paystack-initialize/index.ts, lines 71-91).',
     ],
   },
   {
@@ -83,9 +74,9 @@ const INTEGRATIONS: IntegrationEntry[] = [
     credentialHome: 'OPAY_SECRET_KEY, an Edge Function environment variable',
     codeRef: 'supabase/functions/opay-initiate-payment/index.ts, supabase/functions/opay-webhook/index.ts',
     notes: [
-      'Store-scoped and unreachable from any platform function: handle_opay_webhook resolves a device_transactions row by external_ref (20260614000047_opay_webhook_functions.sql, lines 30-33) and is granted to service_role only (line 60). No platform RPC calls it, so this dashboard cannot see, retry or reconcile a device payment.',
-      'When OPAY_SECRET_KEY is unset the function skips signature verification entirely and only logs a warning (opay-webhook/index.ts, lines 56-69). In that configuration an unsigned POST to the webhook URL can move a transaction to success or failed, and nothing records that it happened.',
-      'The secret has to be set on the Edge Function; the platform settings table refuses credential-shaped keys and values, so it cannot be stored here (20260927000089_platform_owner_hardening.sql, lines 1066-1084).',
+      'handle_opay_webhook resolves a device_transactions row by external_ref and is granted to service_role only (20260614000047_opay_webhook_functions.sql, lines 30-33 and 60). No platform RPC calls it, so this console cannot see, retry or reconcile a device payment.',
+      'When OPAY_SECRET_KEY is unset, signature verification is skipped with only a log warning (opay-webhook/index.ts, lines 56-69): an unsigned POST can move a transaction to success or failed, and nothing records that it happened.',
+      'The secret must be set on the Edge Function; the platform settings table refuses credential-shaped keys and values (20260927000089_platform_owner_hardening.sql, lines 1066-1084).',
     ],
   },
   {
@@ -100,9 +91,8 @@ const INTEGRATIONS: IntegrationEntry[] = [
     credentialHome: 'Supabase project auth SMTP settings, outside this database',
     codeRef: 'None — no sender exists anywhere in this repository',
     notes: [
-      'notification_templates exists (20260926000066_platform_operations_schema.sql, lines 87-100) with no seeded rows and no dispatcher. The only function over it is list_notification_templates, which reads (20260926000071, lines 977-1010).',
-      'The only email this application sends at all is through supabase.auth (src/services/auth.service.ts, resendVerification). That is Supabase Auth using the project SMTP configuration, not an application sender.',
-      'So "email delivery" has no code, no credential and nothing to configure from here.',
+      'notification_templates exists with no seeded rows and no dispatcher; the only function over it, list_notification_templates, reads (20260926000066_platform_operations_schema.sql, lines 87-100; 20260926000071, lines 977-1010).',
+      'The only email sent at all is supabase.auth resendVerification — Supabase Auth using the project SMTP configuration, not an application sender (src/services/auth.service.ts).',
     ],
   },
 ];
@@ -170,20 +160,12 @@ export default function IntegrationsArea() {
             <p className="data-table-secondary">
               Key <span className="mono">{row.key}</span>
             </p>
-            <p className="data-table-secondary">
-              Secret: {row.credentialHome}
-            </p>
-            <p className="data-table-secondary">
-              Code: <span className="mono">{row.codeRef}</span>
-            </p>
           </div>
         ),
       },
       { key: 'category', header: 'Category', sortValue: (row) => row.category, render: (row) => row.category },
-      // These three cells already render a real value when one exists; every row
-      // is null today, so each falls through to No data. They are left unsortable
-      // while every value is the same non-value, because a sort control there
-      // would imply data that is not present.
+      // These three cells render a real value when one exists; every row is null
+      // today, so each falls through to No data.
       {
         key: 'environment',
         header: 'Environment',
@@ -220,18 +202,14 @@ export default function IntegrationsArea() {
     <>
       <PlatformPageHead
         area={AREA}
-        description={`Payment gateways, delivery and platform service connections in ${environment.label.toLowerCase()}. Status here reports what is configured, not what is working.`}
+        description={`Payment gateways and email delivery in ${environment.label.toLowerCase()}. Configured means the code and its secret exist — not that it works.`}
       />
 
       <AreaCoverage gaps={AREA.gaps} title="What this page cannot do yet" />
 
       {/* ── The catalogue ─────────────────────────────────────────── */}
       <section className="card" aria-labelledby="integrations-catalogue">
-        <SectionHead
-          id="integrations-catalogue"
-          title="Integrations"
-          sub="Every integration this platform has, with the only status that can honestly be stated today."
-        />
+        <SectionHead id="integrations-catalogue" title="Integrations" />
         <DataTable
           columns={columns}
           rows={INTEGRATIONS}
@@ -239,50 +217,66 @@ export default function IntegrationsArea() {
           stacked
           caption="Platform integrations and their configured state"
         />
-        <p className="form-hint">
-          Neither <span className="mono">Last checked</span> nor{' '}
-          <span className="mono">Last error</span> has a source: no connection test endpoint exists and no
-          event or delivery result is ever persisted, so both read No data for every row. Environment is
-          the same — the key mode of the Paystack and OPay secrets is not recorded anywhere this
-          application can read.
-        </p>
-      </section>
 
-      {/* The per-integration facts the table has no room for. Every one of them
-          names the file it comes from, so nothing here has to be taken on trust. */}
-      <section className="card" aria-labelledby="integrations-detail">
-        <SectionHead
-          id="integrations-detail"
-          title="What each integration actually is"
-          sub="Verified against the code in this repository, because no registry records any of it."
+        <AttentionList
+          items={[
+            {
+              id: 'no-registry',
+              tone: 'muted',
+              title: 'No integrations registry',
+              meta: 'These three rows are declared on this page: no table and no listing RPC holds them.',
+            },
+            {
+              id: 'no-sender',
+              tone: 'warning',
+              title: 'No email sender exists',
+              meta: 'No code, no credential, nothing to configure for email delivery.',
+            },
+            {
+              id: 'webhook-discard',
+              tone: 'warning',
+              title: 'Both webhooks discard unknown events',
+              meta: 'Answered 200 with no row written; an invalid signature is answered 401 and is also unrecorded.',
+            },
+          ]}
         />
-        <ul className="list">
+
+        <p className="form-hint">
+          <span className="mono">Last checked</span>, <span className="mono">Last error</span> and{' '}
+          <span className="mono">Environment</span> read No data for every row: no connection test endpoint
+          exists, and the key mode of the Paystack and OPay secrets is not recorded anywhere this application
+          can read.
+        </p>
+
+        <Disclosure summary="Secrets, code references and verified notes">
           {INTEGRATIONS.map((entry) => (
-            <li className="list-item" key={entry.key}>
-              <div>
-                <p className="list-item-title">
-                  {entry.name} <StatusBadge status={entry.status} />
-                </p>
-                <ul className="plat-coverage-list">
-                  {entry.notes.map((note) => (
-                    <li key={note}>{note}</li>
-                  ))}
-                </ul>
-              </div>
-            </li>
+            <div className="plat-section" key={entry.key}>
+              <p className="list-item-title">
+                {entry.name} <StatusBadge status={entry.status} />
+              </p>
+              <DefList
+                rows={[
+                  { term: 'Secret', value: <span className="mono">{entry.credentialHome}</span> },
+                  { term: 'Code', value: <span className="mono">{entry.codeRef}</span> },
+                ]}
+              />
+              <ul className="plat-coverage-list">
+                {entry.notes.map((note) => (
+                  <li key={note}>{note}</li>
+                ))}
+              </ul>
+            </div>
           ))}
-        </ul>
+        </Disclosure>
       </section>
 
       <div className="callout callout-danger">
         <div>
           <p className="callout-title">A green indicator here would be fabricated</p>
           <p className="callout-text">
-            Nothing on this page can test a connection. There is no reachability probe, no latency
-            measurement, no last-success timestamp and no delivery ledger, so a &quot;healthy&quot; light
-            would be a hardcoded claim dressed as a measurement. Configured means the code path and its
-            secret exist. A webhook can be failing for a month and this page would still show Configured,
-            because a failure has nowhere to be written down.
+            Nothing on this page can test a connection: there is no reachability probe, no latency
+            measurement and no delivery ledger. A webhook can be failing for a month and this page would
+            still read Configured, because a failure has nowhere to be written down.
           </p>
         </div>
       </div>
@@ -292,48 +286,7 @@ export default function IntegrationsArea() {
         <SectionHead
           id="integrations-credentials"
           title="Credentials"
-          sub="How secrets are meant to be handled, and why this page cannot accept one today."
-        />
-
-        <DefList
-          rows={[
-            {
-              term: 'Where a credential is entered',
-              value:
-                'Server-side, through a function that holds the write privilege. A provider secret must never be typed into a browser form that stores it in a table the browser can read.',
-            },
-            {
-              term: 'What the browser may receive',
-              value: (
-                <>
-                  A masked hint only, typically the last four characters, so an operator can confirm they
-                  are looking at the right key:{' '}
-                  <span className="secret-mask">sk_live_••••••••4f2a</span>
-                </>
-              ),
-            },
-            {
-              term: 'What the browser must never receive',
-              value:
-                'The secret in full — not on save, not on a "reveal" control, not in an error message, and not in a log line. There is no legitimate reason for a platform console to re-display a provider secret it has already stored.',
-            },
-            {
-              term: 'Test and live',
-              value:
-                'Separate rows with separate secrets and separate references, labelled. Mixing them is how a test run charges a real card, so the environment is part of the registry key rather than a field someone can forget to change.',
-            },
-            {
-              term: 'Why not platform_settings',
-              value: (
-                <>
-                  It refuses credential-shaped keys and values by design, and only accepts settings a
-                  migration has already declared (20260927000089_platform_owner_hardening.sql, lines
-                  1066-1095). The table comment states the intent: rows reference server-side secrets by
-                  name (20260926000066_platform_operations_schema.sql, lines 79-81).
-                </>
-              ),
-            },
-          ]}
+          sub="No credential can be entered from this page."
         />
 
         <StateBlock
@@ -341,43 +294,76 @@ export default function IntegrationsArea() {
           title="Not configured"
           body={
             <>
-              This application has no secret store, so this page cannot accept a credential today and does
-              not render a form that appears to. There is no <span className="mono">integration_registry</span>{' '}
-              table, no <span className="mono">secret_ref</span> column and no Edge Function that writes to
-              Supabase Vault. Paystack and OPay secrets exist only as Edge Function environment variables,
-              which is why the credentials above can be described but not managed.
+              This application has no secret store and no{' '}
+              <span className="mono">integration_registry</span> table, so no credential form is rendered.
+              The Paystack and OPay secrets exist only as Edge Function environment variables: describable
+              here, not manageable.
             </>
           }
         />
 
-        <div className="plat-section">
-          <p className="plat-section-sub">Required contract</p>
+        <Disclosure summary="How a credential store would work">
+          <DefList
+            rows={[
+              {
+                term: 'Where a credential is entered',
+                value:
+                  'Server-side, through a function that holds the write privilege — never a browser form that stores it where the browser can read it.',
+              },
+              {
+                term: 'What the browser may receive',
+                value: (
+                  <>
+                    A masked hint only, typically the last four characters:{' '}
+                    <span className="secret-mask">sk_live_••••••••4f2a</span>
+                  </>
+                ),
+              },
+              {
+                term: 'What must never reach the browser',
+                value:
+                  'The secret in full — not on save, not on a reveal control, not in an error message or a log line.',
+              },
+              {
+                term: 'Test and live',
+                value:
+                  'Separate rows with separate secrets and references. Mixing them is how a test run charges a real card.',
+              },
+              {
+                term: 'Why not platform_settings',
+                value:
+                  'It refuses credential-shaped keys and values, and only accepts settings a migration has declared (20260927000089_platform_owner_hardening.sql, lines 1066-1095).',
+              },
+            ]}
+          />
+        </Disclosure>
+
+        <Disclosure summary="What the backend would need">
           <pre className="code-panel">{CREDENTIAL_CONTRACT_SQL}</pre>
           <DefList
             rows={[
               {
                 term: 'set_integration_credential',
                 value:
-                  'An Edge Function, not a database function: a database function argument is visible in pg_stat_activity and in logs. It takes p_key, p_environment and p_secret, writes the secret into Supabase Vault (or the Edge Function secret store), sets secret_hint to the last four characters, and returns only { key, environment, secret_hint }.',
+                  'p_key, p_environment, p_secret → writes the secret into Supabase Vault, sets secret_hint to the last four characters and returns { key, environment, secret_hint }. An Edge Function, not a database function: a database argument is visible in pg_stat_activity and in logs.',
               },
               {
                 term: 'test_integration_connection',
                 value:
-                  'p_key, p_environment → { ok, latency_ms, checked_at, error }. This is what would make a green light honest, and it is the single missing piece behind every Last checked cell above.',
+                  'p_key, p_environment → { ok, latency_ms, checked_at, error }. The single missing piece behind every Last checked cell above.',
               },
               {
                 term: 'list_integration_registry',
-                value:
-                  'Returns the catalogue from the table instead of from this page, with the masked hint and never the secret.',
+                value: 'Returns the catalogue with the masked hint, never the secret.',
               },
               {
                 term: 'clear_integration_credential',
                 value:
-                  'p_key, p_environment → removes the Vault entry and sets status back to not_configured. Rotating a leaked secret has to be a first-class action, not a database edit.',
+                  'p_key, p_environment → removes the Vault entry and sets status back to not_configured, so a leaked secret can be rotated without a database edit.',
               },
             ]}
           />
-        </div>
+        </Disclosure>
       </section>
 
       {/* ── Webhook health ────────────────────────────────────────── */}
@@ -385,7 +371,7 @@ export default function IntegrationsArea() {
         <SectionHead
           id="integrations-webhooks"
           title="Webhook health and reconciliation"
-          sub="What the two live webhooks actually do with an event, and what is needed to see a failure."
+          sub="What the two live webhooks do with an event."
         />
 
         <StateBlock
@@ -396,33 +382,24 @@ export default function IntegrationsArea() {
 
         <div className="callout callout-danger">
           <div>
-            <p className="callout-title">Today both webhooks discard unknown events and never record a signature failure</p>
+            <p className="callout-title">Nothing reaches this page when a webhook breaks</p>
             <p className="callout-text">
-              A verified event with no reference, or with a status the provider maps to nothing, is
-              acknowledged with 200 and no row is written — deliberately, so the provider stops retrying
-              (paystack-webhook/index.ts, lines 69-74; opay-webhook/index.ts, lines 84-90). An invalid
-              signature returns 401 with no record (paystack-webhook/index.ts, lines 48-53). And a failure
-              inside the handler is written to the function log and still answered 200, so a
-              subscription activation that threw can never be replayed (paystack-webhook/index.ts, lines
-              100-107). The practical effect: a webhook can be broken, misconfigured or forged and this
-              dashboard cannot tell the difference between that and a quiet week.
+              A verified event the handler cannot map is acknowledged with 200 and no row is written, and a
+              failure inside the handler is logged and still answered 200 — so an activation that threw can
+              never be replayed. An invalid signature returns 401 with no record. A broken, forged or quiet
+              webhook all look the same here.
             </p>
           </div>
         </div>
 
-        <div className="plat-section">
-          <p className="plat-section-sub">Required table</p>
+        <Disclosure summary="What the backend would need">
           <pre className="code-panel">{WEBHOOK_EVENTS_SQL}</pre>
-        </div>
-
-        <div className="plat-section">
-          <p className="plat-section-sub">Required functions</p>
           <DefList
             rows={[
               {
                 term: 'list_webhook_events',
                 value:
-                  'p_provider, p_status, p_from, p_to, p_limit, p_offset → the ledger, newest first, including the rows that were ignored and the rows whose signature failed.',
+                  'p_provider, p_status, p_from, p_to, p_limit, p_offset → the ledger, newest first, including ignored rows and failed signatures.',
               },
               {
                 term: 'get_webhook_event',
@@ -430,23 +407,16 @@ export default function IntegrationsArea() {
               },
               {
                 term: 'retry_webhook_event',
-                value:
-                  'p_event_id → re-runs the handler for a failed event and increments attempts. Replay is the whole point of storing the payload.',
+                value: 'p_event_id → re-runs the handler for a failed event and increments attempts.',
               },
               {
                 term: 'webhook_health_summary',
                 value:
-                  'p_provider → { last_received_at, received_24h, failed_24h, invalid_signature_24h }. This is the query that would turn Last checked and Recent events from No data into a measurement.',
+                  'p_provider → { last_received_at, received_24h, failed_24h, invalid_signature_24h }. This is what would turn Last checked from No data into a measurement.',
               },
             ]}
           />
-        </div>
-
-        <p className="plat-note">
-          Writing the ledger is a change to the webhook functions themselves, not only a schema change:
-          until paystack-webhook and opay-webhook insert a row before they act on it, no amount of
-          read-side tooling can reconstruct what arrived.
-        </p>
+        </Disclosure>
       </section>
 
       {/* ── Operator instructions, explicitly not status ──────────── */}
@@ -454,100 +424,84 @@ export default function IntegrationsArea() {
         <SectionHead
           id="integrations-setup"
           title="Operator setup and troubleshooting"
-          sub="Instructions to follow. Nothing here is a status indicator: this page does not check whether any of it was done."
+          sub="Runbook only: this page does not check whether any of it was done."
         />
 
-        <div className="callout callout-info">
-          <div>
-            <p className="callout-title">Read this as a runbook, not as state</p>
-            <p className="callout-text">
-              The steps below describe how to configure each integration from outside this application.
-              They are deliberately kept out of the table above so they cannot be mistaken for something
-              the platform has verified.
-            </p>
-          </div>
-        </div>
-
-        <ul className="list">
-          <li className="list-item">
-            <div>
-              <p className="list-item-title">Paystack: set the secret and the webhook URL</p>
-              <p className="list-item-subtitle">
-                Run <span className="mono">supabase secrets set PAYSTACK_SECRET_KEY=sk_...</span> against
-                the project, then point the Paystack dashboard webhook at the deployed{' '}
-                <span className="mono">paystack-webhook</span> function URL and subscribe to{' '}
-                <span className="mono">charge.success</span> and <span className="mono">charge.failed</span>
-                . The function runs in mock mode until that secret exists, and mock mode activates a
-                subscription without any payment.
-              </p>
-            </div>
-          </li>
-          <li className="list-item">
-            <div>
-              <p className="list-item-title">OPay: set the secret before registering the webhook</p>
-              <p className="list-item-subtitle">
-                Run <span className="mono">supabase secrets set OPAY_SECRET_KEY=...</span> first. Until it
-                is set the webhook accepts unsigned posts, so registering the URL before the secret exists
-                opens a window in which anyone who knows the URL can change a device transaction status.
-              </p>
-            </div>
-          </li>
-          <li className="list-item">
-            <div>
-              <p className="list-item-title">Email: configure SMTP in the Supabase project</p>
-              <p className="list-item-subtitle">
-                Project Settings → Auth → SMTP. This lives in the Supabase project configuration and not in
-                this database, so this page cannot read the setting back, and nothing in this repository
-                sends application email regardless of how it is configured.
-              </p>
-            </div>
-          </li>
-          <li className="list-item">
-            <div>
-              <p className="list-item-title">Troubleshooting: a webhook returning 401</p>
-              <p className="list-item-subtitle">
-                The signature did not match, which usually means the secret on the function and the signing
-                secret in the provider dashboard differ. No row is written for this case, so the only
-                evidence is the Edge Function log — which is also where the payload you need to replay is,
-                until a webhook_events table exists.
-              </p>
-            </div>
-          </li>
-          <li className="list-item">
-            <div>
-              <p className="list-item-title">Troubleshooting: a provider reports delivery but nothing changed</p>
-              <p className="list-item-subtitle">
-                The handler swallowed the error and still answered 200, so the provider will not retry. Look
-                for the error line in the Edge Function log. For OPay, a{' '}
-                <span className="mono">Device transaction not found</span> error means the reference belongs
-                to a store in another project or environment — handle_opay_webhook resolves
-                device_transactions by external_ref alone (20260614000047_opay_webhook_functions.sql, lines
-                30-33).
-              </p>
-            </div>
-          </li>
-        </ul>
+        <Disclosure summary="Setup runbook and troubleshooting">
+          <ul className="list">
+            <li className="list-item">
+              <div>
+                <p className="list-item-title">Paystack: set the secret and the webhook URL</p>
+                <p className="list-item-subtitle">
+                  Run <span className="mono">supabase secrets set PAYSTACK_SECRET_KEY=sk_...</span>, then
+                  point the Paystack dashboard webhook at the deployed{' '}
+                  <span className="mono">paystack-webhook</span> URL and subscribe to{' '}
+                  <span className="mono">charge.success</span> and{' '}
+                  <span className="mono">charge.failed</span>. Mock mode activates a subscription without any
+                  payment until that secret exists.
+                </p>
+              </div>
+            </li>
+            <li className="list-item">
+              <div>
+                <p className="list-item-title">OPay: set the secret before registering the webhook</p>
+                <p className="list-item-subtitle">
+                  Run <span className="mono">supabase secrets set OPAY_SECRET_KEY=...</span> first. Until it
+                  is set the webhook accepts unsigned posts, so registering the URL first opens a window in
+                  which anyone who knows the URL can change a device transaction status.
+                </p>
+              </div>
+            </li>
+            <li className="list-item">
+              <div>
+                <p className="list-item-title">Email: configure SMTP in the Supabase project</p>
+                <p className="list-item-subtitle">
+                  Project Settings → Auth → SMTP. It lives in the Supabase project configuration, not in this
+                  database, so this page cannot read the setting back.
+                </p>
+              </div>
+            </li>
+            <li className="list-item">
+              <div>
+                <p className="list-item-title">Troubleshooting: a webhook returning 401</p>
+                <p className="list-item-subtitle">
+                  The signature did not match, which usually means the secret on the function and the signing
+                  secret in the provider dashboard differ. No row is written for this case, so the only
+                  evidence is the Edge Function log.
+                </p>
+              </div>
+            </li>
+            <li className="list-item">
+              <div>
+                <p className="list-item-title">
+                  Troubleshooting: a provider reports delivery but nothing changed
+                </p>
+                <p className="list-item-subtitle">
+                  The handler swallowed the error and still answered 200, so the provider will not retry.
+                  Look for the error line in the Edge Function log. For OPay, a{' '}
+                  <span className="mono">Device transaction not found</span> error means the reference belongs
+                  to a store in another project or environment — handle_opay_webhook resolves
+                  device_transactions by external_ref alone.
+                </p>
+              </div>
+            </li>
+          </ul>
+        </Disclosure>
       </section>
 
       <section className="card" aria-labelledby="integrations-write-path">
         <SectionHead
           id="integrations-write-path"
-          title="Why there is nothing to edit"
-          sub="This page is read-only because the write path does not exist, not because of your permissions."
+          title="Read-only"
+          sub="The write path does not exist, so there is nothing to edit here."
         />
         <p className="is-locked">
-          Integration writes would require <span className="mono">platform:manage_integrations</span>.
-          The key is declared (20260927000089_platform_owner_hardening.sql, line 382) but nothing consumes
-          it, and you {can('platform:manage_integrations') ? 'hold' : 'do not hold'} it in this session.
-          Either way there is no credential form, no connection test button and no toggle on this page: a
-          control that writes nowhere teaches an operator to distrust the console.
+          Integration writes would require <span className="mono">platform:manage_integrations</span>. The
+          key is declared (20260927000089_platform_owner_hardening.sql, line 382) but nothing consumes it, and
+          you {can('platform:manage_integrations') ? 'hold' : 'do not hold'} it in this session. Either way
+          there is no credential form, no connection test button and no toggle on this page.
         </p>
       </section>
-
-      <p className="section-sub">
-        Configured state is described from the code in this repository. Every claim above names the file or
-        migration it comes from so it can be checked; none of it is a live health measurement.
-      </p>
     </>
   );
 }

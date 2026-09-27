@@ -94,7 +94,7 @@ export const PLATFORM_AREAS: PlatformArea[] = [
   {
     id: 'businesses',
     path: 'businesses',
-    label: 'Businesses & Users',
+    label: 'Businesses & users',
     short: 'Businesses',
     description: 'The customer directory, each business in detail, and staff accounts.',
     icon: BuildingIcon,
@@ -109,7 +109,7 @@ export const PLATFORM_AREAS: PlatformArea[] = [
   {
     id: 'billing',
     path: 'billing',
-    label: 'Subscriptions & Billing',
+    label: 'Subscriptions & billing',
     short: 'Billing',
     description: 'Plans and prices, entitlements, payments and subscription changes.',
     icon: SubscriptionIcon,
@@ -124,7 +124,7 @@ export const PLATFORM_AREAS: PlatformArea[] = [
   {
     id: 'activation',
     path: 'activation',
-    label: 'Activation Keys & Access',
+    label: 'Activation keys',
     short: 'Activation',
     description: 'Issue, trace and revoke the keys that turn a payment into access.',
     icon: KeyIcon,
@@ -139,7 +139,7 @@ export const PLATFORM_AREAS: PlatformArea[] = [
   {
     id: 'support',
     path: 'support',
-    label: 'Support & Feedback',
+    label: 'Support',
     short: 'Support',
     description: 'Tickets and customer feedback, with the notes already on each business.',
     icon: TicketIcon,
@@ -170,7 +170,7 @@ export const PLATFORM_AREAS: PlatformArea[] = [
   {
     id: 'health',
     path: 'health',
-    label: 'System Health',
+    label: 'System health',
     short: 'Health',
     description: 'Platform condition and incidents, with honest coverage of what is measured.',
     icon: PulseIcon,
@@ -186,7 +186,7 @@ export const PLATFORM_AREAS: PlatformArea[] = [
   {
     id: 'developer',
     path: 'developer',
-    label: 'Developer Tools',
+    label: 'Developer tools',
     short: 'Developer',
     description: 'Environment, diagnostics, sandbox businesses and developer access.',
     icon: CodeIcon,
@@ -203,7 +203,7 @@ export const PLATFORM_AREAS: PlatformArea[] = [
   {
     id: 'audit',
     path: 'audit',
-    label: 'Audit Logs',
+    label: 'Audit logs',
     short: 'Audit',
     description: 'Who changed what, when, and which environment it affected.',
     icon: ShieldIcon,
@@ -218,7 +218,7 @@ export const PLATFORM_AREAS: PlatformArea[] = [
   {
     id: 'settings',
     path: 'settings',
-    label: 'Platform Settings',
+    label: 'Platform settings',
     short: 'Settings',
     description: 'Platform identity, billing defaults, support details and templates.',
     icon: SettingsIcon,

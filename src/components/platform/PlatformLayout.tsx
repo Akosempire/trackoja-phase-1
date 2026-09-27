@@ -92,12 +92,11 @@ export function PlatformLayout() {
       <div className="app-main">
         <DeveloperModeBanner />
         <OfflineBanner />
-        {/* Same nesting as the merchant shell: the page wrapper carries the
-            reading padding, and app-content carries the shell's own spacing.
-            Note there is no bottom nav here, which is why the merchant's
-            bottom clearance is not needed. */}
+        {/* Same nesting as the merchant shell, but the console caps its reading
+            column: `.page` alone is `max-width: none`, which on a wide monitor
+            stretched cards and prose across the whole window. */}
         <main className="app-content" id="platform-content" tabIndex={-1}>
-          <div className="page">
+          <div className="page plat-page">
             <Outlet />
           </div>
         </main>

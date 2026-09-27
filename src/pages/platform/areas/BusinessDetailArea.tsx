@@ -294,7 +294,7 @@ export default function BusinessDetailArea() {
         area={AREA}
         parent={{ label: AREA.label, to: '/platform/businesses' }}
         current={name}
-        description={str(organization, 'description') ?? 'Plan, access, staff, payments and support history for this business.'}
+        description={str(organization, 'description') ?? undefined}
         actions={
           <>
             <RefreshButton onClick={load} loading={loading} />
@@ -322,7 +322,7 @@ export default function BusinessDetailArea() {
       <section className="card">
         <SectionHead
           title="Business"
-          sub="Identity and billing record."
+          sub="Identity and billing"
           actions={
             can('platform:manage_payments') && (
               <Button variant="outline" className="btn-sm" onClick={() => setAdjustOpen(true)}>
@@ -337,7 +337,7 @@ export default function BusinessDetailArea() {
       <section className="card">
         <SectionHead
           title="Access & entitlement"
-          sub="This is what actually grants the business access; the seat limit is enforced against it."
+          sub="What grants access. The seat limit is enforced against it."
         />
         {subscriptionRows.length > 0 ? (
           <>
@@ -347,8 +347,7 @@ export default function BusinessDetailArea() {
                 <div>
                   <p className="callout-title">Seat allowance is full</p>
                   <p className="callout-text">
-                    {formatNumber(seatUsed)} of {formatSeatLimit(seatLimit)} seats are in use, so adding staff will be
-                    refused by the seat trigger. Raise the allowance to let them add more.
+                    {formatNumber(seatUsed)} of {formatSeatLimit(seatLimit)} in use. Adding staff will be refused.
                   </p>
                 </div>
               </div>
@@ -357,14 +356,14 @@ export default function BusinessDetailArea() {
         ) : (
           <StateBlock
             variant="empty"
-            title="No entitlement recorded"
-            body="This business has no product entitlement row, so it holds no access. Record a manual activation to grant one."
+            title="No access recorded"
+            body="Record a manual activation to grant access."
           />
         )}
 
         {entitlements.length > 1 && (
           <div>
-            <SectionHead title="Other products" sub="Additional product entitlements on this business." />
+            <SectionHead title="Other products" />
             <DataTable
               columns={[
                 { key: 'product', header: 'Product', render: (row) => str(row, 'product_name') ?? '—' },
@@ -382,7 +381,7 @@ export default function BusinessDetailArea() {
       </section>
 
       <section className="card">
-        <SectionHead title="Stores" sub="Each store is a separate trading location for this business." />
+        <SectionHead title="Stores" />
         <DataTable
           columns={[
             { key: 'name', header: 'Store', label: '', render: (row) => str(row, 'name') ?? 'Unnamed store' },
@@ -400,7 +399,7 @@ export default function BusinessDetailArea() {
       <section className="card">
         <SectionHead
           title={`Staff (${formatNumber(seatUsed)} seats used)`}
-          sub="Members across this business's stores."
+          sub="Across this business's stores"
         />
         <DataTable
           columns={staffColumns}
@@ -413,7 +412,7 @@ export default function BusinessDetailArea() {
       </section>
 
       <section className="card">
-        <SectionHead title="Payments" sub="Most recent subscription payments recorded against this business." />
+        <SectionHead title="Payments" sub="Most recent first" />
         <DataTable
           columns={paymentColumns}
           rows={detail?.payments ?? []}
@@ -427,7 +426,7 @@ export default function BusinessDetailArea() {
       <section className="card">
         <SectionHead
           title="Support history"
-          sub="Append-only notes. A correction is another note; there is no edit or delete."
+          sub="Append-only. A correction is another note."
           actions={
             can('platform:support') && (
               <Button variant="outline" className="btn-sm" onClick={() => setNoteOpen(true)}>
@@ -442,7 +441,7 @@ export default function BusinessDetailArea() {
       <section className="card">
         <SectionHead
           title="Subscription changes"
-          sub="Every manual price, plan, seat or expiry change, with the reason given."
+          sub="Manual changes, with the reason given"
           actions={
             can('platform:manage_payments') && (
               <Button variant="ghost" className="btn-sm" onClick={() => setAdjustOpen(true)}>
@@ -459,7 +458,7 @@ export default function BusinessDetailArea() {
         open={adjustOpen}
         onClose={() => setAdjustOpen(false)}
         title="Change this subscription"
-        description="Every change is recorded against your account with the reason you give."
+        description="Recorded against your account with the reason you give."
         footer={
           <>
             <Button variant="outline" onClick={() => setAdjustOpen(false)} disabled={adjustBusy}>
@@ -531,9 +530,7 @@ export default function BusinessDetailArea() {
         <div className="callout callout-info">
           <div>
             <p className="callout-text">
-              This changes the <strong>entitlement</strong>, which is what grants access. It does not change the
-              business's recorded billing status, and it does not touch the agreed price unless you record a manual
-              price.
+              Changes the <strong>entitlement</strong>. Leaves billing status and the agreed price alone.
             </p>
           </div>
         </div>
@@ -544,7 +541,7 @@ export default function BusinessDetailArea() {
         open={noteOpen}
         onClose={() => setNoteOpen(false)}
         title="Add a support note"
-        description="Notes are visible to platform staff only. They are never shown to the business."
+        description="Visible to platform staff only."
         footer={
           <>
             <Button variant="outline" onClick={() => setNoteOpen(false)} disabled={noteBusy}>

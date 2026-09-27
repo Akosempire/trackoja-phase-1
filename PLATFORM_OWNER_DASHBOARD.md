@@ -1,5 +1,12 @@
 # Platform Owner dashboard — inventory, audit and specification
 
+> **Later revision.** The console was subsequently redesigned for desktop layout,
+> copy volume and action-orientation. See `PLATFORM_UX_REDESIGN.md` for the
+> before/after audit: the reading column is now capped at Waya's
+> `--content-readable`, running text is capped at a new `--measure-prose` token,
+> the ten screens lost roughly half their words, and Overview became an action
+> queue. The inventory, capability matrix and honesty rules below still apply.
+
 This document is the reconnaissance the Platform Owner dashboard was built from.
 It records what already existed, where the current platform screens departed from
 Waya, what had to be added to Waya, and — importantly — which backend capabilities

@@ -21,6 +21,7 @@ import { Button } from '../../../components/ui/Button';
 import { ConfirmDialog, Dialog } from '../../../components/ui/Dialog';
 import { DataTable, type DataTableColumn } from '../../../components/ui/DataTable';
 import { DefList, type DefRow } from '../../../components/ui/DefList';
+import { Disclosure } from '../../../components/ui/Disclosure';
 import { FormField } from '../../../components/ui/FormField';
 import { SectionHead } from '../../../components/ui/SectionHead';
 import { SectionState, StateBlock } from '../../../components/ui/StateBlock';
@@ -35,19 +36,15 @@ const AREA = PLATFORM_AREAS.find((area) => area.id === 'developer')!;
 /**
  * What each environment means for the work being done.
  *
- * Spelled out here rather than reused from src/config/environment.ts: that copy is
- * deliberately terse for the sidebar marker, and on this screen the operator is
- * about to run a test, so the consequence has to be explicit.
+ * Spelled out rather than reused from src/config/environment.ts, whose copy is
+ * deliberately terse for the sidebar marker. The consequence is what matters
+ * here, because the operator is about to run a test.
  */
 const ENVIRONMENT_MEANING: Record<PlatformEnvironmentName, string> = {
-  production:
-    'Live customer data. Diagnostics here read real businesses, and a sandbox created here sits in the same database as paying customers.',
-  staging:
-    'A rehearsal environment. Customer data must not be created here, and figures read here are not the customer-facing ones.',
-  development:
-    'A development environment. Nothing here is a customer record, so a sandbox test proves nothing about production behaviour.',
-  unknown:
-    'This deployment has not declared which environment it is, so treat anything read here as unattributable rather than assume it is a test system.',
+  production: 'Live customer data. Sandboxes here share the database with paying customers.',
+  staging: 'A rehearsal environment: figures read here are not customer-facing.',
+  development: 'A development environment: nothing here is a customer record.',
+  unknown: 'No environment declared: treat anything read here as unattributable.',
 };
 
 const SOURCE_LABEL: Record<string, string> = {
@@ -63,13 +60,13 @@ const SOURCE_LABEL: Record<string, string> = {
  * replay will otherwise assume it is somewhere else in the dashboard.
  */
 const NOT_BUILT: string[] = [
-  'No webhook inspection or replay: nothing records an inbound provider delivery, so a failed or unknown webhook cannot be looked up, and a rejected one cannot be re-sent.',
-  'No background-job status: there is no job table, queue or scheduler to report on.',
-  'No error-log tail: the only failure record is failed and attempted audit rows, which the redacted diagnostics payload exposes one business at a time.',
-  'No API key management: no key store exists, so there is nothing to issue, rotate or revoke.',
-  'Feature flags are readable through the diagnostics payload (platform and per-business scope) but no list or update endpoint exists, so they cannot be listed or toggled on their own.',
-  'No cross-admin impersonation history: the only session endpoint reports the caller’s own live session, so other admins’ sessions appear only as IMPERSONATION_STARTED / IMPERSONATION_ENDED rows in the audit trail.',
-  'No general-purpose SQL console. That is deliberate and will not be added: an arbitrary query surface would defeat the permission gates every other screen here respects.',
+  'No webhook inspection or replay: nothing records a provider delivery.',
+  'No background-job status: no job table exists.',
+  'No error-log tail: audit rows only.',
+  'No API key management: no key store exists.',
+  'Feature flags are read-only, inside the diagnostics payload.',
+  'No cross-admin impersonation history.',
+  'No general-purpose SQL console, deliberately.',
 ];
 
 interface DeveloperData {
@@ -259,7 +256,7 @@ export default function DeveloperArea() {
     setActionError(null);
     try {
       await PlatformAdminService.startDeveloperSession();
-      toast.success('Developer session started', { description: 'The session is journalled and time-bounded.' });
+      toast.success('Developer session started');
       await reload();
     } catch (cause) {
       setActionError(cause instanceof Error ? cause.message : 'Could not start the developer session.');
@@ -303,9 +300,7 @@ export default function DeveloperArea() {
         toast.success('Developer mode granted');
       } else if (confirm.kind === 'revoke') {
         await PlatformAdminService.revokeDeveloperMode(confirm.grant.userId, reason.trim());
-        toast.success('Developer mode revoked', {
-          description: 'Any open developer session for that admin was ended and developer:access was withdrawn.',
-        });
+        toast.success('Developer mode revoked', { description: 'Any open developer session was ended.' });
       } else {
         if (reason.trim().length < 10) {
           throw new Error('The server requires a reason of at least 10 characters to start impersonation.');
@@ -316,9 +311,7 @@ export default function DeveloperArea() {
           throw new Error('A support session lasts between 1 and 60 minutes.');
         }
         await PlatformAdminService.startImpersonation(impersonateOrgId, reason.trim(), minutes);
-        toast.success('Read-only support session started', {
-          description: 'Audited at both ends. Writes are refused on the tenant tables the guard covers.',
-        });
+        toast.success('Read-only support session started', { description: 'Audited at both ends.' });
       }
       await reload();
     } finally {
@@ -536,19 +529,17 @@ export default function DeveloperArea() {
     <>
       <PlatformPageHead
         area={AREA}
-        description={`Environment, diagnostics and sandbox records. Signed in as ${
-          isSuperAdmin ? 'platform owner' : 'developer'
-        } in ${environment.label.toLowerCase()}.`}
+        description={`Signed in as ${isSuperAdmin ? 'platform owner' : 'developer'} in ${environment.label.toLowerCase()}.`}
         actions={<RefreshButton onClick={reload} loading={loading} />}
       />
 
       {failed.length > 0 && (
         <div className="callout callout-warning" role="status">
           <div>
-            <p className="callout-title">Part of this page could not be loaded</p>
+            <p className="callout-title">Part of this page did not load</p>
             <p className="callout-text">
-              {failed.length} source{failed.length === 1 ? '' : 's'} failed ({failed.join(', ')}). The panels that
-              answered are accurate; treat the rest as unknown rather than empty.
+              {failed.length} source{failed.length === 1 ? '' : 's'} failed ({failed.join(', ')}). Panels that answered
+              are accurate; treat the rest as unknown, not as empty.
             </p>
           </div>
         </div>
@@ -567,29 +558,26 @@ export default function DeveloperArea() {
 
       {/* ── Environment ─────────────────────────────────────────────── */}
       <section className="card" aria-labelledby="developer-environment">
-        <SectionHead
-          id="developer-environment"
-          title="Environment"
-          sub="Which deployment you are working in, and where that answer came from."
-        />
+        <SectionHead id="developer-environment" title="Environment" />
         <DefList rows={environmentRows} />
         <div className="callout callout-info">
           <div>
-            <p className="callout-title">This application can only report the environment it was told about</p>
+            <p className="callout-title">The environment is only what this build was told</p>
             <p className="callout-text">
-              Nothing on this screen inspects the database, the Supabase project or the deployed region, so an
-              environment that was never declared reads as <span className="mono">unknown</span> rather than being
-              guessed. Resolution order is the <span className="mono">{ENVIRONMENT_SETTING_KEY}</span> setting, then this
-              build&rsquo;s <span className="mono">VITE_ENVIRONMENT</span>, then the Vite build mode — and a plain
-              production build mode counts as no evidence at all. No migration declares{' '}
-              <span className="mono">{ENVIRONMENT_SETTING_KEY}</span> (the only inserts into{' '}
-              <span className="mono">platform_settings</span> are in{' '}
-              <span className="mono">20260926000068_platform_products_seed.sql</span> and{' '}
-              <span className="mono">20260926000074_platform_products_plan_ladder.sql</span>), and{' '}
-              <span className="mono">set_platform_setting()</span> refuses a key a migration has not declared — so unless
-              the row was inserted by hand, the marker falls back to the build and the row above reads &ldquo;Not
-              configured&rdquo;.
+              Nothing here inspects the database or the deployed region, so an undeclared environment reads as{' '}
+              <span className="mono">unknown</span> rather than being guessed.
             </p>
+            <Disclosure summary="Resolution order and caveats">
+              <p>
+                The order is the <span className="mono">{ENVIRONMENT_SETTING_KEY}</span> setting, then this build&rsquo;s{' '}
+                <span className="mono">VITE_ENVIRONMENT</span>, then the Vite build mode — and a plain production build
+                mode counts as no evidence. No migration declares{' '}
+                <span className="mono">{ENVIRONMENT_SETTING_KEY}</span>: the only inserts into{' '}
+                <span className="mono">platform_settings</span> are in migrations 068 and 074, and{' '}
+                <span className="mono">set_platform_setting()</span> refuses a key a migration has not declared. Unless
+                the row was inserted by hand, the marker falls back to the build.
+              </p>
+            </Disclosure>
           </div>
         </div>
       </section>
@@ -599,7 +587,6 @@ export default function DeveloperArea() {
         <SectionHead
           id="developer-session"
           title="Developer session"
-          sub="Grant status and the journalled session that bounds this access."
           actions={
             <div className="toolbar-group">
               <Button
@@ -631,9 +618,7 @@ export default function DeveloperArea() {
           <>
             <DefList rows={sessionRows} />
             <p className="section-sub">
-              Opening a session does not widen what you may do — the grant is what grants access. The session is what
-              makes sandbox work journalled and time-bounded, and only one may be open at a time. Ending it takes no data
-              with it, so neither control is confirmed; the destructive actions below are.
+              A session grants nothing and takes nothing away, so neither button is confirmed; only one can be open.
             </p>
           </>
         </SectionState>
@@ -645,23 +630,26 @@ export default function DeveloperArea() {
           <SectionHead
             id="developer-grants"
             title="Developer mode grants"
-            sub="Developer mode is never a signup option and never attaches to a business user: the target must already be an active platform admin."
+            sub="Grantable only to an existing active platform admin."
           />
 
           <div className="callout callout-info">
             <div>
               <p className="callout-title">What developer mode does and does not do</p>
               <p className="callout-text">
-                It never bypasses payment verification, tenant isolation, or production permissions on a real customer
-                account. The only sandbox exemption that exists in code is the seat-limit trigger{' '}
-                <span className="mono">enforce_seat_limit()</span>, which returns early for a sandbox organisation so test
-                staff can be added — verified in{' '}
-                <span className="mono">supabase/migrations/20260926000069_platform_products_functions.sql</span>. Every
-                other override path in{' '}
-                <span className="mono">20260926000072_platform_developer_mode_functions.sql</span> raises unless the target
-                organisation is a sandbox, and <span className="mono">assert_sandbox_override()</span> fails closed even if
-                the <span className="mono">developer.sandbox_required</span> setting is absent.
+                Nothing here bypasses payment verification, tenant isolation or production permissions.
               </p>
+              <Disclosure summary="Where the sandbox limits are enforced">
+                <p>
+                  <span className="mono">enforce_seat_limit()</span> returns early for a sandbox organisation so test
+                  staff can be added — verified in{' '}
+                  <span className="mono">supabase/migrations/20260926000069_platform_products_functions.sql</span>. Every
+                  other override path in{' '}
+                  <span className="mono">20260926000072_platform_developer_mode_functions.sql</span> raises unless the
+                  target organisation is a sandbox, and <span className="mono">assert_sandbox_override()</span> fails
+                  closed even if the <span className="mono">developer.sandbox_required</span> setting is absent.
+                </p>
+              </Disclosure>
             </div>
           </div>
 
@@ -715,11 +703,9 @@ export default function DeveloperArea() {
           {adminError && <p className="form-error">{adminError}</p>}
           {!adminError && admins.length === 0 && (
             <p className="form-hint">
-              No platform admin accounts were returned. A grant needs an existing active platform admin as its target, so
-              there is nothing to grant here yet.
+              No platform admin accounts returned; a grant needs an existing active platform admin.
             </p>
           )}
-
           <SectionState
             loading={loading && !data.grants}
             error={failed.includes('grants') ? 'list_developer_grants did not answer. Only a platform owner may read it.' : null}
@@ -744,7 +730,7 @@ export default function DeveloperArea() {
         <SectionHead
           id="developer-sandbox"
           title="Sandbox businesses"
-          sub="Test records, excluded from every customer figure and every revenue total."
+          sub="Test records, excluded from every customer figure."
           actions={
             <Button
               variant="outline"
@@ -759,12 +745,10 @@ export default function DeveloperArea() {
 
         <div className="callout callout-warning">
           <div>
-            <p className="callout-title">Sandboxes cannot be deleted, and they arrive empty</p>
+            <p className="callout-title">Sandboxes cannot be deleted</p>
             <p className="callout-text">
-              <span className="mono">create_sandbox_business()</span> writes exactly two things: the organisation row and
-              its TrackOja entitlement. There is no store, no product, no staff member, no category and no sample sale
-              behind it. No migration anywhere defines a delete or archive endpoint for an organisation either, so every
-              sandbox created here stays in the database permanently and accumulates.
+              <span className="mono">create_sandbox_business()</span> writes the organisation and its TrackOja entitlement
+              and nothing else.
             </p>
           </div>
         </div>
@@ -780,13 +764,13 @@ export default function DeveloperArea() {
            */
           unavailable={
             !status?.developerMode
-              ? 'Developer mode is not active on this account, so sandbox businesses cannot be listed. Grant it in the section above, then start a session.'
+              ? 'Developer mode is not active, so sandbox businesses cannot be listed. Grant it above, then start a session.'
               : null
           }
           error={failed.includes('sandboxes') && status?.developerMode ? 'list_sandbox_businesses did not answer.' : null}
           empty={sandboxes.length === 0}
           emptyTitle="No sandbox businesses"
-          emptyBody="Nothing has been created through developer mode on this platform yet."
+          emptyBody="Nothing has been created through developer mode yet."
           onRetry={reload}
         >
           <>
@@ -798,9 +782,8 @@ export default function DeveloperArea() {
               stacked
             />
             <p className="section-sub">
-              {formatNumber(sandboxes.length)} sandbox record{sandboxes.length === 1 ? '' : 's'} listed. Names carry a{' '}
-              <span className="mono">[SANDBOX]</span> prefix and the entitlement is flagged too, so a sandbox cannot be
-              mistaken for a customer in the business directory.
+              {formatNumber(sandboxes.length)} sandbox record{sandboxes.length === 1 ? '' : 's'}. A{' '}
+              <span className="mono">[SANDBOX]</span> prefix marks each one, so none is mistaken for a customer.
             </p>
           </>
         </SectionState>
@@ -811,7 +794,7 @@ export default function DeveloperArea() {
         <SectionHead
           id="developer-diagnostics"
           title="Diagnostics (redacted)"
-          sub="A read-only view of what one business actually holds. The payload is redacted server-side before it reaches this browser."
+          sub="One business’s records, redacted server-side."
         />
 
         {canListBusinesses ? (
@@ -852,18 +835,22 @@ export default function DeveloperArea() {
               error={diagnosticsError}
               empty={!diagnostics}
               emptyTitle="No diagnostics loaded"
-              emptyBody="Choose a business and load its redacted diagnostics."
+              emptyBody="Choose a business, then load its redacted diagnostics."
               onRetry={loadDiagnostics}
             >
               <>
                 <pre className="code-panel">{JSON.stringify(diagnostics, null, 2)}</pre>
                 <p className="section-sub">
-                  Redaction happens in the database, not here: emails arrive masked and the payload excludes secret keys,
-                  API tokens, passwords, payment provider payloads, webhook signatures, raw metadata and transaction
-                  references — its own <span className="mono">excluded</span> list names them.{' '}
-                  <span className="mono">override_allowed</span> is true only for a sandbox organisation, and no part of
-                  this payload lets a caller act as the customer, so nothing displayed above is a credential.
+                  Redaction happens in the database: emails arrive masked, and nothing here acts as the customer.
                 </p>
+                <Disclosure summary="What the payload excludes">
+                  <p>
+                    Secret keys, API tokens, passwords, payment provider payloads, webhook signatures, raw metadata and
+                    transaction references are excluded — the payload&rsquo;s own <span className="mono">excluded</span>{' '}
+                    list names them, so withheld detail is not absent detail.{' '}
+                    <span className="mono">override_allowed</span> is true only for a sandbox organisation.
+                  </p>
+                </Disclosure>
               </>
             </SectionState>
           </>
@@ -871,7 +858,7 @@ export default function DeveloperArea() {
           <StateBlock
             variant="unavailable"
             title="Choosing a business needs another permission"
-            body="The only endpoint that lists businesses is list_product_businesses, which requires platform:manage_businesses. Without it there is no way to pick an organisation, so diagnostics cannot be run from this screen."
+            body="Listing businesses is gated on platform:manage_businesses, so no organisation can be picked here."
           />
         )}
       </section>
@@ -881,28 +868,27 @@ export default function DeveloperArea() {
         <SectionHead
           id="developer-impersonation"
           title="Read-only support session"
-          sub="A named, reasoned, time-limited session on one real business. Every start and end is audited."
+          sub="Named, reasoned, time-limited; audited at both ends."
         />
 
         <div className="callout callout-warning">
           <div>
             <p className="callout-title">How far read-only is actually enforced</p>
             <p className="callout-text">
-              <span className="mono">block_writes_while_impersonating()</span> was declared in{' '}
-              <span className="mono">20260926000065_platform_developer_mode_schema.sql</span> and attached to no table, so
-              the promised guarantee did not exist. Migration{' '}
-              <span className="mono">20260927000089_platform_owner_hardening.sql</span> (section 4) attached it to 20
-              tenant business tables, but kept a clause exempting platform admins — and since only a platform admin can
-              own an impersonation session, that exempted every caller the rest of the predicate could match. Migration{' '}
-              <span className="mono">20260927000090_entitlement_and_impersonation_fixes.sql</span> removed that exemption
-              and asserts at migration time that all 20 triggers are still attached, so the guard now refuses a write
-              from the owner of any active, unexpired session. Two limits remain, both stated in that migration: the
-              guard covers only those 20 tables, so a write to anything outside the list is not blocked, and a caller
-              with no JWT — a <span className="mono">service_role</span> webhook, a migration or the seed path — is
-              deliberately never blocked because <span className="mono">auth.uid()</span> is NULL. The &ldquo;attached to
-              no table&rdquo; wording in the coverage notice at the top of this page predates migration 090 and is kept
-              only because that notice is generated from the shared area registry.
+              The guard covers 20 tenant business tables: writes outside them, and callers with no JWT, are not blocked.
             </p>
+            <Disclosure summary="Origin of the guard">
+              <p>
+                <span className="mono">block_writes_while_impersonating()</span> was declared in{' '}
+                <span className="mono">20260926000065_platform_developer_mode_schema.sql</span> and attached to no table,
+                so the guarantee did not exist. Migration 089 (section 4) attached it to 20 tenant business tables but
+                exempted platform admins — the only callers that can own a session, so the exemption covered every caller
+                the predicate could match. Migration 090 removed it and asserts that all 20 triggers are still attached. A
+                caller with no JWT — a <span className="mono">service_role</span> webhook, a migration or the seed path —
+                is never blocked, because <span className="mono">auth.uid()</span> is NULL. The &ldquo;attached to no
+                table&rdquo; wording in the coverage notice above predates 090 and comes from the shared area registry.
+              </p>
+            </Disclosure>
           </div>
         </div>
 
@@ -934,7 +920,7 @@ export default function DeveloperArea() {
             <p className="section-sub">
               The target is the business owner, always: <span className="mono">start_impersonation()</span> writes{' '}
               <span className="mono">target_user_id = organizations.owner_id</span>, so a session cannot be narrowed to a
-              particular staff member. Only one live session is allowed at a time.
+              particular staff member. Only one live session is allowed.
             </p>
           </>
         ) : canListBusinesses ? (
@@ -985,28 +971,22 @@ export default function DeveloperArea() {
             </div>
 
             <p className="section-sub">
-              Sandbox businesses are left out of this picker on purpose:{' '}
-              <span className="mono">start_impersonation()</span> refuses them with &ldquo;Sandbox businesses are reached
-              through developer mode, not impersonation&rdquo;. A live session is never ended implicitly, and the duration
-              is clamped to 1–60 minutes by the server as well as here.
+              Sandboxes are excluded: <span className="mono">start_impersonation()</span> refuses them. A live session is
+              never ended implicitly, and the 1–60 minute duration is clamped by the server too.
             </p>
           </>
         ) : (
           <StateBlock
             variant="unavailable"
             title="Choosing a business needs another permission"
-            body="Selecting a business requires platform:manage_businesses, because the business list endpoint is gated on it. Without that permission no session can be started from this screen."
+            body="Starting a session needs a business to pick, and the business list is gated on platform:manage_businesses."
           />
         )}
       </section>
 
       {/* ── Not built ───────────────────────────────────────────────── */}
       <section className="card" aria-labelledby="developer-not-built">
-        <SectionHead
-          id="developer-not-built"
-          title="Not built in this area"
-          sub="Named capabilities with no backend at all, kept visible so an absence is not mistaken for a clean bill of health."
-        />
+        <SectionHead id="developer-not-built" title="Not built in this area" />
         <ul className="list">
           {NOT_BUILT.map((item) => (
             <li className="list-item" key={item}>
@@ -1026,7 +1006,7 @@ export default function DeveloperArea() {
         open={sandboxOpen}
         onClose={() => setSandboxOpen(false)}
         title="Create a sandbox business"
-        description="This creates permanent, empty test records. Read what will exist before you confirm."
+        description="This creates permanent, empty test records."
         footer={
           <>
             <Button variant="outline" onClick={() => setSandboxOpen(false)} disabled={busy === 'sandbox-create'}>
@@ -1046,11 +1026,9 @@ export default function DeveloperArea() {
           <div>
             <p className="callout-title">What will actually exist afterwards</p>
             <p className="callout-text">
-              One organisation flagged as a sandbox, with a <span className="mono">[SANDBOX]</span> name prefix and a
-              generated slug, plus one active TrackOja entitlement at zero agreed price. No store, no products, no staff,
-              no categories and no sample sales — the function inserts into <span className="mono">organizations</span> and{' '}
-              <span className="mono">organization_products</span> only. There is no delete endpoint, so it cannot be
-              removed afterwards.
+              One sandbox organisation with a <span className="mono">[SANDBOX]</span> name prefix and a generated slug,
+              plus one active TrackOja entitlement at zero agreed price. No store, products, staff or sales — and no
+              delete endpoint.
             </p>
           </div>
         </div>
@@ -1100,11 +1078,11 @@ export default function DeveloperArea() {
         title="Grant developer mode"
         consequence={`${
           admins.find((admin) => admin.userId === grantTarget)?.email ?? 'The selected admin'
-        } will hold developer mode for ${grantDays || '—'} day(s), gaining developer:access, sandbox creation, redacted diagnostics and the developer area of this dashboard. It does not bypass payment verification, tenant isolation or production permissions. Your reason is stored on the grant and written to the audit trail, and revoking it later also ends any open developer session immediately.`}
+        } will hold developer mode for ${grantDays || '—'} day(s), gaining developer:access, sandbox creation, redacted diagnostics and this area — bypassing no permission. Your reason is stored on the grant and audited; revoking it later ends any open session immediately.`}
         confirmLabel="Grant developer mode"
         requireReason
         reasonLabel="Why this admin needs developer mode"
-        reasonHint="At least 10 characters: the server refuses a shorter reason."
+        reasonHint="At least 10 characters; the server refuses a shorter reason."
       />
 
       <ConfirmDialog
@@ -1114,7 +1092,7 @@ export default function DeveloperArea() {
         title="Revoke developer mode"
         consequence={`${
           confirm?.kind === 'revoke' ? confirm.grant.email : 'That admin'
-        } loses developer:access immediately, any open developer session is ended, and the developer area disappears from their dashboard. Their other platform permissions are untouched. Sandbox records they created stay behind, because sandboxes cannot be deleted.`}
+        } loses developer:access and any open session immediately; their other platform permissions are untouched, and sandboxes they created stay behind.`}
         confirmLabel="Revoke developer mode"
         danger
         requireReason
@@ -1129,11 +1107,11 @@ export default function DeveloperArea() {
         title="Start a read-only support session"
         consequence={`You will be recorded as viewing ${
           businesses.find((row) => row.orgId === impersonateOrgId)?.name ?? 'the selected business'
-        } for ${impersonateMinutes} minutes as its owner. The session is audited at both ends, expires on its own, and writes by this session are refused on the 20 tenant business tables the write guard covers — tables outside that list are not blocked. It does not sign you in as the customer and it changes nothing in their account.`}
+        } for ${impersonateMinutes} minutes as its owner. Audited at both ends, expires on its own, and writes are refused on the 20 tenant tables the guard covers — outside that list they are not blocked. The customer&rsquo;s account is not changed.`}
         confirmLabel="Start session"
         requireReason
         reasonLabel="Reason for this session"
-        reasonHint="At least 10 characters: the server refuses a shorter reason and audits it."
+        reasonHint="At least 10 characters; the server refuses a shorter reason and audits it."
       />
     </>
   );

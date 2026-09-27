@@ -21,6 +21,7 @@ import { Button } from '../../../components/ui/Button';
 import { ConfirmDialog, Dialog } from '../../../components/ui/Dialog';
 import { DataTable, type DataTableColumn } from '../../../components/ui/DataTable';
 import { DefList } from '../../../components/ui/DefList';
+import { Disclosure } from '../../../components/ui/Disclosure';
 import { FormField } from '../../../components/ui/FormField';
 import { KpiCard, KpiGrid } from '../../../components/ui/KpiCard';
 import { MeterList, type MeterItem } from '../../../components/ui/MeterList';
@@ -76,33 +77,27 @@ const PERMISSIONS = {
 const NOT_BUILT: { title: string; detail: string }[] = [
   {
     title: 'Invoices and receipts',
-    detail:
-      'No invoice or receipt table exists in any migration. subscription_transactions records the money that moved and nothing else, so a customer asking for a tax invoice cannot be served from this console.',
+    detail: 'No invoice or receipt table exists.',
   },
   {
     title: 'Proration on plan changes',
-    detail:
-      'record_subscription_adjustment writes the new plan and its list prices onto the entitlement immediately and credits nothing, so the unused part of the period is neither refunded nor charged.',
+    detail: 'Plan changes are not prorated: nothing is refunded or charged.',
   },
   {
     title: 'Grace period and dunning',
-    detail:
-      'There is no grace window, no retry schedule and no failure-to-cancel path. A failed payment is a row in subscription_transactions and nothing else follows from it.',
+    detail: 'No grace window, no retry schedule, no failure-to-cancel path.',
   },
   {
     title: 'Renewal automation',
-    detail:
-      'Nothing renews an entitlement. A renewal is an operator recording an extend_expiry adjustment by hand, and no reminder is sent to the customer first.',
+    detail: 'Nothing renews an entitlement; renewal is a manual extend_expiry adjustment.',
   },
   {
     title: 'Expiry sweep',
-    detail:
-      'No function marks a lapsed entitlement expired: the only place expiry is read is enforce_seat_limit, so a business whose expiry has passed keeps working and only loses the ability to add a staff member (20260926000069_platform_products_functions.sql, lines 841-863).',
+    detail: 'Nothing marks a lapsed entitlement expired; it keeps working.',
   },
   {
     title: 'Platform-wide transaction list',
-    detail:
-      'get_platform_revenue_summary and get_platform_revenue_by_plan are aggregates. No endpoint lists individual subscription transactions platform-wide, so a list of failed payments cannot be opened from here.',
+    detail: 'No endpoint lists individual subscription transactions.',
   },
 ];
 
@@ -422,7 +417,7 @@ const REVISION_FIELDS: RevisionField[] = [
 function describeRevision(revision: PlanRevision, plan: ProductPlan): string {
   const before = revision.previousValues;
   const after = revision.newValues;
-  if (!before) return 'Created — there was no previous version of this plan.';
+  if (!before) return 'Created — no previous version.';
 
   const changes: string[] = [];
   const nameBefore = asText(before.name);
@@ -493,15 +488,15 @@ function parseNumberField(value: string): number | null {
  */
 function validateDraft(draft: PlanDraft): string | null {
   if (draft.name.trim() === '') {
-    return 'A plan name is required by this form. The server does not reject an empty name, but the catalogue would then read as blank.';
+    return 'A plan name is required; the server accepts an empty one, but the catalogue would then read as blank.';
   }
   const monthly = parseNumberField(draft.monthlyPrice);
   if (draft.monthlyPrice.trim() !== '' && (monthly === null || monthly < 0)) {
-    return 'Monthly price cannot be negative. Leave the field blank for custom/negotiated pricing.';
+    return 'Monthly price cannot be negative. Blank means custom pricing.';
   }
   const annual = parseNumberField(draft.annualPrice);
   if (draft.annualPrice.trim() !== '' && (annual === null || annual < 0)) {
-    return 'Annual price cannot be negative. Leave the field blank for custom/negotiated pricing.';
+    return 'Annual price cannot be negative. Blank means custom pricing.';
   }
   const seats = parseNumberField(draft.userLimit);
   if (draft.userLimit.trim() !== '' && seats !== null && seats !== -1 && seats < 1) {
@@ -613,7 +608,7 @@ function PlanEditDialog({ plan, siblingPlans, onClose, onSaved }: PlanEditDialog
     if (reason.trim().length < 5) {
       // The function accepts a NULL note, but a price change with no note leaves
       // the pricing history unexplained, so this screen asks for one.
-      throw new Error('Describe the change so the pricing history explains it (at least 5 characters).');
+      throw new Error('Describe the change (at least 5 characters).');
     }
     setBusy(true);
     const toastId = toast.loading(`Saving ${storedPlan.name}…`);
@@ -637,8 +632,7 @@ function PlanEditDialog({ plan, siblingPlans, onClose, onSaved }: PlanEditDialog
       toast.update(toastId, {
         variant: 'success',
         message: `${storedPlan.name} saved`,
-        description:
-          'The change is journalled in product_plan_revisions. Existing subscribers keep the prices agreed at activation.',
+        description: 'Journalled in product_plan_revisions. Existing subscribers keep their agreed prices.',
       });
       onSaved();
       onClose();
@@ -654,12 +648,12 @@ function PlanEditDialog({ plan, siblingPlans, onClose, onSaved }: PlanEditDialog
 
   const consequence = [
     changes.length > 0 ? changes.join(' · ') : 'No field changed.',
-    `${formatNumber(storedPlan.subscriberCount)} subscriber${storedPlan.subscriberCount === 1 ? '' : 's'} currently hold this plan (organization_products rows with status active or pending). None of them is repriced: their agreed prices are snapshotted at activation, so this is the plan's subscriber count rather than an affected-subscriber list — nobody can be named as affected, because nobody is.`,
+    `${formatNumber(storedPlan.subscriberCount)} subscriber${storedPlan.subscriberCount === 1 ? '' : 's'} hold this plan (status active or pending). None is repriced: agreed prices are snapshotted at activation.`,
     activeDraft.isDefault && otherDefault
-      ? `Making this the default also clears the flag on ${otherDefault.name}, the product's current default, so a second row changes in the same save.`
+      ? `Making this the default also clears the flag on ${otherDefault.name}.`
       : '',
-    'The plan edit call this screen makes sends no billing cycle, and the function defaults a missing cycle to monthly. If this plan is on annual or custom billing, saving here resets it to monthly; the revision journal records the new value, so it can be checked afterwards.',
-    'A price change re-quotes new subscriptions only. Nothing charges or credits an existing subscriber, and no invoice is raised.',
+    'No billing cycle is sent, and the function defaults a missing cycle to monthly, so an annual or custom plan resets to monthly; the revision journal records the new value.',
+    'A price change re-quotes new subscriptions only: nothing charges or credits an existing subscriber.',
   ]
     .filter(Boolean)
     .join(' ');
@@ -670,7 +664,7 @@ function PlanEditDialog({ plan, siblingPlans, onClose, onSaved }: PlanEditDialog
         open={stage === 'form'}
         onClose={onClose}
         title={`Edit ${storedPlan.name}`}
-        description={`${storedPlan.productName} · plan key ${storedPlan.key}. This form holds a copy of the stored values; nothing is written until you confirm on the next step.`}
+        description={`${storedPlan.productName} · plan key ${storedPlan.key}. Nothing is written until you confirm.`}
         wide
         footer={
           <>
@@ -728,7 +722,7 @@ function PlanEditDialog({ plan, siblingPlans, onClose, onSaved }: PlanEditDialog
             disabled={busy}
           />
         </div>
-        <p className="form-hint">Blank means custom/negotiated pricing (stored as NULL), not zero.</p>
+        <p className="form-hint">Blank means custom pricing (stored as NULL), not zero.</p>
 
         <div className="plat-form-row">
           <FormField
@@ -755,15 +749,12 @@ function PlanEditDialog({ plan, siblingPlans, onClose, onSaved }: PlanEditDialog
               <option value="inactive">Inactive</option>
               <option value="retired">Retired</option>
             </select>
-            <p className="form-hint">
-              Retired keeps the row for existing subscribers but blocks new signups
-              (20260926000063_platform_products_schema.sql, line 84).
-            </p>
+            <p className="form-hint">Retired keeps the row for existing subscribers but blocks new signups.</p>
           </div>
         </div>
         <p className="form-hint">
-          Seat limit becomes {seats === null ? 'custom' : formatSeatLimit(seats)} — the plan semantics are -1 unlimited,
-          blank custom, a positive number is a hard cap.
+          Seat limit becomes {seats === null ? 'custom' : formatSeatLimit(seats)}. -1 is unlimited, blank is custom, a
+          positive number is a hard cap.
         </p>
 
         <div className="plat-form-row">
@@ -801,7 +792,7 @@ function PlanEditDialog({ plan, siblingPlans, onClose, onSaved }: PlanEditDialog
             disabled={busy}
           />
           <p className="form-hint">
-            A JSON array of {'{ key, label, upcoming }'}. The submitted array replaces the stored one.
+            A JSON array of {'{ key, label, upcoming }'}. It replaces the stored array.
           </p>
         </div>
 
@@ -848,7 +839,7 @@ function PlanEditDialog({ plan, siblingPlans, onClose, onSaved }: PlanEditDialog
         confirmLabel="Save price change"
         requireReason
         reasonLabel="Change note"
-        reasonHint="At least 5 characters. Written to product_plan_revisions.note and to the platform audit trail."
+        reasonHint="At least 5 characters. Written to product_plan_revisions.note and the audit trail."
         consequence={consequence}
       />
     </>
@@ -885,9 +876,9 @@ const ADJUSTMENT_INTENTS: AdjustmentIntent[] = [
     requiresPlan: true,
     requiresExpiry: false,
     requiresSeats: false,
-    requirement: 'A new plan key is required for an upgrade adjustment, and the plan must belong to this product.',
+    requirement: 'A plan key is required, and the plan must belong to this product.',
     consequence:
-      'The entitlement takes the new plan immediately and the agreed monthly and annual prices are overwritten with the new plan\u2019s list prices. Nothing is prorated and nothing is charged, so this is a billing decision as much as an access decision.',
+      'The entitlement takes the new plan immediately and its agreed prices are overwritten with the new list prices. Nothing is prorated and nothing is charged.',
   },
   {
     value: 'downgrade',
@@ -895,9 +886,9 @@ const ADJUSTMENT_INTENTS: AdjustmentIntent[] = [
     requiresPlan: true,
     requiresExpiry: false,
     requiresSeats: false,
-    requirement: 'A new plan key is required for a downgrade adjustment, and the plan must belong to this product.',
+    requirement: 'A plan key is required, and the plan must belong to this product.',
     consequence:
-      'The entitlement moves to the smaller plan and the agreed prices follow it. The new seat limit applies to the next staff member added; nobody is removed, so the business can stay over its new limit.',
+      'The entitlement moves to the smaller plan and its agreed prices follow. The new seat limit applies to the next staff member added; nobody is removed.',
   },
   {
     value: 'extend_expiry',
@@ -908,7 +899,7 @@ const ADJUSTMENT_INTENTS: AdjustmentIntent[] = [
     requirement:
       'A new expiry date is required, and it must be later than the current expiry — the server refuses anything earlier.',
     consequence:
-      'The entitlement’s expiry date moves and an expired entitlement returns to active. No payment is taken or verified: this records a renewal an operator has already agreed with the customer.',
+      'The expiry date moves and an expired entitlement returns to active. No payment is taken or verified.',
   },
   {
     value: 'cancel',
@@ -918,7 +909,7 @@ const ADJUSTMENT_INTENTS: AdjustmentIntent[] = [
     requiresSeats: false,
     requirement: 'No extra field is required; the reason alone is enough.',
     consequence:
-      'The entitlement is marked cancelled and stamped with the time. The row keeps its agreed prices, staff are not removed and no data is deleted. Adding a staff member is refused afterwards, because the seat check requires a live entitlement.',
+      'The entitlement is marked cancelled and stamped with the time. Prices, staff and data are untouched, and adding a staff member is refused afterwards.',
   },
   {
     value: 'reactivate',
@@ -927,9 +918,9 @@ const ADJUSTMENT_INTENTS: AdjustmentIntent[] = [
     requiresExpiry: false,
     requiresSeats: false,
     requirement:
-      'If the entitlement has already expired, a new expiry date is required. A plan key and a seat limit are optional.',
+      'A plan key and a seat limit are optional; an entitlement that has already expired also needs a new expiry date.',
     consequence:
-      'The entitlement returns to active and any cancellation is cleared. Supplying a plan or a seat limit also rewrites the agreed deal, for this business only.',
+      'The entitlement returns to active and any cancellation is cleared. A plan or seat limit supplied here also rewrites the agreed deal.',
   },
   {
     value: 'seat_change',
@@ -939,7 +930,7 @@ const ADJUSTMENT_INTENTS: AdjustmentIntent[] = [
     requiresSeats: true,
     requirement: 'A seat limit of -1 (unlimited) or a positive number is required. Zero is refused.',
     consequence:
-      'Only agreed_user_limit changes, and it is enforced when the next staff member is invited, so a reduction below the current headcount does not remove anyone already there.',
+      'Only agreed_user_limit changes, enforced when the next staff member is invited, so a reduction below the current headcount removes nobody.',
   },
 ];
 
@@ -1019,7 +1010,7 @@ function SubscriptionChangeDialog({ target, plans, onClose, onRecorded }: Subscr
       toast.update(toastId, {
         variant: 'success',
         message: `${humaniseToken(intent.value)} recorded`,
-        description: 'Written to subscription_adjustments and copied onto the business’s support timeline.',
+        description: 'Written to subscription_adjustments and copied to the support timeline.',
       });
       onRecorded();
       onClose();
@@ -1105,9 +1096,8 @@ function SubscriptionChangeDialog({ target, plans, onClose, onRecorded }: Subscr
             </select>
             {productPlans.length === 0 && (
               <p className="form-hint">
-                No plans could be read for {target.productKey}, so a plan change cannot be completed here. An expiry
-                change, cancellation or seat change is still available; check the plan catalogue above for the missing
-                plans.
+                No plans could be read for {target.productKey}, so a plan change cannot be completed here. Expiry,
+                cancellation and seat changes still work.
               </p>
             )}
           </div>
@@ -1124,8 +1114,8 @@ function SubscriptionChangeDialog({ target, plans, onClose, onRecorded }: Subscr
               disabled={busy}
             />
             <p className="form-hint">
-              Current expiry: {target.expiresAt ? formatDate(target.expiresAt) : 'none recorded'}. For a renewal the
-              server refuses a date that is not later than this one.
+              Current expiry: {target.expiresAt ? formatDate(target.expiresAt) : 'none recorded'}. A renewal must be later
+              than this.
             </p>
           </>
         )}
@@ -1157,7 +1147,7 @@ function SubscriptionChangeDialog({ target, plans, onClose, onRecorded }: Subscr
         danger={intent.value === 'cancel' || intent.value === 'downgrade'}
         requireReason
         reasonLabel="Reason"
-        reasonHint="At least 5 characters: the server refuses a shorter reason on every adjustment. It is stored on the adjustment and copied into the business's support timeline."
+        reasonHint="At least 5 characters (the server refuses less). Stored on the adjustment and copied to the business's support timeline."
         consequence={`${summary.join(' · ')}. ${intent.consequence}`}
       />
     </>
@@ -1426,7 +1416,6 @@ export default function BillingArea() {
         render: (plan) => (
           <div>
             <span className="data-table-primary">{plan.name}</span> <span className="mono">{plan.key}</span>
-            <p className="data-table-secondary">{plan.productName}</p>
             <div className="chip-row">
               {plan.isDefault && <Badge tone="brand">default</Badge>}
               <Badge tone={plan.isPublic ? 'success' : 'neutral'}>{plan.isPublic ? 'public' : 'not public'}</Badge>
@@ -1439,24 +1428,30 @@ export default function BillingArea() {
         header: 'Monthly',
         numeric: true,
         sortValue: (plan) => plan.monthlyPrice ?? -1,
-        render: (plan) => (
-          <div>
+        render: (plan) =>
+          plan.monthlyPrice === null ? (
+            <div>
+              <span className="data-table-primary">{priceLabel(plan.monthlyPrice, plan.currency)}</span>
+              <p className="data-table-secondary">negotiated</p>
+            </div>
+          ) : (
             <span className="data-table-primary">{priceLabel(plan.monthlyPrice, plan.currency)}</span>
-            <p className="data-table-secondary">{plan.monthlyPrice === null ? 'negotiated' : 'per month'}</p>
-          </div>
-        ),
+          ),
       },
       {
         key: 'annual',
         header: 'Annual',
         numeric: true,
         sortValue: (plan) => plan.annualPrice ?? -1,
-        render: (plan) => (
-          <div>
+        render: (plan) =>
+          plan.annualPrice === null ? (
+            <div>
+              <span className="data-table-primary">{priceLabel(plan.annualPrice, plan.currency)}</span>
+              <p className="data-table-secondary">negotiated</p>
+            </div>
+          ) : (
             <span className="data-table-primary">{priceLabel(plan.annualPrice, plan.currency)}</span>
-            <p className="data-table-secondary">{plan.annualPrice === null ? 'negotiated' : 'per year'}</p>
-          </div>
-        ),
+          ),
       },
       {
         key: 'offer',
@@ -1467,8 +1462,8 @@ export default function BillingArea() {
             return (
               <span className="data-table-secondary">
                 {plan.monthlyPrice === null || plan.annualPrice === null
-                  ? 'Not priced — nothing to compare'
-                  : 'No monthly price to compare against'}
+                  ? 'Not priced'
+                  : 'No monthly price'}
               </span>
             );
           }
@@ -1477,7 +1472,7 @@ export default function BillingArea() {
               <div>
                 <Badge tone="warning">Annual costs more</Badge>
                 <p className="data-table-secondary">
-                  {formatMoney(Math.abs(offer.amount), plan.currency)} more than 12 monthly payments
+                  {formatMoney(Math.abs(offer.amount), plan.currency)} more than 12 months
                 </p>
               </div>
             );
@@ -1485,9 +1480,7 @@ export default function BillingArea() {
           return (
             <div>
               <span className="data-table-primary">{formatMoney(offer.amount, plan.currency)} saved</span>
-              <p className="data-table-secondary">
-                {monthsFreeLabel(offer.months)} free vs 12 × {formatMoney(plan.monthlyPrice, plan.currency)}
-              </p>
+              <p className="data-table-secondary">{monthsFreeLabel(offer.months)} free</p>
             </div>
           );
         },
@@ -1496,14 +1489,15 @@ export default function BillingArea() {
         key: 'seats',
         header: 'Seat limit',
         sortValue: (plan) => plan.userLimit ?? 0,
-        render: (plan) => (
-          <div>
+        render: (plan) =>
+          plan.userLimit === null ? (
+            <div>
+              <span className="data-table-primary">{formatSeatLimit(plan.userLimit)}</span>
+              <p className="data-table-secondary">agreed per deal</p>
+            </div>
+          ) : (
             <span className="data-table-primary">{formatSeatLimit(plan.userLimit)}</span>
-            <p className="data-table-secondary">
-              {plan.userLimit === -1 ? 'not capped' : plan.userLimit === null ? 'agreed per deal' : 'hard cap'}
-            </p>
-          </div>
-        ),
+          ),
       },
       {
         key: 'subscribers',
@@ -1513,7 +1507,6 @@ export default function BillingArea() {
         render: (plan) => (
           <div>
             <span className="data-table-primary">{formatNumber(plan.subscriberCount)}</span>
-            <p className="data-table-secondary">entitlements on this plan</p>
           </div>
         ),
       },
@@ -1711,7 +1704,7 @@ export default function BillingArea() {
     <>
       <PlatformPageHead
         area={AREA}
-        description="Prices, entitlements, who is on what, and every change that moves them. Reads are separated by permission, so what you cannot see is stated rather than blanked."
+        description="Reads are permission-scoped: a panel this account cannot read says so."
         actions={<RefreshButton onClick={refreshAll} loading={catalogue.loading || entitlements.loading} />}
       />
 
@@ -1722,7 +1715,7 @@ export default function BillingArea() {
         <SectionHead
           id="billing-catalogue"
           title="Plan catalogue and pricing"
-          sub="The list prices new subscriptions are quoted from. The price an existing customer actually pays lives on their entitlement, not here."
+          sub="List prices quoted to new subscriptions."
           actions={
             <div className="chip-row">
               <button
@@ -1752,17 +1745,16 @@ export default function BillingArea() {
           <KpiCard
             label="Published tiers"
             value={catalogue.loading ? '—' : formatNumber(cataloguedPlans.length)}
-            foot={`${formatNumber(plans.length)} plan rows, including drafts and retired tiers`}
+            foot={`${formatNumber(plans.length)} rows, including drafts and retired`}
           />
           <KpiCard
             label="Entitlements on priced plans"
             value={catalogue.loading ? '—' : formatNumber(subscriberTotal)}
-            foot="Sum of the per-plan subscriber counts; a business counts once per product it holds"
           />
           <KpiCard
             label="Annual terms"
             value={catalogue.loading ? '—' : offerMonths === null ? 'Not uniform' : `${monthsFreeLabel(offerMonths)} free`}
-            foot={`Computed from the prices above. The stored policy billing.annual_months_free says ${
+            foot={`billing.annual_months_free = ${
               declaredFreeMonths === null ? 'not set' : formatNumber(declaredFreeMonths)
             }`}
             tone={
@@ -1773,18 +1765,11 @@ export default function BillingArea() {
           />
         </KpiGrid>
 
-        <p className="section-sub">
-          The annual offer column is arithmetic on the two stored prices rather than an assumption: it reports whatever
-          the row says, including a plan whose annual price costs more than twelve monthly payments. The agreed ladder
-          works out at two months free (annual = monthly × 10), and the column shows that because the prices agree with
-          it — not the other way round.
-        </p>
-
         {!mayView ? (
           <StateBlock
             variant="denied"
             title="The plan catalogue needs platform:view"
-            body="list_product_plans and list_plan_revisions are both gated on platform:view, so the server refuses the catalogue for this account. Prices are therefore not shown at all rather than shown as blank."
+            body="list_product_plans and list_plan_revisions are gated on platform:view, so no price is shown rather than a blank one."
           />
         ) : catalogue.error ? (
           <SectionFailure message={catalogue.error} onRetry={catalogue.reload} />
@@ -1808,8 +1793,8 @@ export default function BillingArea() {
                 }
                 body={
                   productFilter === 'trackoja_works'
-                    ? 'TrackOja Works was seeded as a product row only: no plans, prices, features or limits were invented for it (20260926000068_platform_products_seed.sql, lines 146-147). Its plans appear here once they are defined.'
-                    : 'Plans appear here once they are created. Nothing is copied between products.'
+                    ? 'TrackOja Works was seeded as a product row only: no plans, prices, features or limits were invented for it.'
+                    : 'Plans appear here once they are created.'
                 }
               />
             }
@@ -1822,14 +1807,13 @@ export default function BillingArea() {
         <SectionHead
           id="billing-plan-detail"
           title="Plan detail and pricing history"
-          sub="Open a plan above to read its stored values, its subscriber count, and every change ever journalled for it."
         />
 
         {!visiblePlan ? (
           <StateBlock
             variant="empty"
             title="No plan selected"
-            body="Choose Open on a plan in the catalogue to read its stored values and its change history."
+            body="Choose Open on a plan above."
           />
         ) : (
           <>
@@ -1897,21 +1881,12 @@ export default function BillingArea() {
               {mayManagePlans ? (
                 <Button onClick={() => setEditingPlan(visiblePlan)}>Edit plan</Button>
               ) : (
-                <span className="is-locked">
-                  Read-only. Changing a plan price needs platform:manage_plans, which this account does not hold.
-                </span>
+                <span className="is-locked">Read-only. Changing a plan needs platform:manage_plans.</span>
               )}
             </div>
 
-            <p className="section-sub">
-              Existing subscribers are unaffected by a price change: organization_products.agreed_monthly_price is
-              snapshotted at activation — &ldquo;Price agreed at activation. Snapshotted so later plan price edits do not
-              change an existing deal&rdquo; (20260926000063_platform_products_schema.sql, lines 147-148) — and
-              upsert_product_plan carries the same note: &ldquo;Existing subscribers are unaffected: their agreed prices
-              live on organization_products and are never rewritten by a plan edit&rdquo;
-              (20260926000069_platform_products_functions.sql, lines 372-373). The entitlement-isolation verification
-              asserts it as check 8, &ldquo;editing a plan price leaves the agreed price untouched&rdquo;
-              (supabase/verification/entitlement_isolation_verification.sql, lines 134-135).
+            <p className="form-hint">
+              Existing subscribers are not repriced by a plan edit: their agreed prices are snapshotted at activation.
             </p>
 
             <p className="plat-section-sub">Change history (effective dates and before/after values)</p>
@@ -1920,7 +1895,7 @@ export default function BillingArea() {
               error={revisionsError}
               empty={!revisionsLoading && !revisionsError && revisionEntries.length === 0}
               emptyTitle="No revisions recorded for this plan"
-              emptyBody="product_plan_revisions is written by upsert_product_plan, so a plan whose prices were set by a data migration has no rows here. Migration 074 renamed and re-priced the TrackOja ladder that way and notes that it writes no revision rows because changed_by requires a real actor, leaving the migration file as the record of the change instead (20260926000074_platform_products_plan_ladder.sql, lines 16-19)."
+              emptyBody="product_plan_revisions is written by upsert_product_plan, so a plan priced by a data migration has no rows here."
               onRetry={() => void loadRevisions(visiblePlan.id)}
             >
               <Timeline items={revisionEntries} />
@@ -1934,14 +1909,14 @@ export default function BillingArea() {
         <SectionHead
           id="billing-entitlements"
           title="Who is on what"
-          sub="One row per business per product. The agreed price is a snapshot taken at activation, so it can differ from the list price above."
+          sub="One row per business per product."
         />
 
         {!mayReadEntitlements ? (
           <StateBlock
             variant="denied"
             title="The entitlement directory needs platform:manage_businesses"
-            body="The directory is served by list_product_businesses and the agreed deal by get_platform_business, both gated on platform:manage_businesses. Without that key the server refuses the call, so this panel states the requirement instead of showing an empty table."
+            body="list_product_businesses and get_platform_business are gated on that key, so this panel states the requirement instead of showing an empty table."
           />
         ) : (
           <>
@@ -2005,17 +1980,14 @@ export default function BillingArea() {
 
             {expiryWindow === 'expiring' ? (
               <p className="form-hint">
-                Showing entitlements expiring within 30 days. That window is applied in this browser because the
-                directory endpoint filters on the stored status rather than a date range, so a page can show fewer rows
-                than its page size.
+                Showing entitlements expiring within 30 days. The window is applied in this browser because the endpoint
+                filters on status only, so a page can hold fewer rows than its page size.
               </p>
             ) : (
               (searchParams.get('filter') ?? '') !== '' && (
                 <p className="form-hint">
-                  The dashboard link asked for <span className="mono">{searchParams.get('filter')}</span>, which was
-                  translated to the nearest real filter:{' '}
-                  {statusFilter ? `${humaniseToken(statusFilter)} entitlements` : 'none applied'}. Clear the filters to
-                  see everything.
+                  The dashboard link asked for <span className="mono">{searchParams.get('filter')}</span>, translated to{' '}
+                  {statusFilter ? `${humaniseToken(statusFilter)} entitlements` : 'no filter'}.
                 </p>
               )
             )}
@@ -2037,8 +2009,8 @@ export default function BillingArea() {
                       title={filtersActive ? 'No businesses match these filters' : 'No entitlements yet'}
                       body={
                         filtersActive
-                          ? 'Clear the filters or widen the search. A business appears once per product it holds an entitlement for.'
-                          : 'Entitlements appear here as businesses subscribe or redeem an activation key.'
+                          ? 'Clear the filters or widen the search.'
+                          : 'Entitlements appear as businesses subscribe or redeem an activation key.'
                       }
                     />
                   }
@@ -2055,10 +2027,7 @@ export default function BillingArea() {
             )}
 
             <p className="form-hint">
-              list_product_businesses returns agreed_user_limit but no agreed price, so the agreed column is read one
-              business at a time from get_platform_business when you press Check. That keeps the figure real instead of
-              printing a blank that could be mistaken for zero. A business whose agreed price equals the list price is on
-              the published deal; anything else is bespoke.
+              Check reads the agreed price for one business.
             </p>
           </>
         )}
@@ -2069,50 +2038,29 @@ export default function BillingArea() {
         <SectionHead
           id="billing-changes"
           title="Subscription changes"
-          sub="Upgrades, downgrades, renewals, cancellations, reactivations and seat changes. Each one is written to subscription_adjustments and copied onto the business's support timeline."
+          sub="Written to subscription_adjustments; nothing here re-prices a customer."
         />
 
         {!mayManagePayments ? (
           <StateBlock
             variant="denied"
             title="Recording a change needs platform:manage_payments"
-            body="record_subscription_adjustment and list_subscription_adjustments are both gated on platform:manage_payments, so the history cannot be read and the control is not offered. A platform owner can grant the key from Users & roles."
+            body="record_subscription_adjustment and list_subscription_adjustments are gated on that key, so the history cannot be read and the control is not offered. A platform owner can grant it from Users & roles."
           />
         ) : (
           <>
-            <div className="callout callout-info">
-              <div>
-                <p className="callout-title">What the server requires for every adjustment</p>
-                <p className="callout-text">
-                  A reason of at least 5 characters; a business with more than one entitlement also needs the product
-                  key, which this screen always sends. A plan change needs a plan key belonging to the same product; an
-                  expiry change needs a date later than the current expiry; a seat change needs -1 or a positive number.
-                  The change form repeats these conditions in the server&apos;s own words, so a refusal should never be a
-                  surprise (20260926000071_platform_activation_support_functions.sql, lines 536-636).
-                </p>
-              </div>
-            </div>
-
-            <p className="section-sub">
-              Open a business in the table above and choose Subscription to record a change. Nothing here re-prices a
-              customer on its own: each change is a recorded decision with a reason attached.
-            </p>
-
             <SectionState
               loading={adjustments.loading}
               error={adjustments.error}
               empty={!adjustments.loading && !adjustments.error && adjustmentEntries.length === 0}
               emptyTitle="No subscription changes recorded yet"
-              emptyBody="Every adjustment written through record_subscription_adjustment appears here with its before and after values. The list is empty until one is recorded."
+              emptyBody="Adjustments appear here with their before and after values."
               onRetry={adjustments.reload}
             >
               <Timeline items={adjustmentEntries} />
             </SectionState>
 
-            <p className="form-hint">
-              The most recent 100 adjustments platform-wide, newest first. list_subscription_adjustments accepts an
-              organisation filter but returns no total count, so a page count cannot be offered honestly.
-            </p>
+            <p className="form-hint">Most recent 100 platform-wide; no total is returned.</p>
           </>
         )}
       </section>
@@ -2122,7 +2070,7 @@ export default function BillingArea() {
         <SectionHead
           id="billing-payments"
           title="Payment status"
-          sub="Subscription payments in the selected period. Sandbox transactions are excluded."
+          sub="Subscription payments in the selected period; sandbox transactions excluded."
           actions={
             <div className="toolbar-group">
               {REPORT_DATE_RANGE_PRESETS.map((option) => (
@@ -2144,7 +2092,7 @@ export default function BillingArea() {
           <StateBlock
             variant="denied"
             title="Revenue reporting needs platform:view"
-            body="get_platform_revenue_summary and get_platform_revenue_by_plan are both gated on platform:view, so no figure is shown for this account."
+            body="get_platform_revenue_summary and get_platform_revenue_by_plan are gated on that key, so no figure is shown."
           />
         ) : revenue.error ? (
           <SectionFailure message={revenue.error} onRetry={revenue.reload} />
@@ -2155,9 +2103,8 @@ export default function BillingArea() {
                 <div>
                   <p className="callout-title">Failed payments cannot be listed</p>
                   <p className="callout-text">
-                    The dashboard link that opened this page asked for failed payments. There is no platform-facing
-                    transaction list endpoint, only the aggregate totals below, so no list of individual failures can be
-                    shown. The count is real; the rows behind it are not reachable from this console.
+                    The dashboard link asked for failed payments. Only the aggregate totals below exist, so no list of
+                    individual failures can be shown: the count is real, the rows behind it are not reachable here.
                   </p>
                 </div>
               </div>
@@ -2173,17 +2120,17 @@ export default function BillingArea() {
                 label="Failed payments"
                 value={revenue.loading ? '—' : formatNumber(revenue.summary?.failedCount ?? null)}
                 tone={(revenue.summary?.failedCount ?? 0) > 0 ? 'warning' : 'default'}
-                foot="Recorded as failed in subscription_transactions"
+                foot="From subscription_transactions"
               />
               <KpiCard
                 label="Attempts in period"
                 value={revenue.loading ? '—' : formatNumber(revenue.summary?.transactionCount ?? null)}
-                foot="Successful and failed together, sandbox excluded"
+                foot="Sandbox excluded"
               />
               <KpiCard
                 label="Attributed to a plan"
                 value={revenue.loading ? '—' : formatMoney(breakdownTotal)}
-                foot="Sum of the bars below, which can be less than the period total"
+                foot="From the bars below"
               />
             </KpiGrid>
 
@@ -2201,17 +2148,16 @@ export default function BillingArea() {
               <StateBlock
                 variant="empty"
                 title="No revenue recorded in this period"
-                body="No subscription payment succeeded in the selected range. Try a longer period — a period with no successful payment is empty, not zero-valued."
+                body="No subscription payment succeeded in the selected range. Try a longer period."
               />
             )}
 
-            <p className="form-hint">
-              Both functions read subscription_transactions with is_sandbox = FALSE, so developer test payments never
-              appear as revenue (20260927000089_platform_owner_hardening.sql, lines 1374-1422). The breakdown groups by
-              the legacy subscription_plans table — &ldquo;Successful revenue grouped by the legacy subscription
-              plan&rdquo; (line 1461) — not by the product plan ladder above, so a name here can differ from the
-              catalogue, and a payment with no legacy plan recorded is counted in the period total but appears in no bar.
-            </p>
+            <Disclosure summary="How the revenue figures are grouped">
+              <p>
+                Sandbox transactions are excluded. Grouping is by the legacy subscription_plans table, not the plan
+                ladder above, so a name can differ and a payment with no legacy plan appears in no bar.
+              </p>
+            </Disclosure>
           </>
         )}
       </section>
@@ -2221,7 +2167,6 @@ export default function BillingArea() {
         <SectionHead
           id="billing-not-built"
           title="Not built yet"
-          sub="Capabilities with no backend behind them. Nothing on this page stands in for them."
         />
         <ul className="list">
           {NOT_BUILT.map((item) => (
@@ -2236,24 +2181,23 @@ export default function BillingArea() {
           ))}
         </ul>
 
-        <p className="plat-section-sub">Permissions this page uses</p>
+        <p className="plat-section-sub">Permissions</p>
         <DefList
           rows={[
-            { term: 'Plan catalogue, pricing history and revenue', value: <span className="mono">{PERMISSIONS.view}</span> },
+            { term: 'Catalogue, pricing and revenue', value: <span className="mono">{PERMISSIONS.view}</span> },
             {
-              term: 'Entitlement directory and agreed prices',
+              term: 'Entitlements and agreed prices',
               value: <span className="mono">{PERMISSIONS.entitlements}</span>,
             },
             {
-              term: 'Subscription changes and their history',
+              term: 'Subscription changes',
               value: <span className="mono">{PERMISSIONS.payments}</span>,
             },
             { term: 'Saving a plan', value: <span className="mono">{PERMISSIONS.plans}</span> },
           ]}
         />
         <p className="form-hint">
-          Each panel appears only while the signed-in account holds its key, and the server independently re-checks every
-          call through require_platform_permission — hiding a control is convenience, never the control.
+          The server re-checks every call; hiding a control is never the control.
         </p>
       </section>
 
@@ -2278,7 +2222,7 @@ export default function BillingArea() {
         open={compare !== null}
         onClose={() => setCompare(null)}
         title={compare ? `Agreed deal — ${compare.row.name}` : 'Agreed deal'}
-        description="Agreed prices are snapshotted onto the entitlement at activation and are never rewritten by a catalogue edit."
+        description="Snapshotted at activation; never rewritten by a catalogue edit."
       >
         {compare?.loading && (
           <div className="skeleton-inline" role="status" aria-label="Loading the agreed deal">
@@ -2313,9 +2257,8 @@ export default function BillingArea() {
                             : 'This customer is on the published price'}
                     </p>
                     <p className="callout-text">
-                      The agreed price is what the subscription was activated at; the list price is what the catalogue
-                      quotes today. Where they differ the agreed figure is the deal in force, and the catalogue figure
-                      applies to new subscriptions only.
+                      Where the two differ, the agreed figure is the deal in force; the catalogue figure applies to new
+                      subscriptions only.
                     </p>
                   </div>
                 </div>
@@ -2364,8 +2307,7 @@ export default function BillingArea() {
         )}
 
         <p className="form-hint">
-          Read from get_platform_business, which is gated on platform:manage_businesses. &ldquo;Custom&rdquo; means the
-          entitlement records NULL — a negotiated deal with no figure stored, not a zero.
+          Read from get_platform_business. &ldquo;Custom&rdquo; means NULL is recorded, not a zero.
         </p>
       </Dialog>
     </>

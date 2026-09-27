@@ -18,6 +18,7 @@ import { Badge } from '../../../components/ui/Badge';
 import { Button } from '../../../components/ui/Button';
 import { DataTable, type DataTableColumn } from '../../../components/ui/DataTable';
 import { DefList, type DefRow } from '../../../components/ui/DefList';
+import { Disclosure } from '../../../components/ui/Disclosure';
 import { Dialog } from '../../../components/ui/Dialog';
 import { Pagination } from '../../../components/ui/Pagination';
 import { SectionHead } from '../../../components/ui/SectionHead';
@@ -61,7 +62,8 @@ const RESOURCE_TYPES = [
  * 20260926000069_platform_products_functions.sql, the developer functions in
  * 20260926000072_platform_developer_mode_functions.sql, and the activation,
  * support, settings and template functions in
- * 20260927000089_platform_owner_hardening.sql.
+ * 20260927000089_platform_owner_hardening.sql. The list is behind a disclosure:
+ * what an operator acts on is the gap below it, not the inventory.
  */
 const AUDITED_ACTIONS = [
   'PRODUCT_SAVED — a product row was created or edited (upsert_platform_product)',
@@ -70,18 +72,18 @@ const AUDITED_ACTIONS = [
   'DEVELOPER_MODE_GRANTED, DEVELOPER_MODE_REVOKED — developer access was given or withdrawn (grant_developer_mode, revoke_developer_mode)',
   'SANDBOX_BUSINESS_CREATED — a sandbox organisation was created (create_sandbox_business)',
   'IMPERSONATION_STARTED, IMPERSONATION_ENDED — a support session was opened or closed (start_impersonation, end_impersonation)',
-  'ACTIVATION_KEY_ISSUED, ACTIVATION_KEY_REVOKED — added by migration 089; the key code is stored masked to its last four characters',
-  'SUPPORT_NOTE_ADDED — added by 089; the note body itself is deliberately not copied into the audit row',
-  'SUBSCRIPTION_ADJUSTED — added by 089, with the subscription snapshotted before the change',
-  'PLATFORM_SETTING_UPDATED — added by 089, and the only place a setting’s previous value survives',
-  'NOTIFICATION_TEMPLATE_SAVED — added by 089; the template body and subject are deliberately excluded',
+  'ACTIVATION_KEY_ISSUED, ACTIVATION_KEY_REVOKED — migration 089; the key code is stored masked to its last four characters',
+  'SUPPORT_NOTE_ADDED — migration 089; the note body is deliberately not copied into the audit row',
+  'SUBSCRIPTION_ADJUSTED — migration 089, with the subscription snapshotted before the change',
+  'PLATFORM_SETTING_UPDATED — migration 089, and the only place a setting’s previous value survives',
+  'NOTIFICATION_TEMPLATE_SAVED — migration 089; the template body and subject are excluded',
 ];
 
 const UNAUDITED_ACTIONS = [
-  'Permission denials leave no record at all: require_platform_permission() raises and writes nothing, so a refused attempt appears nowhere in this table.',
-  'Nothing records reads. Browsing a business, loading diagnostics or exporting a figure leaves no trace, so this is a change log rather than an access log.',
-  'Actions that have no endpoint cannot be audited: business create, edit, suspend or delete, user suspension, and the integrations and feature-flag areas have no function to instrument.',
-  'Developer session start and end are not audited as their own events — they are journalled in developer_sessions, which has no read endpoint for the dashboard.',
+  'Permission denials leave no record at all: require_platform_permission() raises and writes nothing.',
+  'Nothing records reads, so this is a change log rather than an access log.',
+  'Actions with no endpoint cannot be audited: business create, edit, suspend or delete, user suspension, and the integrations and feature-flag areas.',
+  'Developer session start and end are not their own events — they are journalled in developer_sessions, which has no read endpoint here.',
 ];
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -195,7 +197,7 @@ export default function AuditArea() {
     }
     if (!canResolveUsers) {
       throw new Error(
-        'The audit endpoint filters by actor id, and resolving an email needs platform:manage_users. Paste the actor’s user id instead.',
+        'Filtering by actor needs an id, and resolving an email needs platform:manage_users. Paste the user id instead.',
       );
     }
     const matches = await PlatformAdminService.listUsers({ search: value, limit: 6 });
@@ -228,7 +230,7 @@ export default function AuditArea() {
     }
     if (!canResolveBusinesses) {
       throw new Error(
-        'The audit endpoint filters by organisation id, and resolving a business name needs platform:manage_businesses. Paste the organisation id instead.',
+        'Filtering by business needs an id, and resolving a name needs platform:manage_businesses. Paste the organisation id instead.',
       );
     }
     const matches = await PlatformAdminService.listBusinesses({ search: value, limit: 6 });
@@ -400,7 +402,7 @@ export default function AuditArea() {
     <>
       <PlatformPageHead
         area={AREA}
-        description={`Who changed what, and when. Reading this trail requires platform:view_audit, with platform:support accepted as a fallback. Values are shown as ${environment.label.toLowerCase()} reads them.`}
+        description={`Who changed what, and when. Needs platform:view_audit, with platform:support as a fallback.`}
         actions={<RefreshButton onClick={load} loading={loading} />}
       />
 
@@ -411,12 +413,16 @@ export default function AuditArea() {
         <div>
           <p className="callout-title">The environment column is this session, not the action</p>
           <p className="callout-text">
-            <span className="mono">audit_logs</span> has no environment column — verified in{' '}
-            <span className="mono">supabase/migrations/20260612000005_audit_logging_schema.sql</span>, and no later
-            migration adds one — so the table below can only show the environment you are reading from, resolved now by
-            the platform context. It is the same value in every row by definition and is not evidence of where a change
-            was made. A row written by another deployment of this database will carry this session&rsquo;s label.
+            <span className="mono">audit_logs</span> has no environment column, so every row carries the environment you
+            are reading from — it is not evidence of where a change was made.
           </p>
+          <Disclosure summary="Where that is verified">
+            <p>
+              Verified in <span className="mono">supabase/migrations/20260612000005_audit_logging_schema.sql</span>, and no
+              later migration adds one. The value is resolved now by the platform context, so a row written by another
+              deployment of this database carries this session&rsquo;s label.
+            </p>
+          </Disclosure>
         </div>
       </div>
 
@@ -425,7 +431,7 @@ export default function AuditArea() {
         <SectionHead
           id="audit-filters"
           title="Filter the trail"
-          sub="Filters apply on submit. Dates cover whole days in this browser’s timezone."
+          sub="Dates cover whole days in this browser’s timezone."
         />
 
         <form
@@ -560,7 +566,7 @@ export default function AuditArea() {
             rather than implied by a field that looks like free text. */}
         {(actorId || orgId) && (
           <p className="form-hint">
-            Actor and business are matched by id. This page is filtered on
+            Matched by id. Filtering on
             {actorId ? ` actor ${actorLabel ?? actorId}` : ''}
             {actorId && orgId ? ' and' : ''}
             {orgId ? ` business ${orgLabel ?? orgId}` : ''}.
@@ -569,15 +575,13 @@ export default function AuditArea() {
 
         {!canResolveUsers && (
           <p className="form-hint">
-            This account cannot resolve an actor email, because listing users needs platform:manage_users. Paste the
-            actor&rsquo;s user id instead.
+            An actor email cannot be resolved without platform:manage_users. Paste the user id instead.
           </p>
         )}
 
         {!canResolveBusinesses && (
           <p className="form-hint">
-            This account cannot resolve a business name, because listing businesses needs platform:manage_businesses.
-            Paste the organisation id instead.
+            A business name cannot be resolved without platform:manage_businesses. Paste the organisation id instead.
           </p>
         )}
 
@@ -633,7 +637,7 @@ export default function AuditArea() {
         <SectionHead
           id="audit-table"
           title="Audit entries"
-          sub="Newest first. The endpoint counts the whole filtered set, so the page count below is real."
+          sub="Newest first. The page count covers the whole filtered set."
         />
 
         {error ? (
@@ -652,7 +656,7 @@ export default function AuditArea() {
               <StateBlock
                 variant="unavailable"
                 title="This looks like the audit browser is not deployed yet"
-                body="list_platform_audit_logs is added by supabase/migrations/20260927000089_platform_owner_hardening.sql. Until that migration is applied, the function does not exist and the browser returns the error above. Nothing is shown in its place rather than a fabricated page."
+                body="list_platform_audit_logs comes from migration 20260927000089_platform_owner_hardening.sql. Until it is applied the function does not exist, and nothing is shown in its place rather than a fabricated page."
               />
             )}
           </>
@@ -671,8 +675,8 @@ export default function AuditArea() {
                   title={filtersActive ? 'No audit entries match these filters' : 'No audit entries'}
                   body={
                     filtersActive
-                      ? 'Widen the date range or clear a filter. Entries exist only for the actions listed at the bottom of this page.'
-                      : 'Nothing has been audited yet. Only the actions listed at the bottom of this page write a row.'
+                      ? 'Widen the range or clear a filter. Only the actions listed below write a row.'
+                      : 'Nothing has been audited yet. Only the actions listed below write a row.'
                   }
                 />
               }
@@ -688,52 +692,50 @@ export default function AuditArea() {
         )}
 
         <p className="section-sub">
-          An actor of &ldquo;Not recorded&rdquo; means the row has no actor id: either the action was performed by the
-          server itself, or the account that performed it has since been deleted, because the foreign key is{' '}
-          <span className="mono">ON DELETE SET NULL</span> and the column was made nullable in{' '}
-          <span className="mono">20260927000088_audit_log_actor_nullable.sql</span>. Selecting the row is the only way to
-          tell them apart, and even then only by the action name.
+          An actor of &ldquo;Not recorded&rdquo; means the row has no actor id: a server-side action, or an account since
+          deleted.
         </p>
       </section>
 
       {/* ── Coverage ────────────────────────────────────────────────── */}
       <section className="card" aria-labelledby="audit-coverage">
-        <SectionHead
-          id="audit-coverage"
-          title="What is and is not recorded"
-          sub="A console that looks complete but records a third of what it implies is the most misleading thing an audit screen can do."
-        />
-
-        <h3 className="section-title">
-          Recorded <Badge tone="success">audited</Badge>
-        </h3>
-        <ul className="list">
-          {AUDITED_ACTIONS.map((item) => (
-            <li className="list-item" key={item}>
-              <p className="list-item-subtitle">{item}</p>
-            </li>
-          ))}
-        </ul>
-
-        <h3 className="section-title">
-          Not recorded <Badge tone="outline">no audit row</Badge>
-        </h3>
-        <ul className="list">
-          {UNAUDITED_ACTIONS.map((item) => (
-            <li className="list-item" key={item}>
-              <p className="list-item-subtitle">{item}</p>
-            </li>
-          ))}
-        </ul>
+        <SectionHead id="audit-coverage" title="What is and is not recorded" />
 
         <p className="section-sub">
-          Rows are read through a SECURITY DEFINER function on purpose: audit rows with no organisation — every
-          platform-scoped event, which is exactly the set this screen exists to show — are invisible to every row-level
-          security policy, so no policy could ever expose them. The same function redacts credential-looking keys from{' '}
-          <span className="mono">changes</span> and <span className="mono">details</span> before returning them, and the
-          rows cannot be forged from a client because <span className="mono">create_audit_log()</span> is no longer
-          executable by authenticated or anonymous callers after migration 089.
+          Not recorded: permission denials, reads, actions with no endpoint, and developer session start and end.
         </p>
+
+        <Disclosure summary="Which actions write a row">
+          <h3 className="section-title">
+            Recorded <Badge tone="success">audited</Badge>
+          </h3>
+          <ul className="list">
+            {AUDITED_ACTIONS.map((item) => (
+              <li className="list-item" key={item}>
+                <p className="list-item-subtitle">{item}</p>
+              </li>
+            ))}
+          </ul>
+
+          <h3 className="section-title">
+            Not recorded <Badge tone="outline">no audit row</Badge>
+          </h3>
+          <ul className="list">
+            {UNAUDITED_ACTIONS.map((item) => (
+              <li className="list-item" key={item}>
+                <p className="list-item-subtitle">{item}</p>
+              </li>
+            ))}
+          </ul>
+
+          <p className="section-sub">
+            Rows are read through a SECURITY DEFINER function on purpose: audit rows with no organisation — every
+            platform-scoped event, which is the set this screen exists to show — are invisible to every row-level security
+            policy. The same function redacts credential-looking keys from <span className="mono">changes</span> and{' '}
+            <span className="mono">details</span>, and <span className="mono">create_audit_log()</span> is no longer
+            executable by authenticated or anonymous callers after migration 089, so rows cannot be forged from a client.
+          </p>
+        </Disclosure>
       </section>
 
       {/* ── Detail dialog ───────────────────────────────────────────── */}
@@ -742,7 +744,7 @@ export default function AuditArea() {
         onClose={() => setDetail(null)}
         wide
         title={detail ? humaniseToken(detail.action) : 'Audit entry'}
-        description="What the row recorded for this action, as the server returned it."
+        description="As the server returned it."
         footer={
           <Button variant="outline" onClick={() => setDetail(null)}>
             Close
@@ -755,15 +757,20 @@ export default function AuditArea() {
 
             <div className="callout callout-info">
               <div>
-                <p className="callout-title">Redaction happens in the database, not here</p>
+                <p className="callout-title">Redaction happens in the database</p>
                 <p className="callout-text">
-                  The server replaces any value whose key looks like a credential —{' '}
-                  <span className="mono">
-                    secret, password, token, api_key, private_key, authorization, service_role
-                  </span>{' '}
-                  — with <span className="mono">***redacted***</span>, including inside nested objects. Some detail may
-                  therefore be withheld rather than absent, and an empty payload does not prove nothing changed.
+                  Credential-shaped values become <span className="mono">***redacted***</span>, so withheld detail is not
+                  absent detail and an empty payload does not prove nothing changed.
                 </p>
+                <Disclosure summary="Which keys are redacted">
+                  <p>
+                    Any value whose key looks like a credential —{' '}
+                    <span className="mono">
+                      secret, password, token, api_key, private_key, authorization, service_role
+                    </span>{' '}
+                    — is replaced, including inside nested objects.
+                  </p>
+                </Disclosure>
               </div>
             </div>
 
@@ -771,7 +778,7 @@ export default function AuditArea() {
               <h3 className="section-title">Changes (before and after)</h3>
               <p className="section-sub">
                 Setting changes carry <span className="mono">{'{ previous, new }'}</span> here. Absent means the action
-                did not record a before-and-after pair.
+                recorded no before-and-after pair.
               </p>
               {detail.changes ? (
                 <pre className="code-panel">{JSON.stringify(detail.changes, null, 2)}</pre>
@@ -782,9 +789,6 @@ export default function AuditArea() {
 
             <div>
               <h3 className="section-title">Details</h3>
-              <p className="section-sub">
-                Context the action chose to record: identifiers, reasons, scopes, and any counts it considered relevant.
-              </p>
               {detail.details ? (
                 <pre className="code-panel">{JSON.stringify(detail.details, null, 2)}</pre>
               ) : (

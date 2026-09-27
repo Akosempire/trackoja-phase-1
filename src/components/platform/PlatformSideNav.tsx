@@ -1,6 +1,13 @@
 import { useState } from 'react';
-import { Link, NavLink } from 'react-router-dom';
-import { PLATFORM_AREAS, PLATFORM_GROUPS, canSeeArea, platformAreaPath, type PlatformArea } from '../../config/platformAreas';
+import { Link, NavLink, useLocation } from 'react-router-dom';
+import {
+  PLATFORM_AREAS,
+  PLATFORM_GROUPS,
+  canSeeArea,
+  findPlatformArea,
+  platformAreaPath,
+  type PlatformArea,
+} from '../../config/platformAreas';
 import { usePlatform } from './PlatformContext';
 import { EnvironmentMarker } from './EnvironmentBadge';
 import { ContractIcon } from './icons';
@@ -20,6 +27,7 @@ interface PlatformSideNavProps {
  */
 export function PlatformSideNav({ mobile = false, onClose }: PlatformSideNavProps) {
   const { access, environment } = usePlatform();
+  const location = useLocation();
   const [collapsed, setCollapsed] = useState(() => {
     try {
       return localStorage.getItem('trackoja-platform-sidebar-collapsed') === 'true';
@@ -33,6 +41,10 @@ export function PlatformSideNav({ mobile = false, onClose }: PlatformSideNavProp
   const visible = access
     ? PLATFORM_AREAS.filter((area) => canSeeArea(area, access))
     : [];
+
+  // Which group the current screen belongs to, so the group label reinforces
+  // where you are rather than leaving ten peer links to scan.
+  const activeGroup = findPlatformArea(location.pathname)?.group ?? null;
 
   function renderLink(area: PlatformArea) {
     const to = platformAreaPath(area);
@@ -48,6 +60,9 @@ export function PlatformSideNav({ mobile = false, onClose }: PlatformSideNavProp
           to={to}
           end={isIndex}
           aria-label={area.label}
+          // The area's description lives here rather than at the top of the page:
+          // it is useful once, on hover, and noise on every visit.
+          title={area.description}
           onClick={onClose}
           className={({ isActive }) => `side-nav-link t-tt-trigger${isActive ? ' active' : ''}`}
         >
@@ -114,7 +129,9 @@ export function PlatformSideNav({ mobile = false, onClose }: PlatformSideNavProp
           if (areas.length === 0) return null;
           return (
             <div className="side-nav-group" key={group.id}>
-              <p className="side-nav-group-label nav-label">{group.label}</p>
+              <p className={`side-nav-group-label nav-label${activeGroup === group.id ? ' is-active' : ''}`}>
+                {group.label}
+              </p>
               {areas.map(renderLink)}
             </div>
           );

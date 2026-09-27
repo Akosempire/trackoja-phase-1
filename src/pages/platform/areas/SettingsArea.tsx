@@ -9,6 +9,7 @@ import { AreaCoverage, PlatformPageHead, RefreshButton } from '../../../componen
 import { Badge } from '../../../components/ui/Badge';
 import { Button } from '../../../components/ui/Button';
 import { DataTable, type DataTableColumn } from '../../../components/ui/DataTable';
+import { Disclosure } from '../../../components/ui/Disclosure';
 import { Dialog } from '../../../components/ui/Dialog';
 import { SectionHead } from '../../../components/ui/SectionHead';
 import { SectionState } from '../../../components/ui/StateBlock';
@@ -23,99 +24,78 @@ const AREA = PLATFORM_AREAS.find((area) => area.id === 'settings')!;
 const TEMPLATE_CHANNELS = ['email', 'sms', 'in_app'] as const;
 
 /**
- * What each setting actually does, and what reads it.
+ * The only seeded key any code reads.
  *
- * Verified by reading the migrations rather than inferred from the key name:
- * `developer.sandbox_required` is the only seeded key any code reads (it is the
- * guard inside assert_sandbox_override() in
- * 20260926000072_platform_developer_mode_functions.sql), and the rest are written
- * and returned but never consulted. A control that silently does nothing is worse
- * than no control, so each row says which it is.
+ * Verified by reading the migrations rather than inferred from the key name: it
+ * is the guard inside assert_sandbox_override() in
+ * 20260926000072_platform_developer_mode_functions.sql. Every other seeded key is
+ * written and returned but consulted by nothing, which each row states as a badge
+ * rather than as a paragraph.
  */
-const SETTING_TRUTH: Record<string, { readBy: string | null; note: string }> = {
-  'developer.sandbox_required': {
-    readBy: 'assert_sandbox_override(), 20260926000072_platform_developer_mode_functions.sql',
-    note: 'The only seeded setting any code reads. It fails closed: anything other than true refuses every developer-mode override, and the absence of the row does too.',
-  },
-  'billing.trial_days': {
-    readBy: null,
-    note: 'Stored and editable, but nothing reads it. Trial length actually comes from a plan entitlement’s own metadata, not from this key, so changing it has no effect today.',
-  },
-  'billing.annual_months_free': {
-    readBy: null,
-    note: 'Stored and editable, but nothing reads it: no code computes an annual price from this value, so changing it has no effect today.',
-  },
-  'billing.currency': {
-    readBy: null,
-    note: 'Stored and editable, but nothing reads it: plans carry their own currency column, which is what billing uses.',
-  },
-  'products.trackoja.visible': {
-    readBy: null,
-    note: 'Stored and editable, but nothing reads it, and it duplicates platform_products.visibility for the same product — two sources of truth for one question.',
-  },
-  'products.trackoja_works.visible': {
-    readBy: null,
-    note: 'Stored and editable, but nothing reads it, and it duplicates platform_products.visibility for the same product.',
-  },
-  'activation.keys_enabled': {
-    readBy: null,
-    note: 'Stored and editable, but nothing reads it. Issuing and redeeming activation keys is not gated on this key, so turning it off does not disable keys.',
-  },
-  'products.trackoja.tiers_public': {
-    readBy: null,
-    note: 'Stored and editable, but nothing reads it. Which tiers are advertised actually comes from product_plans.is_public, so editing this list changes nothing.',
-  },
-};
-
-const TRUTH_FALLBACK = {
-  readBy: null,
-  note: 'Not a key this build declares. Nothing in this repository reads it, so treat it as inert until a migration or a service starts to.',
+const READ_BY_CODE: Record<string, string> = {
+  'developer.sandbox_required':
+    'assert_sandbox_override(), 20260926000072_platform_developer_mode_functions.sql',
 };
 
 /**
- * Categories are grouped into what changes platform behaviour and what is
- * content, because the two carry very different expectations about taking effect.
+ * Why the keys no code reads are inert.
+ *
+ * Kept for the disclosure rather than the row: the badge is what the operator
+ * needs while scanning, and the reason is what they need if they are about to
+ * change the value anyway.
  */
-const GROUPS: { id: string; title: string; sub: string; categories: string[] }[] = [
+const INERT_NOTES: { key: string; note: string }[] = [
+  {
+    key: 'billing.trial_days',
+    note: 'Trial length comes from a plan entitlement’s own metadata, not from this key.',
+  },
+  {
+    key: 'billing.annual_months_free',
+    note: 'No code computes an annual price from this value.',
+  },
+  {
+    key: 'billing.currency',
+    note: 'Plans carry their own currency column, which is what billing uses.',
+  },
+  {
+    key: 'products.trackoja.visible',
+    note: 'Duplicates platform_products.visibility for the same product — two sources of truth for one question.',
+  },
+  {
+    key: 'products.trackoja_works.visible',
+    note: 'Duplicates platform_products.visibility for the same product.',
+  },
+  {
+    key: 'activation.keys_enabled',
+    note: 'Issuing and redeeming activation keys is not gated on this key, so turning it off does not disable keys.',
+  },
+  {
+    key: 'products.trackoja.tiers_public',
+    note: 'Which tiers are advertised comes from product_plans.is_public, so editing this list changes nothing.',
+  },
+];
+
+/** Categories are grouped by whether the platform behaves according to them. */
+const GROUPS: { id: string; title: string; categories: string[] }[] = [
   {
     id: 'operational',
     title: 'Operational configuration',
-    sub: 'Configuration the platform behaves according to — where any code reads it at all. Each row below states what reads it, and most of these are read by nothing.',
     categories: ['payments', 'activation', 'developer', 'notifications', 'general'],
   },
   {
     id: 'branding',
     title: 'Branding and content',
-    sub: 'What is advertised publicly. These are stored values only: the storefront and the signup flow read neither of them today, and products.*.visible duplicates the visibility column on the product row itself.',
     categories: ['products'],
   },
 ];
 
-const CATEGORY_LABEL: Record<string, { label: string; sub: string }> = {
-  payments: {
-    label: 'Billing and payments',
-    sub: 'Defaults the billing flow is meant to use. They are stored, but each one is read by nothing — see the note on each row.',
-  },
-  activation: {
-    label: 'Activation keys',
-    sub: 'Whether offline or manually approved purchases can be activated with a key.',
-  },
-  developer: {
-    label: 'Developer mode',
-    sub: 'The guard that constrains what developer-mode overrides are allowed to touch.',
-  },
-  notifications: {
-    label: 'Notifications',
-    sub: 'Reserved for notification configuration. No seeded setting uses this category.',
-  },
-  general: {
-    label: 'General',
-    sub: 'Reserved for general platform configuration. No seeded setting uses this category.',
-  },
-  products: {
-    label: 'Product visibility',
-    sub: 'Which products and tiers are advertised. Setting a value here does not change the catalogue: platform_products.visibility and product_plans.is_public are what the dashboard and the catalogue actually use.',
-  },
+const CATEGORY_LABEL: Record<string, string> = {
+  payments: 'Billing and payments',
+  activation: 'Activation keys',
+  developer: 'Developer mode',
+  notifications: 'Notifications',
+  general: 'General',
+  products: 'Product visibility',
 };
 
 /** The string a control starts from for a stored JSON value. */
@@ -350,9 +330,7 @@ export default function SettingsArea() {
 
     try {
       await PlatformAdminService.setSetting(setting.key, encoded.value);
-      toast.success(`${setting.key} saved`, {
-        description: 'The previous value was replaced and the change was written to the audit trail.',
-      });
+      toast.success(`${setting.key} saved`, { description: 'Written to the audit trail.' });
       // The stored value is the authority, so it is re-read rather than assumed.
       await load();
       setDrafts((current) => {
@@ -409,7 +387,6 @@ export default function SettingsArea() {
             {
               id: 'other',
               title: 'Other categories',
-              sub: 'Settings whose category this screen does not know, shown so nothing in the table is invisible.',
               entries: leftovers.map((category) => ({
                 category,
                 rows: settings.filter((setting) => setting.category === category),
@@ -523,7 +500,7 @@ export default function SettingsArea() {
         status: draft.status,
       });
       toast.success(`${draft.key.trim()} saved`, {
-        description: 'Stored only. No application sender reads notification templates.',
+        description: 'Stored only; nothing sends it.',
       });
       setTemplateDraft(null);
       await load();
@@ -540,8 +517,8 @@ export default function SettingsArea() {
         area={AREA}
         description={
           canManage
-            ? 'Platform configuration and notification content. Only existing settings can be changed: the server refuses new keys, new object keys and anything that looks like a credential.'
-            : 'Platform configuration and notification content, read-only because this account does not hold platform:manage_settings.'
+            ? 'Existing settings only: the server refuses a new key, a new object key and anything credential-shaped.'
+            : 'Read-only: this account does not hold platform:manage_settings.'
         }
         actions={<RefreshButton onClick={load} loading={loading} />}
       />
@@ -553,42 +530,53 @@ export default function SettingsArea() {
         <SectionHead
           id="settings-rules"
           title="How these settings behave"
-          sub="Written to match set_platform_setting() rather than to look tidy."
+          sub="A row marked read by nothing is stored and editable but changes no behaviour."
         />
 
-        <div className="callout callout-info">
-          <div>
-            <p className="callout-title">The server decides what may be written</p>
-            <p className="callout-text">
-              <span className="mono">set_platform_setting()</span> (rewritten in{' '}
-              <span className="mono">20260927000089_platform_owner_hardening.sql</span>, section 7.5) cannot create a
-              setting: an unknown key is refused outright. It cannot add a key to an object value, because the
-              replacement must not define a key the stored value does not. It refuses a value whose JSON type differs from
-              the stored one, and it refuses any key or value matching{' '}
-              <span className="mono">secret|password|token|api_key|private_key|service_role</span>. That last rule is
-              deliberate: credentials belong in server-side secret storage, so this screen never offers a field for them.
-              Where a save is refused, the server&rsquo;s own message is shown on the row.
-            </p>
-          </div>
-        </div>
+        <Disclosure summary="What the server refuses, and which keys anything reads">
+          <p>
+            <span className="mono">set_platform_setting()</span> (rewritten in migration 089, section 7.5) cannot create a
+            setting: an unknown key is refused outright. It cannot add a key to an object value, because the replacement must not define a key the stored
+            value does not, and it refuses a value whose JSON type differs from the stored one. Any key or value matching{' '}
+            <span className="mono">secret|password|token|api_key|private_key|service_role</span> is refused — credentials
+            belong in server-side secret storage, which is why this screen offers no field for them. A refused save shows
+            the server&rsquo;s own message on the row.
+          </p>
+
+          <p className="section-sub">
+            One seeded key is read — <span className="mono">developer.sandbox_required</span>, inside{' '}
+            <span className="mono">{READ_BY_CODE['developer.sandbox_required']}</span>. Every other key this build
+            declares is read by nothing:
+          </p>
+          <ul className="list">
+            {INERT_NOTES.map((entry) => (
+              <li className="list-item" key={entry.key}>
+                <div>
+                  <p className="list-item-title">
+                    <span className="mono">{entry.key}</span> <Badge tone="outline">read by nothing</Badge>
+                  </p>
+                  <p className="list-item-subtitle">{entry.note}</p>
+                </div>
+              </li>
+            ))}
+          </ul>
+          <p className="section-sub">
+            A key this build does not declare is not listed anywhere in the repository either: treat it as inert until a
+            migration or a service starts to read it.
+          </p>
+        </Disclosure>
 
         {!canManage && (
           <p className="is-locked">
-            Read-only: every value below is visible, and no control is offered, because this account lacks
+            Read-only: values are visible, no control is offered, because this account lacks
             platform:manage_settings.
           </p>
         )}
 
         <p className="section-sub">
-          One setting is missing rather than forgotten: <span className="mono">{ENVIRONMENT_SETTING_KEY}</span>, which the
-          environment marker on the developer screen reads, is declared by no migration — and because this function
-          refuses unknown keys, it cannot be created here either. Until a migration declares it, that marker falls back to
-          the build.
-        </p>
-
-        <p className="section-sub">
-          Most of what is seeded is inert, and each row says so. A stored value that no code reads is indistinguishable
-          from a working control, so marking them is the only honest option.
+          <span className="mono">{ENVIRONMENT_SETTING_KEY}</span> is declared by no migration and cannot be created here
+          either, so the environment marker on the developer screen falls back to the build and reads &ldquo;Not
+          configured&rdquo;.
         </p>
       </section>
 
@@ -604,7 +592,7 @@ export default function SettingsArea() {
 
       {grouped.map((group) => (
         <section className="card" key={group.id} aria-labelledby={`settings-${group.id}`}>
-          <SectionHead id={`settings-${group.id}`} title={group.title} sub={group.sub} />
+          <SectionHead id={`settings-${group.id}`} title={group.title} />
 
           {loading && settings.length === 0 ? (
             <SectionState loading onRetry={load}>
@@ -614,18 +602,15 @@ export default function SettingsArea() {
             <p className="section-sub">No settings are stored in this group.</p>
           ) : (
             group.entries.map((entry) => {
-              const label = CATEGORY_LABEL[entry.category] ?? {
-                label: entry.category,
-                sub: 'No description of this category is available in this build.',
-              };
+              const label = CATEGORY_LABEL[entry.category];
               return (
                 <div key={entry.category}>
-                  <h3 className="section-title">{label.label}</h3>
-                  <p className="section-sub">{label.sub}</p>
+                  <h3 className="section-title">{label ?? entry.category}</h3>
+                  {!label && <p className="section-sub">This category is not described in this build.</p>}
 
                   <ul className="list">
                     {entry.rows.map((setting) => {
-                      const truth = SETTING_TRUTH[setting.key] ?? TRUTH_FALLBACK;
+                      const readBy = READ_BY_CODE[setting.key];
                       const value = setting.value;
                       const isObject = value !== null && typeof value === 'object' && !Array.isArray(value);
                       const busyRow = savingKey === setting.key;
@@ -636,7 +621,7 @@ export default function SettingsArea() {
                           <div className="plat-setting-main">
                             <p className="list-item-title">
                               <span className="mono">{setting.key}</span>{' '}
-                              {truth.readBy ? (
+                              {readBy ? (
                                 <Badge tone="info">read by code</Badge>
                               ) : (
                                 <Badge tone="outline">read by nothing</Badge>
@@ -645,18 +630,20 @@ export default function SettingsArea() {
                             <p className="list-item-subtitle">
                               {setting.description ?? 'No description recorded for this setting.'}
                             </p>
-                            <p className="list-item-subtitle">
-                              {truth.readBy ? `Read by ${truth.readBy}. ` : ''}
-                              {truth.note}
-                            </p>
+                            {readBy && (
+                              <p className="list-item-subtitle">
+                                Fails closed: anything other than true refuses every override, and so does the absence of
+                                the row.
+                              </p>
+                            )}
                             <p className="list-item-subtitle">
                               Last updated {formatDateTime(setting.updatedAt)}
                               {setting.updatedAt ? ` (${formatRelative(setting.updatedAt)})` : ''}
                             </p>
                             {isObject && (
                               <p className="list-item-subtitle">
-                                Only the options already stored can be changed: the server refuses a key the saved object
-                                does not define, so a new option has to be added by migration first.
+                                Only options the stored object already defines can be changed; a new one needs a
+                                migration.
                               </p>
                             )}
 
@@ -762,15 +749,19 @@ export default function SettingsArea() {
           <div>
             <p className="callout-title">No template is sent, and none is seeded</p>
             <p className="callout-text">
-              The <span className="mono">notification_templates</span> table is created by{' '}
-              <span className="mono">20260926000066_platform_operations_schema.sql</span> and no migration inserts a row
-              into it, so a fresh database genuinely has none. No email or SMS <em>sender</em> exists anywhere in this
-              application either — the only Edge Functions are the payment and logout ones, and none of them sends a
-              message. The single email the application can trigger at all is Supabase Auth&rsquo;s own verification
-              resend (<span className="mono">src/services/auth.service.ts</span>), which is not an application sender and
-              cannot read these templates. So a template saved here is stored, recorded in the audit trail, and never
-              delivered: treat this as content preparation, not as message configuration.
+              A template saved here is stored, recorded in the audit trail, and never delivered. Treat this as content
+              preparation, not as message configuration.
             </p>
+            <Disclosure summary="Why nothing sends these">
+              <p>
+                The <span className="mono">notification_templates</span> table is created by migration 066 and no migration
+                inserts a row into it, so a fresh database genuinely has none. No email or SMS <em>sender</em> exists
+                anywhere in this application either: the only Edge Functions are the payment and logout ones. The single
+                email the application can trigger is Supabase Auth&rsquo;s own verification resend (
+                <span className="mono">src/services/auth.service.ts</span>), which is not an application sender and cannot
+                read these templates.
+              </p>
+            </Disclosure>
           </div>
         </div>
 
@@ -779,7 +770,7 @@ export default function SettingsArea() {
           error={templateError}
           empty={templates.length === 0}
           emptyTitle="No notification templates"
-          emptyBody="The table has no rows. Create one to prepare message content, knowing that nothing will send it."
+          emptyBody="No rows. Anything created here is stored and never sent."
           onRetry={load}
         >
           <DataTable
@@ -794,18 +785,14 @@ export default function SettingsArea() {
 
       {/* ── Missing ─────────────────────────────────────────────────── */}
       <section className="card" aria-labelledby="settings-missing">
-        <SectionHead
-          id="settings-missing"
-          title="Not built for settings"
-          sub="Stated here because each absence changes how much a saved value can be trusted."
-        />
+        <SectionHead id="settings-missing" title="Not built for settings" />
         <ul className="list">
           {[
-            'No settings history in the table: set_platform_setting() overwrites the previous value and records only updated_by and updated_at on the row. The previous value is captured in the PLATFORM_SETTING_UPDATED audit row instead, so history exists only in the audit trail and only for changes made after migration 089.',
-            'No delete: no endpoint removes a setting or a template, so a key a migration once declared is permanent even when nothing reads it.',
-            'No per-product or per-org overrides: platform_settings is one key to one value, so a different value for one product or one customer is not representable and would need a new table.',
-            'No secrets management, deliberately: credential-shaped keys and values are refused by the server, and secrets stay in server-side storage.',
-            'No settings preview or dry run: a change takes effect immediately for anything that reads the key, and today that is a single key.',
+            'No history: the previous value survives only in the PLATFORM_SETTING_UPDATED audit row.',
+            'No delete: no endpoint removes a setting or a template, so a declared key is permanent.',
+            'No per-product or per-org overrides: platform_settings is one key to one value.',
+            'No secrets management, deliberately: the server refuses credential-shaped keys and values.',
+            'No preview or dry run: a change takes effect immediately, today for a single key.',
           ].map((item) => (
             <li className="list-item" key={item}>
               <div>
@@ -842,10 +829,8 @@ export default function SettingsArea() {
               <div>
                 <p className="callout-title">Stored, never sent</p>
                 <p className="callout-text">
-                  No email or SMS sender is configured anywhere in this application, so a template exists only as content
-                  in this table — the one message the app can trigger, Supabase Auth&rsquo;s verification resend, does not
-                  read it. The body is deliberately kept out of the audit trail; the audit row records that the template
-                  changed, who changed it, and how its name, channel, subject and status moved.
+                  The one message this application can trigger — Supabase Auth&rsquo;s verification resend — does not read
+                  this table, and the body is deliberately kept out of the audit trail.
                 </p>
               </div>
             </div>
@@ -863,10 +848,7 @@ export default function SettingsArea() {
               onChange={(event) => setTemplateDraft({ ...templateDraft, key: event.target.value })}
             />
             {templateDraft.existingKey !== null && (
-              <p className="form-hint">
-                The key cannot be changed: the save is an upsert keyed on it, so a new value would create a second
-                template rather than rename this one.
-              </p>
+              <p className="form-hint">The key cannot be changed: the save is an upsert keyed on it.</p>
             )}
 
             <label className="form-label" htmlFor="template-name">
@@ -935,11 +917,6 @@ export default function SettingsArea() {
               <option value="active">active</option>
               <option value="inactive">inactive</option>
             </select>
-
-            <p className="form-hint">
-              Channel is limited to email, sms and in_app, and status to active or inactive; both are checked by the
-              table and again by the save function.
-            </p>
 
             {templateFormError && (
               <p className="form-error" role="alert">

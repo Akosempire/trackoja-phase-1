@@ -230,10 +230,7 @@ export default function BusinessesArea() {
       <AreaCoverage gaps={AREA.gaps} title="What this page cannot do yet" />
 
       <section className="card">
-        <SectionHead
-          title="Find a business"
-          sub="Search matches the business name, owner email and slug."
-        />
+        <SectionHead title="Find a business" />
 
         <form
           className="toolbar"
@@ -333,17 +330,13 @@ export default function BusinessesArea() {
 
         {billing && (
           <p className="form-hint">
-            Billing status is filtered in this browser because the directory endpoint does not accept it, so a page
-            can show fewer rows than the page size. Search or narrow by product to find a specific business.
+            Billing status is filtered in this browser, so a page can show fewer rows than the page size.
           </p>
         )}
       </section>
 
       <section className="card">
-        <SectionHead
-          title={`Businesses${visibleRows.length > 0 ? ` (${visibleRows.length} on this page)` : ''}`}
-          sub="Open a business to see its plan, staff, payments and support history."
-        />
+        <SectionHead title={`Businesses${visibleRows.length > 0 ? ` (${visibleRows.length})` : ''}`} />
 
         {error ? (
           <StateBlock
@@ -370,11 +363,7 @@ export default function BusinessesArea() {
                 <StateBlock
                   variant="empty"
                   title={filtersActive ? 'No businesses match these filters' : 'No businesses yet'}
-                  body={
-                    filtersActive
-                      ? 'Clear the filters or widen the search. The directory only lists businesses that hold an entitlement for the selected product.'
-                      : 'Businesses appear here as they sign up.'
-                  }
+                  body={filtersActive ? 'Clear the filters or widen the search.' : undefined}
                 />
               }
             />
