@@ -384,7 +384,7 @@ const RAW_EXPERIENCES: Record<BusinessCategory, BusinessExperience> = {
     defaultModules: ['inventory', 'sales', 'customers', 'tailoring'],
     nav: [
       OVERVIEW(),
-      wanted('jobs', 'Jobs', '/jobs', 'sales', 'No job record exists. Needs jobs, status history and measurement snapshots.'),
+      live('jobs', 'Jobs', '/jobs', 'sales', 'job:view'),
       live('clients', 'Clients', '/customers', 'customers', 'customer:view'),
       wanted('measurements', 'Measurements', '/measurements', 'customers', 'Measurements live as free text on a customer today.'),
       wanted('fittings', 'Fittings', '/fittings', 'reports', 'No fitting schedule exists.'),
@@ -393,7 +393,7 @@ const RAW_EXPERIENCES: Record<BusinessCategory, BusinessExperience> = {
       live('reports', 'Reports', '/reports', 'reports', 'reports:view'),
     ],
     bottomNav: ['overview', 'clients', 'materials'],
-    primaryAction: { label: 'Create job', route: '/jobs/new', implemented: false, gap: 'No job record exists yet.' },
+    primaryAction: { label: 'Create job', route: '/jobs', implemented: true },
     secondaryActions: [
       { label: 'Add client', route: '/customers/new', implemented: true },
       { label: 'Add material', route: '/inventory/products/new', implemented: true },

@@ -25,6 +25,7 @@ import CustomerFormPage from './pages/customers/CustomerFormPage';
 import CustomerDetailPage from './pages/customers/CustomerDetailPage';
 import PaymentsPage from './pages/payments/PaymentsPage';
 import ExpensesPage from './pages/expenses/ExpensesPage';
+import JobsPage from './pages/jobs/JobsPage';
 import DevicesPage from './pages/devices/DevicesPage';
 import DeviceDetailPage from './pages/devices/DeviceDetailPage';
 import StaffPage from './pages/staff/StaffPage';
@@ -113,6 +114,7 @@ export default function App() {
           <Route path="/customers/:customerId/edit" element={<CustomerFormPage />} />
           <Route path="/payments" element={<PaymentsPage />} />
           <Route path="/expenses" element={<ExpensesPage />} />
+          <Route path="/jobs" element={<JobsPage />} />
           <Route path="/devices" element={<DevicesPage />} />
           <Route path="/devices/:deviceId" element={<DeviceDetailPage />} />
           <Route path="/staff" element={<StaffPage />} />
