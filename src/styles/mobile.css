@@ -1,0 +1,68 @@
+/* Mobile device fixes.
+   Loaded after waya.css so these win at equal specificity.
+
+   The headline problem: waya.css sizes form controls at --text-body-sm (14px).
+   iOS Safari zooms the entire page whenever a focused field is smaller than 16px,
+   so tapping any input on an iPhone zoomed the layout and left it scrolled. Raising
+   the controls to 16px on mobile removes the cause; blocking zoom with
+   maximum-scale would only hide it and would break pinch-zoom accessibility. */
+
+html {
+  /* Stop the browser inflating text on orientation change, which reflows the page
+     and is another source of things appearing to move. */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+/* The viewport height changes as mobile browser chrome hides and shows. 100vh
+   includes that area, so the shell resizes and everything shifts; dvh tracks the
+   visible viewport instead. Kept alongside vh as the fallback. */
+#root {
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+/* `manipulation` removes the double-tap-to-zoom gesture and the ~300ms tap delay.
+   For a scanner-driven workflow that delay is felt on every tap. */
+button,
+a,
+input,
+select,
+textarea,
+label,
+.bottom-nav-link,
+.bottom-nav-scan,
+.form-input-reveal,
+.toast-dismiss {
+  touch-action: manipulation;
+}
+
+@media (max-width: 1023px) {
+  /* 16px is the threshold: below it iOS and iPadOS zoom the page on focus. The
+     range covers tablets as well as phones, because an iPad in portrait is 768px
+     and Safari zooms there just the same. Checkboxes and radios are excluded, since
+     a 44px minimum would distort them. */
+  .form-input,
+  .select-input,
+  .search-input,
+  textarea,
+  input:not([type='checkbox']):not([type='radio']),
+  select {
+    font-size: 16px;
+    /* Comfortable thumb target, and enough height that 16px text cannot clip. */
+    min-height: 44px;
+  }
+
+  /* A native date/number control keeps its own intrinsic height on some browsers. */
+  input[type='date'],
+  input[type='number'] {
+    line-height: normal;
+  }
+}
+
+/* Guard against horizontal panning: a page that can scroll sideways is what makes
+   a layout feel like it is sliding around under a thumb. `clip` avoids the scroll
+   container that `hidden` creates, so position: sticky keeps working. */
+body {
+  overflow-x: clip;
+}
