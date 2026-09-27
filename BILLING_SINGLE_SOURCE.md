@@ -125,7 +125,7 @@ existing readers.
 
 ## Outcome
 
-Shipped in `5660319`, `7c0df48` and `0f266c4`.
+Shipped in `5660319`, `7c0df48`, `0f266c4` and `3eb5110`.
 
 **One catalogue, four readers.** Published plans now feed the public pricing
 page, the customer Billing page, checkout and the entitlement that grants access.
@@ -133,24 +133,47 @@ The public page contains no price literal (a test asserts that, reading the sour
 as text), and the customer page shows all four published tiers including Standard
 at ₦22,500/₦225,000 — which, before this, no customer could buy.
 
+**Both cycles are billable, and the period matches the charge.** 092 recorded the
+cycle on nothing and derived the subscription period from a legacy mirror row that
+holds one interval per plan name, so an annual purchase charged the annual amount
+and activated a month. 094 records the cycle and the exact plan on the
+transaction, and activation reads them. An annual purchase of Premium at ₦450,000
+now activates 2026-09-27 to 2027-09-27 — measured through the real UI, not argued.
+
 **Verified against live data and real sessions.** Migration 092 carries 85
-verification checks; anon reads exactly four published plans, proved by *becoming*
-the anon role rather than by reading grants. As a real business owner, the
-customer page renders status, usage and the catalogue at 1440 and 390 with no
-errors or overflow. The console's seven sections render and switch correctly, and
-at support tier the navigator drops to two sections with the rest denied by URL.
-Subscription and entitlement rows are byte-identical to before, per-table md5.
+verification checks; `checkout_cycle_verification.sql` carries 27 and
+`tests/billing-cycle.test.ts` 18; an end-to-end run through the browser as a real
+owner passes 28. Anon reads exactly four published plans, proved by *becoming* the
+anon role rather than by reading grants. As a real business owner, the customer
+page renders status, usage and the catalogue at 1440 and 390 with no errors or
+overflow. The console's seven sections render and switch correctly, and at support
+tier the navigator drops to two sections with the rest denied by URL. Subscription
+and entitlement rows are byte-identical to before, per-table md5.
 
 ## Gaps, stated rather than hidden
 
 | Gap | Why it is not fixed | Its effect today |
 | --- | --- | --- |
-| **Annual checkout is disabled** | `start_plan_checkout` reuses the legacy mirror row, and `subscription_plans.name` is UNIQUE, so one plan name holds one billing interval. An annual purchase of Starter would charge the annual amount and activate a monthly period. | The annual price renders for comparison; the checkout is disabled with a reason. No customer can be overcharged. The fix is a per-cycle mirror row or a period derived from the transaction amount — a payment-path change. |
 | **`trial_days` and `setup_fee` are inert** | Nothing applies them: `start_plan_checkout` charges the plan price alone and `activate_subscription` leaves `trial_ends_at` NULL. | Both are stored and editable in the console, marked there as not charged, and deliberately not advertised to customers. All plans hold 0 and NULL, so nothing visible changed. |
+| **Paystack runs in mock mode** | `PAYSTACK_SECRET_KEY` is not set on this project, so `paystack-initialize` takes its documented mock branch: it activates the subscription immediately and returns `callbackUrl` instead of a Paystack URL. | Checkout is fully wired and ends in an activation, but no card is ever charged and no hosted Paystack page is shown. Setting the secret switches to the live flow with no code change — that is the function's own design, stated here because "checkout works" would otherwise overstate it. |
 | **No invoices, receipts or refunds** | No table exists. | Stated in one line in the console rather than rendered as empty rows. |
 | **No platform-facing transaction list** | The only transaction view is the last 20 inside `get_platform_business`. | Stated. |
 | **`organizations.billing_email` is not returned** by `get_platform_business` | Not this migration's surface. | The business detail's Billing email row always reads "Not set". |
 | **No `featured` flag** | Not asked for; adding it would change `list_published_plans`' shape. | Marketing emphasis is derived from price, so it will follow a future price change. `is_default` means "the plan a business lands on", which is a different fact. |
+
+## A correction the verification forced
+
+My first draft of migration 094 said "the eleven live rows keep activating exactly
+as they did". That was wrong, and the verification caught it. The eight live
+subscriptions were created by triggers and backfills, not by payments, and
+`subscription_transactions` holds **zero** rows. The migration now says that, so
+the fallback is described as protection for the rows the legacy checkout will
+write rather than as a claim about rows that are not there. The same mistake in
+the other direction — assuming a business with no plan — is why the end-to-end
+check initially expected a "Choose this plan" button: a new business is given a
+default plan by the organization trigger, so its action reads "Switch to this
+plan". Both were fixed by measuring rather than by reasoning.
+
 
 ## A deliberate deviation from the brief
 
