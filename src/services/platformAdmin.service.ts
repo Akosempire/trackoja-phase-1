@@ -39,6 +39,14 @@ export interface ProductPlan {
   annualPrice: number | null;
   currency: string;
   userLimit: number | null;
+  /**
+   * One-off implementation fee, trial length and billable-store cap. Added to the
+   * table by migration 092; `trialDays` is NULL only on a database that predates
+   * it, since the column itself is NOT NULL DEFAULT 0.
+   */
+  setupFee: number | null;
+  trialDays: number | null;
+  storeLimit: number | null;
   features: { key: string; label: string; upcoming?: boolean }[];
   onboardingNote: string | null;
   /**
@@ -54,6 +62,17 @@ export interface ProductPlan {
   sortOrder: number;
   subscriberCount: number;
   updatedAt: string | null;
+  /**
+   * When the plan was published, and the date its published prices take effect.
+   *
+   * `undefined` means `list_product_plans` did not return the column at all,
+   * which is a different fact from NULL ("this plan has never been published"):
+   * the publishing migration may not be applied to the database being read. The
+   * console says which of the two it is rather than showing "never published"
+   * for a plan whose published stamp it simply cannot see.
+   */
+  publishedAt?: string | null;
+  effectiveFrom?: string | null;
 }
 
 export interface PlanRevision {
@@ -435,6 +454,9 @@ export class PlatformAdminService {
         annualPrice: row.annual_price === null ? null : Number(row.annual_price),
         currency: row.currency,
         userLimit: row.user_limit === null ? null : Number(row.user_limit),
+        setupFee: row.setup_fee === null || row.setup_fee === undefined ? null : Number(row.setup_fee),
+        trialDays: row.trial_days === undefined ? null : Number(row.trial_days),
+        storeLimit: row.store_limit === null || row.store_limit === undefined ? null : Number(row.store_limit),
         features: row.features ?? [],
         onboardingNote: row.onboarding_note,
         // Present since migration 089 appended it to list_product_plans.
@@ -445,6 +467,9 @@ export class PlatformAdminService {
         sortOrder: Number(row.sort_order ?? 0),
         subscriberCount: Number(row.subscriber_count ?? 0),
         updatedAt: row.updated_at,
+        // Kept as three states: absent, NULL, and stamped. See the interface.
+        publishedAt: 'published_at' in row ? row.published_at : undefined,
+        effectiveFrom: 'effective_from' in row ? row.effective_from : undefined,
       }));
     } catch (error) {
       console.error('List product plans error:', error);
@@ -463,6 +488,9 @@ export class PlatformAdminService {
     features?: { key: string; label: string; upcoming?: boolean }[];
     onboardingNote?: string | null;
     billingCycle?: 'monthly' | 'annual' | 'custom';
+    setupFee?: number | null;
+    trialDays?: number | null;
+    storeLimit?: number | null;
     status?: string;
     isDefault?: boolean;
     isPublic?: boolean;
@@ -471,17 +499,28 @@ export class PlatformAdminService {
   }): Promise<void> {
     try {
       /*
-       * `upsert_product_plan` writes whatever cycle it is given, and its
-       * parameter defaults to 'monthly'. A caller that simply does not know about
-       * the column would therefore rewrite an annual or custom plan as monthly on
-       * any unrelated edit, so the stored value is read back and preserved unless
-       * the caller deliberately asks for a change. A plan that does not exist yet
-       * legitimately starts on monthly.
+       * `upsert_product_plan` writes the billing cycle, the setup fee, the trial
+       * length and the store cap with whatever it is given, and each parameter has
+       * a default ('monthly', NULL, 0, NULL). Migration 092 added the last three to
+       * the ON CONFLICT DO UPDATE list, so a caller that does not know about them
+       * would erase them on any unrelated edit. All four are therefore read back
+       * from the stored row and preserved unless the caller deliberately asks for a
+       * change. A plan that does not exist yet legitimately starts on their
+       * defaults.
+       *
+       * One read serves all four: it is the same call the cycle guard already made.
        */
       let billingCycle = input.billingCycle;
-      if (!billingCycle) {
+      let setupFee = input.setupFee;
+      let trialDays = input.trialDays;
+      let storeLimit = input.storeLimit;
+      if (!billingCycle || setupFee === undefined || trialDays === undefined || storeLimit === undefined) {
         const existing = await PlatformAdminService.listPlans(input.productKey);
-        billingCycle = existing.find((plan) => plan.key === input.planKey)?.billingCycle ?? 'monthly';
+        const stored = existing.find((plan) => plan.key === input.planKey);
+        billingCycle = billingCycle ?? stored?.billingCycle ?? 'monthly';
+        setupFee = setupFee === undefined ? (stored?.setupFee ?? null) : setupFee;
+        trialDays = trialDays === undefined ? (stored?.trialDays ?? 0) : trialDays;
+        storeLimit = storeLimit === undefined ? (stored?.storeLimit ?? null) : storeLimit;
       }
 
       const { error } = await supabase.rpc('upsert_product_plan', {
@@ -500,10 +539,44 @@ export class PlatformAdminService {
         p_sort_order: input.sortOrder ?? null,
         p_note: input.note ?? null,
         p_billing_cycle: billingCycle,
+        p_setup_fee: setupFee,
+        p_trial_days: trialDays,
+        p_store_limit: storeLimit,
       });
       if (error) throw error;
     } catch (error) {
       console.error('Save product plan error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Publishes a plan: draft → published, with a note and an optional effective
+   * date. Publishing is deliberately separate from editing — `upsert_product_plan`
+   * writes the row and journals an `updated` revision, while this stamps
+   * `published_at` / `effective_from` and journals `published`, which is what
+   * makes "preview before publishing" mean something.
+   *
+   * `p_effective_from` NULL publishes immediately. The date is sent as a
+   * timestamp for the same reason the adjustment form does: the day stored is the
+   * day the operator typed in their own timezone.
+   */
+  static async publishPlan(input: {
+    productKey: string;
+    planKey: string;
+    note?: string | null;
+    effectiveFrom?: string | null;
+  }): Promise<void> {
+    try {
+      const { error } = await supabase.rpc('publish_product_plan', {
+        p_product_key: input.productKey,
+        p_plan_key: input.planKey,
+        p_note: input.note ?? null,
+        p_effective_from: input.effectiveFrom ?? null,
+      });
+      if (error) throw error;
+    } catch (error) {
+      console.error('Publish product plan error:', error);
       throw error;
     }
   }

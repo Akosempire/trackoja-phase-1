@@ -1,14 +1,14 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   ANNUAL_SAVINGS_LABEL,
   BUSINESS_TYPES,
   CAPABILITIES,
   COMPANY_NAME,
+  CONTACT_EMAIL,
   NAV_LINKS,
   OTHER_BUSINESSES,
   OWNER_VIEW_ROWS,
-  PLANS,
   STAFF_VIEW_ROWS,
   STAFF_VIEW_TOTAL,
   STEPS,
@@ -16,8 +16,11 @@ import {
   billingNote,
   monthsFree,
   priceFor,
+  toPricingPlans,
   type BillingCycle,
+  type PricingPlan,
 } from './landingContent';
+import { SubscriptionService } from '../../services/subscription.service';
 import { PhonePreview } from './PhonePreview';
 import { useRevealOnScroll } from './useRevealOnScroll';
 import {
@@ -35,17 +38,64 @@ import '../../styles/landing.css';
 
 const CAPABILITY_ICONS = [IconSales, IconStock, IconCustomers, IconReports];
 
+/** Loading placeholders: the same grid, filled with the same card shape. */
+const PRICE_CARD_PLACEHOLDERS = [1, 2, 3, 4];
+const PRICE_FEATURE_PLACEHOLDERS = [1, 2, 3, 4, 5];
+
+/**
+ * The pricing section's state. `unavailable` is a real answer, not an error
+ * state to paper over: the page has no price list of its own to fall back on.
+ */
+type PricingState =
+  | { status: 'loading' }
+  | { status: 'ready'; plans: PricingPlan[] }
+  | { status: 'unavailable'; cause: 'failed' | 'empty' };
+
 export default function LandingPage() {
   useRevealOnScroll();
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [billing, setBilling] = useState<BillingCycle>('monthly');
   const [activeBusinessId, setActiveBusinessId] = useState(BUSINESS_TYPES[0].id);
+  const [pricing, setPricing] = useState<PricingState>({ status: 'loading' });
 
   const activeBusiness = useMemo(
     () => BUSINESS_TYPES.find((b) => b.id === activeBusinessId) ?? BUSINESS_TYPES[0],
     [activeBusinessId]
   );
+
+  // The published catalogue is the only source of prices on this page. One read
+  // on mount, and no fallback ladder: if it fails, saying prices are unavailable
+  // beats showing a prospect numbers that no longer match what they are charged.
+  useEffect(() => {
+    let active = true;
+
+    SubscriptionService.getPublishedPlans()
+      .then((published) => {
+        if (!active) return;
+        setPricing(
+          published.length === 0
+            ? { status: 'unavailable', cause: 'empty' }
+            : { status: 'ready', plans: toPricingPlans(published) }
+        );
+      })
+      .catch(() => {
+        if (active) setPricing({ status: 'unavailable', cause: 'failed' });
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  // useRevealOnScroll observes the [data-reveal] nodes that exist on mount, so
+  // cards that arrive with the fetch would stay at opacity 0. Reveal them here
+  // as they mount; the section head and toggle keep their scroll reveal.
+  useEffect(() => {
+    document
+      .querySelectorAll<HTMLElement>('#pricing .lp-price-grid [data-reveal]')
+      .forEach((node) => node.classList.add('is-revealed'));
+  }, [pricing]);
 
   const closeMenu = () => setMenuOpen(false);
 
@@ -406,58 +456,107 @@ export default function LandingPage() {
               </p>
             </div>
 
-            <div className="lp-grid lp-grid-4 lp-price-grid">
-              {PLANS.map((plan) => {
-                const price = priceFor(plan, billing);
-                const saving = monthsFree(plan.monthlyPrice, plan.annualPrice);
-                return (
-                  <article
-                    className={`lp-price-card${plan.featured ? ' is-featured' : ''}`}
-                    key={plan.id}
-                    data-reveal
-                  >
-                    {plan.featured && <span className="lp-price-flag">Recommended</span>}
-                    <h3 className="lp-price-name">{plan.name}</h3>
-                    <p className="lp-price-desc">{plan.description}</p>
+            {pricing.status === 'loading' && (
+              <>
+                <p className="sr-only" role="status">
+                  Loading published plans
+                </p>
+                <div className="lp-grid lp-grid-4 lp-price-grid" aria-hidden="true">
+                  {PRICE_CARD_PLACEHOLDERS.map((card) => (
+                    <article className="lp-price-card" key={card}>
+                      <span className="skeleton skeleton-text is-short" />
+                      <span className="skeleton skeleton-text" />
+                      <span className="skeleton skeleton-text is-short" />
+                      <ul className="lp-price-features">
+                        {PRICE_FEATURE_PLACEHOLDERS.map((line) => (
+                          <li key={line}>
+                            <span className="skeleton skeleton-text" />
+                          </li>
+                        ))}
+                      </ul>
+                      <span className="skeleton skeleton-card" />
+                    </article>
+                  ))}
+                </div>
+              </>
+            )}
 
-                    <p className="lp-price-amount">
-                      <span className="lp-price-value">{price.amount}</span>
-                      {price.suffix && <span className="lp-price-suffix">{price.suffix}</span>}
-                    </p>
-                    <p className="lp-price-meta">
-                      {plan.userLimit}
-                      {billing === 'annual' && saving > 0 && (
-                        <span className="lp-price-save"> · save {saving} months</span>
+            {pricing.status === 'ready' && (
+              <div className="lp-grid lp-grid-4 lp-price-grid">
+                {pricing.plans.map((plan) => {
+                  const price = priceFor(plan, billing);
+                  const saving = monthsFree(plan.monthlyPrice, plan.annualPrice);
+                  return (
+                    <article
+                      className={`lp-price-card${plan.featured ? ' is-featured' : ''}`}
+                      key={plan.id}
+                      data-reveal
+                    >
+                      {plan.featured && <span className="lp-price-flag">Recommended</span>}
+                      <h3 className="lp-price-name">{plan.name}</h3>
+                      <p className="lp-price-desc">{plan.description}</p>
+
+                      <p className="lp-price-amount">
+                        <span className="lp-price-value">{price.amount}</span>
+                        {price.suffix && <span className="lp-price-suffix">{price.suffix}</span>}
+                      </p>
+                      <p className="lp-price-meta">
+                        {plan.userLimit}
+                        {billing === 'annual' && saving > 0 && (
+                          <span className="lp-price-save"> · save {saving} months</span>
+                        )}
+                      </p>
+
+                      <ul className="lp-price-features">
+                        {plan.features.map((feature) => (
+                          <li key={feature.key ?? feature.label}>
+                            <span className="lp-check" aria-hidden="true">
+                              <IconCheck />
+                            </span>
+                            <span>{feature.label}</span>
+                            {feature.upcoming && <span className="lp-soon">Upcoming</span>}
+                          </li>
+                        ))}
+                      </ul>
+
+                      {plan.onboardingNote && (
+                        <p className="lp-price-onboarding">{plan.onboardingNote}</p>
                       )}
-                    </p>
 
-                    <ul className="lp-price-features">
-                      {plan.features.map((feature) => (
-                        <li key={feature.label}>
-                          <span className="lp-check" aria-hidden="true">
-                            <IconCheck />
-                          </span>
-                          <span>{feature.label}</span>
-                          {feature.upcoming && <span className="lp-soon">Upcoming</span>}
-                        </li>
-                      ))}
-                    </ul>
+                      {plan.ctaHref.startsWith('mailto:') ? (
+                        <a className="lp-btn lp-btn-outline lp-price-cta" href={plan.ctaHref}>
+                          {plan.ctaLabel}
+                        </a>
+                      ) : (
+                        <Link className="lp-btn lp-btn-primary lp-price-cta" to={plan.ctaHref}>
+                          {plan.ctaLabel}
+                        </Link>
+                      )}
+                    </article>
+                  );
+                })}
+              </div>
+            )}
 
-                    <p className="lp-price-onboarding">{plan.onboardingNote}</p>
-
-                    {plan.ctaHref.startsWith('mailto:') ? (
-                      <a className="lp-btn lp-btn-outline lp-price-cta" href={plan.ctaHref}>
-                        {plan.ctaLabel}
-                      </a>
-                    ) : (
-                      <Link className="lp-btn lp-btn-primary lp-price-cta" to={plan.ctaHref}>
-                        {plan.ctaLabel}
-                      </Link>
-                    )}
-                  </article>
-                );
-              })}
-            </div>
+            {pricing.status === 'unavailable' && (
+              <p className="lp-callout" role="status">
+                {pricing.cause === 'failed' ? (
+                  <>
+                    We could not load our plans, so no price is shown here — we would rather say
+                    that than quote a figure that may be out of date. Email{' '}
+                    <a className="lp-footer-link" href={`mailto:${CONTACT_EMAIL}`}>
+                      {CONTACT_EMAIL}
+                    </a>{' '}
+                    and we will confirm current pricing.
+                  </>
+                ) : (
+                  <>
+                    No plans are published right now, so there is no pricing on this page. Please
+                    check back shortly.
+                  </>
+                )}
+              </p>
+            )}
 
             <p className="lp-compare" data-reveal>
               <span className="lp-compare-label">Compare all features</span>

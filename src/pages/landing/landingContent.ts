@@ -1,21 +1,39 @@
 // Public landing page content.
 //
-// Copy and figures here are the single source of truth for the marketing page so
-// they can be reviewed without reading JSX. Everything is plain data plus a few
-// pure helpers, which keeps it testable in tests/landing.test.ts.
+// Copy here is the single source of truth for the marketing page so it can be
+// reviewed without reading JSX. Everything is plain data plus a few pure
+// helpers, which keeps it testable in tests/landing.test.ts.
+//
+// Prices are deliberately NOT in this file. The plan ladder is typed into the
+// platform console, which writes `product_plans`, so a price literal here is a
+// duplicate that no admin edit can reach and that drifts from what customers are
+// actually charged. The page reads the published catalogue
+// (`list_published_plans` through `SubscriptionService.getPublishedPlans`) and
+// shapes it for the pricing section with `toPricingPlans` below.
 //
 // Accuracy rule for this file: a feature that the product does not ship yet must
 // be marked `upcoming: true` so the page can label it instead of claiming it.
 
+import type { PublishedPlan } from '../../services/subscription.service';
+
 export type BillingCycle = 'monthly' | 'annual';
 
 export interface PlanFeature {
+  /** The catalogue's own feature key, so a card keys its list by identity. */
+  key?: string;
   label: string;
   /** Not shipped yet - rendered with an "Upcoming" marker. */
   upcoming?: boolean;
 }
 
-export interface LandingPlan {
+/**
+ * A published plan, shaped for what the pricing section renders.
+ *
+ * Every figure is carried over from the catalogue and none is derived from copy
+ * in this file: a null price pair means the tier is published without a listed
+ * price and is sold by conversation, not that a price was unavailable.
+ */
+export interface PricingPlan {
   id: string;
   name: string;
   description: string;
@@ -24,11 +42,23 @@ export interface LandingPlan {
   annualPrice: number | null;
   userLimit: string;
   features: PlanFeature[];
-  onboardingNote: string;
+  /** The catalogue's own onboarding terms, or null when it states none. */
+  onboardingNote: string | null;
   ctaLabel: string;
   ctaHref: string;
   /** Visually emphasised card. */
-  featured?: boolean;
+  featured: boolean;
+}
+
+/** The price fields any published plan exposes. `PublishedPlan` satisfies this. */
+export interface PricedPlan {
+  monthlyPrice: number | null;
+  annualPrice: number | null;
+}
+
+/** A plan the catalogue publishes without prices is sold by conversation. */
+export function isCustomPriced(plan: PricedPlan): boolean {
+  return plan.monthlyPrice === null || plan.annualPrice === null;
 }
 
 /**
@@ -41,83 +71,7 @@ export const COMPANY_NAME = 'Mercurius Merchandise Limited';
 
 // ---------------------------------------------------------------- pricing
 
-export const PLANS: LandingPlan[] = [
-  {
-    id: 'starter',
-    name: 'Starter',
-    description: 'For a single owner getting organised, with room for one team member.',
-    monthlyPrice: 5000,
-    annualPrice: 50000,
-    userLimit: 'Up to 2 users',
-    features: [
-      { label: 'Sales recording and checkout' },
-      { label: 'Products and stock' },
-      { label: 'Customers and credit records' },
-      { label: 'Sales and inventory reports' },
-      { label: 'Expenses and supplier records', upcoming: true },
-    ],
-    onboardingNote: 'No setup fee when you add and manage your products yourself.',
-    ctaLabel: 'Choose Starter',
-    ctaHref: '/signup?plan=starter',
-  },
-  {
-    id: 'standard',
-    name: 'Standard',
-    description: 'For a single shop getting its sales, stock, and customers into one place.',
-    monthlyPrice: 22500,
-    annualPrice: 225000,
-    userLimit: 'Up to 5 users',
-    features: [
-      { label: 'Sales recording and checkout' },
-      { label: 'Products and stock' },
-      { label: 'Customers and credit records' },
-      { label: 'Sales and inventory reports' },
-      { label: 'Expenses and supplier records', upcoming: true },
-    ],
-    onboardingNote: 'No setup fee when you add and manage your products yourself.',
-    ctaLabel: 'Choose Standard',
-    ctaHref: '/signup?plan=standard',
-  },
-  {
-    id: 'premium',
-    name: 'Premium',
-    description: 'For busier shops that need staff controls and deeper inventory.',
-    monthlyPrice: 45000,
-    annualPrice: 450000,
-    userLimit: 'Up to 10 users',
-    features: [
-      { label: 'Everything in Standard' },
-      { label: 'POS device support' },
-      { label: 'Advanced inventory' },
-      { label: 'Receivables and payables', upcoming: true },
-      { label: 'Staff management' },
-      { label: 'Performance reports' },
-    ],
-    onboardingNote: 'Implementation is scoped and quoted based on the help required.',
-    ctaLabel: 'Choose Premium',
-    ctaHref: '/signup?plan=premium',
-    featured: true,
-  },
-  {
-    id: 'custom',
-    name: 'Custom',
-    description: 'For groups that need tailored workflows and dedicated support.',
-    monthlyPrice: null,
-    annualPrice: null,
-    userLimit: 'Custom users',
-    features: [
-      { label: 'Multiple companies', upcoming: true },
-      { label: 'Integrations' },
-      { label: 'Executive reporting' },
-      { label: 'Dedicated support' },
-    ],
-    onboardingNote: 'Custom implementation.',
-    ctaLabel: 'Talk to Sales',
-    ctaHref: `mailto:${CONTACT_EMAIL}?subject=TrackOja%20Custom%20enquiry`,
-  },
-];
-
-/** `₦22500` -> `₦22,500`. Deterministic (no locale data needed). */
+/** `₦1234` -> `₦1,234`. Deterministic (no locale data needed). */
 export function formatNaira(value: number): string {
   return `₦${Math.round(value)
     .toString()
@@ -138,13 +92,23 @@ export interface PriceDisplay {
   suffix: string;
 }
 
-export function priceFor(plan: LandingPlan, cycle: BillingCycle): PriceDisplay {
-  if (plan.monthlyPrice === null || plan.annualPrice === null) {
+export function priceFor(plan: PricedPlan, cycle: BillingCycle): PriceDisplay {
+  const { monthlyPrice, annualPrice } = plan;
+  if (monthlyPrice === null || annualPrice === null) {
     return { amount: 'Custom pricing', suffix: '' };
   }
   return cycle === 'annual'
-    ? { amount: formatNaira(plan.annualPrice), suffix: '/year' }
-    : { amount: formatNaira(plan.monthlyPrice), suffix: '/month' };
+    ? { amount: formatNaira(annualPrice), suffix: '/year' }
+    : { amount: formatNaira(monthlyPrice), suffix: '/month' };
+}
+
+/**
+ * The seat line, from the plan's published seat limit. A plan published without
+ * one has no number to quote, so it says so instead of guessing a figure.
+ */
+export function seatLabel(userLimit: number | null): string {
+  if (userLimit === null || userLimit <= 0) return 'Custom users';
+  return `Up to ${userLimit} user${userLimit === 1 ? '' : 's'}`;
 }
 
 /** The annual discount is exactly two monthly payments on every paid plan. */
@@ -155,6 +119,80 @@ export function billingNote(cycle: BillingCycle): string {
   return cycle === 'annual'
     ? `Billed once a year · ${ANNUAL_SAVINGS_LABEL}`
     : 'Billed every month';
+}
+
+export interface PlanCta {
+  label: string;
+  href: string;
+}
+
+/**
+ * The call to action for a published plan. A tier published without prices has
+ * no checkout to send anyone to, so it gets the contact address instead.
+ */
+export function ctaFor(plan: Pick<PublishedPlan, 'name' | 'key'> & PricedPlan): PlanCta {
+  if (isCustomPriced(plan)) {
+    return {
+      label: 'Talk to Sales',
+      href: `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent(`TrackOja ${plan.name} enquiry`)}`,
+    };
+  }
+  return { label: `Choose ${plan.name}`, href: `/signup?plan=${plan.key}` };
+}
+
+/**
+ * Shapes one published plan for the pricing section.
+ *
+ * Nothing is invented: a description, onboarding note or seat limit the
+ * catalogue does not state stays absent rather than being filled with plausible
+ * copy, and no price is ever produced from anything but the plan itself.
+ */
+export function toPricingPlan(plan: PublishedPlan, featured = false): PricingPlan {
+  const cta = ctaFor(plan);
+  return {
+    id: plan.id,
+    name: plan.name,
+    description: plan.description ?? '',
+    monthlyPrice: plan.monthlyPrice,
+    annualPrice: plan.annualPrice,
+    userLimit: seatLabel(plan.userLimit),
+    features: plan.features.map((feature) => ({
+      key: feature.key,
+      label: feature.label,
+      upcoming: feature.upcoming === true,
+    })),
+    onboardingNote: plan.onboardingNote,
+    ctaLabel: cta.label,
+    ctaHref: cta.href,
+    featured,
+  };
+}
+
+/**
+ * Which card carries the "Recommended" marker: the dearest published plan that
+ * has a price.
+ *
+ * The catalogue holds no marketing flag, so emphasis is a presentation choice
+ * and this keeps the one the page already made — its top buyable tier. It is
+ * deliberately not `isDefault`, which in the catalogue is the cheapest plan new
+ * signups get and is not what the page recommends.
+ */
+export function recommendedPlanId(plans: PublishedPlan[]): string | null {
+  let best: PublishedPlan | null = null;
+  for (const plan of plans) {
+    if (isCustomPriced(plan)) continue;
+    if (best === null || (plan.monthlyPrice ?? 0) > (best.monthlyPrice ?? 0)) best = plan;
+  }
+  return best?.id ?? null;
+}
+
+/**
+ * Shapes the published catalogue for the pricing section, in the order the
+ * catalogue returns (its own `sort_order`, cheapest first, negotiated last).
+ */
+export function toPricingPlans(plans: PublishedPlan[]): PricingPlan[] {
+  const featuredId = recommendedPlanId(plans);
+  return plans.map((plan) => toPricingPlan(plan, plan.id === featuredId));
 }
 
 // ---------------------------------------------------------- business types

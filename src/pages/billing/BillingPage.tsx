@@ -1,90 +1,219 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { OrganizationService } from '../../services/organization.service';
-import { SubscriptionService } from '../../services/subscription.service';
+import {
+  SubscriptionService,
+  type MyEntitlement,
+  type PublishedPlan,
+} from '../../services/subscription.service';
 import { Button } from '../../components/ui/Button';
 import { PageLoader } from '../../components/ui/PageLoader';
-import { formatFeatureSummary } from '../../utils/subscription-plan';
-import type { Organization, Subscription, SubscriptionPlan, SubscriptionTransaction } from '../../types';
+import { Badge } from '../../components/ui/Badge';
+import { StatusBadge } from '../../components/ui/StatusBadge';
+import { Disclosure } from '../../components/ui/Disclosure';
+import { MeterList, type MeterItem } from '../../components/ui/MeterList';
+import { SectionHead } from '../../components/ui/SectionHead';
+import { StateBlock } from '../../components/ui/StateBlock';
+import { useToast } from '../../components/ui/Toast';
+import { formatDate, formatMoney, formatNumber, formatRelative, formatSeatLimit } from '../../utils/format';
+import type { SubscriptionTransaction } from '../../types';
 
-const SUBSCRIPTION_STATUS_LABELS: Record<string, string> = {
-  trialing: 'Trial',
-  active: 'Active',
-  past_due: 'Past due',
-  canceled: 'Canceled',
-  unpaid: 'Unpaid',
-  paused: 'Paused',
-  expired: 'Expired',
-};
+type BillingCycle = 'monthly' | 'annual';
 
-const TRANSACTION_STATUS_LABELS: Record<string, string> = {
-  pending: 'Pending',
-  success: 'Paid',
-  failed: 'Failed',
-  abandoned: 'Abandoned',
-};
-
-const ACTIVE_SUBSCRIPTION_STATUSES = ['trialing', 'active'];
-const SUCCESS_TRANSACTION_STATUSES = ['success'];
-
-function formatDate(value: string | null): string {
-  if (!value) return '—';
-  return new Date(value).toLocaleDateString();
-}
-
+/**
+ * The customer's Billing page.
+ *
+ * Hierarchy is deliberate, because the previous version was three unrelated
+ * cards: status and the one action that matters, then what this plan actually
+ * includes with real usage, then the published plans to compare, then payments.
+ *
+ * Every plan and price on this page comes from `list_published_plans` — the same
+ * published catalogue the public pricing page reads and the platform console
+ * edits. The page previously read the legacy `subscription_plans` table, which
+ * held only Starter, so the customer could never buy the Standard or Premium
+ * tiers the rest of the product advertised.
+ */
 export default function BillingPage() {
   const { user, profile } = useAuth();
+  const toast = useToast();
   const orgId = profile?.currentOrgId;
+  const compareRef = useRef<HTMLElement>(null);
 
-  const [organization, setOrganization] = useState<Organization | null>(null);
-  const [subscription, setSubscription] = useState<Subscription | null>(null);
-  const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
+  const [entitlement, setEntitlement] = useState<MyEntitlement | null>(null);
+  const [organizationOwnerId, setOrganizationOwnerId] = useState<string | null>(null);
+  const [plans, setPlans] = useState<PublishedPlan[]>([]);
   const [transactions, setTransactions] = useState<SubscriptionTransaction[]>([]);
+  const [cycle, setCycle] = useState<BillingCycle>('monthly');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [checkoutPlanId, setCheckoutPlanId] = useState<string | null>(null);
+  const [catalogueProblem, setCatalogueProblem] = useState<string | null>(null);
 
-  const isOwner = !!user && !!organization && organization.ownerId === user.id;
+  // Checkout is owner-only server-side; this only decides whether to offer it.
+  const isOwner = !!user && !!organizationOwnerId && organizationOwnerId === user.id;
 
-  useEffect(() => {
-    if (!orgId) {
-      setLoading(false);
-      return;
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+
+    // The catalogue is not permission-bound the way the entitlement is: if the
+    // business has no plan yet, the page must still be able to offer one.
+    const [ent, org, catalogue, txns] = await Promise.allSettled([
+      SubscriptionService.getMyEntitlement(),
+      orgId ? OrganizationService.getOrganization(orgId) : Promise.resolve(null),
+      SubscriptionService.getPublishedPlans(),
+      orgId ? SubscriptionService.getTransactions(orgId) : Promise.resolve([]),
+    ]);
+
+    if (ent.status === 'fulfilled') setEntitlement(ent.value);
+    else setError(ent.reason instanceof Error ? ent.reason.message : 'Could not load your subscription.');
+
+    if (org.status === 'fulfilled' && org.value) setOrganizationOwnerId(org.value.ownerId);
+
+    if (catalogue.status === 'fulfilled') {
+      setPlans(catalogue.value);
+      setCatalogueProblem(null);
+    } else {
+      setCatalogueProblem(
+        catalogue.reason instanceof Error ? catalogue.reason.message : 'The plan catalogue could not be loaded.',
+      );
     }
 
-    setLoading(true);
-    Promise.all([
-      OrganizationService.getOrganization(orgId),
-      SubscriptionService.getOrgSubscription(orgId),
-      SubscriptionService.getPlans(),
-      SubscriptionService.getTransactions(orgId),
-    ])
-      .then(([org, sub, plansList, txns]) => {
-        setOrganization(org);
-        setSubscription(sub);
-        setPlans(plansList);
-        setTransactions(txns);
-      })
-      .catch((err) => setError(err.message ?? 'Failed to load billing information'))
-      .finally(() => setLoading(false));
+    if (txns.status === 'fulfilled') setTransactions(txns.value);
+    setLoading(false);
   }, [orgId]);
 
-  const handleUpgrade = async (planId: string) => {
-    if (!orgId) return;
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  const state = useMemo(() => {
+    if (!entitlement) {
+      return {
+        headline: 'No plan yet',
+        detail: 'Choose a plan to activate TrackOja for this business.',
+        tone: 'warning' as const,
+        action: 'Choose a plan',
+        nextDate: null as string | null,
+        nextDateLabel: null as string | null,
+      };
+    }
+
+    const { status, trialEndsAt, expiresAt, daysRemaining } = entitlement;
+    const date = trialEndsAt ?? expiresAt;
+    const lapsed = daysRemaining !== null && daysRemaining < 0;
+
+    if (status === 'past_due' || status === 'suspended' || lapsed) {
+      return {
+        headline: 'Payment needed',
+        detail:
+          status === 'suspended'
+            ? 'Access is suspended until the subscription is settled.'
+            : lapsed
+              ? 'This subscription has passed its end date.'
+              : 'The last payment did not complete.',
+        tone: 'danger' as const,
+        action: 'Fix payment',
+        nextDate: date,
+        nextDateLabel: lapsed ? 'Ended' : 'Due',
+      };
+    }
+
+    if (status === 'pending') {
+      return {
+        headline: 'On trial',
+        detail: entitlement.planName ? `${entitlement.planName} trial` : 'Trial period',
+        tone: 'warning' as const,
+        action: 'Choose a plan',
+        nextDate: date,
+        nextDateLabel: date ? 'Trial ends' : null,
+      };
+    }
+
+    if (status === 'cancelled' || status === 'expired') {
+      return {
+        headline: 'Subscription ended',
+        detail: 'Reactivate to restore access.',
+        tone: 'danger' as const,
+        action: 'Choose a plan',
+        nextDate: null,
+        nextDateLabel: null,
+      };
+    }
+
+    return {
+      headline: 'Active',
+      detail: entitlement.planName ?? 'Subscribed',
+      tone: 'success' as const,
+      action: daysRemaining !== null && daysRemaining <= 30 ? 'Renew' : 'Change plan',
+      nextDate: date,
+      nextDateLabel: date ? 'Renews' : null,
+    };
+  }, [entitlement]);
+
+  const usage = useMemo<MeterItem[]>(() => {
+    if (!entitlement) return [];
+
+    /*
+     * A bar only means something when there is a ceiling. `user_limit` is -1 for
+     * unlimited and NULL for a bespoke deal, and in both cases drawing a bar
+     * would imply a limit that does not exist — worse, filling it to 100% would
+     * read as "at capacity". With no ceiling the row shows the count alone.
+     */
+    function usageItem(label: string, used: number, limit: number | null): MeterItem {
+      const ceiling = limit !== null && limit > 0 ? limit : null;
+      return {
+        label,
+        value: used,
+        display: ceiling
+          ? `${formatNumber(used)} of ${formatNumber(ceiling)}`
+          : limit === -1
+            ? `${formatNumber(used)} · unlimited`
+            : `${formatNumber(used)} · agreed per deal`,
+        max: ceiling ?? 0,
+        warnAt: 0.8,
+        dangerAt: 1,
+        tone: ceiling === null ? 'muted' : undefined,
+      };
+    }
+
+    return [
+      usageItem('Users', entitlement.seatsUsed, entitlement.agreedUserLimit),
+      usageItem('Stores', entitlement.storesUsed, entitlement.agreedStoreLimit),
+    ];
+  }, [entitlement]);
+
+  const currentPlanId = entitlement?.planId ?? null;
+  const currentPlan = plans.find((plan) => plan.id === currentPlanId) ?? null;
+  const featureList = currentPlan?.features ?? [];
+
+  function priceFor(plan: PublishedPlan, which: BillingCycle): number | null {
+    return which === 'monthly' ? plan.monthlyPrice : plan.annualPrice;
+  }
+
+  async function handleCheckout(plan: PublishedPlan) {
     setError(null);
-    setCheckoutPlanId(planId);
+    setCheckoutPlanId(plan.id);
     try {
-      const { authorizationUrl } = await SubscriptionService.initiateCheckout(
-        orgId,
-        planId,
-        `${window.location.origin}/billing`
+      if (!isOwner) throw new Error('Only the business owner can change the subscription.');
+      const { authorizationUrl } = await SubscriptionService.startPlanCheckout(
+        plan.id,
+        cycle,
+        `${window.location.origin}/billing`,
       );
       window.location.href = authorizationUrl;
-    } catch (err: any) {
-      setError(err.message ?? 'Failed to start checkout');
+    } catch (cause) {
+      const message = cause && typeof cause === 'object' && 'message' in cause
+        ? String((cause as { message: unknown }).message)
+        : 'Could not start checkout.';
+      toast.error(message);
       setCheckoutPlanId(null);
     }
-  };
+  }
+
+  function scrollToPlans() {
+    compareRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
 
   if (loading) return <PageLoader />;
 
@@ -93,106 +222,225 @@ export default function BillingPage() {
       <div className="page-header">
         <div>
           <h1 className="page-title">Billing</h1>
-          <p className="page-subtitle">Manage your subscription plan</p>
         </div>
       </div>
 
-      {error && <div className="alert alert-error">{error}</div>}
+      {error && <div className="alert alert-error" role="alert">{error}</div>}
 
-      <div className="card">
-        <p className="list-item-title" style={{ marginBottom: 8 }}>
-          Current plan
-        </p>
-        <div className="total-row">
-          <span>Plan</span>
-          <span>{subscription?.plan?.name ?? '—'}</span>
+      {/* ── Status and the one action that matters ───────────────── */}
+      <section className="card">
+        <div className="split-head">
+          <div className="split-head-text">
+            <p className="attention-title">
+              {entitlement?.planName ?? 'No plan'} <StatusBadge status={entitlement?.status ?? 'none'} />
+            </p>
+            <p className="attention-meta">
+              {state.detail}
+              {state.nextDate && state.nextDateLabel
+                ? ` · ${state.nextDateLabel} ${formatDate(state.nextDate)} (${formatRelative(state.nextDate)})`
+                : ''}
+              {entitlement?.billingCycle ? ` · billed ${entitlement.billingCycle}` : ''}
+            </p>
+          </div>
+          <Button variant={state.tone === 'danger' ? 'danger' : 'primary'} onClick={scrollToPlans}>
+            {state.action}
+          </Button>
         </div>
-        <div className="total-row">
-          <span>Status</span>
-          <span
-            className={`badge ${
-              subscription && ACTIVE_SUBSCRIPTION_STATUSES.includes(subscription.status)
-                ? 'badge-default'
-                : 'badge-warning'
-            }`}
-          >
-            {subscription ? SUBSCRIPTION_STATUS_LABELS[subscription.status] ?? subscription.status : '—'}
-          </span>
-        </div>
-        {subscription?.status === 'trialing' && (
-          <div className="total-row">
-            <span>Trial ends</span>
-            <span>{formatDate(subscription.trialEnd)}</span>
+      </section>
+
+      {/* ── What this plan includes ──────────────────────────────── */}
+      <section className="card">
+        <SectionHead title="What your plan includes" />
+        {entitlement ? (
+          <>
+            <MeterList items={usage} />
+            {featureList.length > 0 ? (
+              <>
+                <ul className="feature-list">
+                  {featureList.slice(0, 6).map((feature) => (
+                    <li key={feature.key}>
+                      {feature.label}
+                      {feature.upcoming && <> <Badge tone="outline">soon</Badge></>}
+                    </li>
+                  ))}
+                </ul>
+                {featureList.length > 6 && (
+                  <Disclosure summary={`All ${featureList.length} features`}>
+                    <ul className="feature-list">
+                      {featureList.slice(6).map((feature) => (
+                        <li key={feature.key}>
+                          {feature.label}
+                          {feature.upcoming && <> <Badge tone="outline">soon</Badge></>}
+                        </li>
+                      ))}
+                    </ul>
+                  </Disclosure>
+                )}
+              </>
+            ) : (
+              <p className="section-sub">This plan lists no individual features.</p>
+            )}
+            {entitlement.agreedMonthlyPrice !== null && (
+              <p className="section-sub">
+                {formatMoney(entitlement.agreedMonthlyPrice)} per month, agreed when this subscription was activated.
+              </p>
+            )}
+          </>
+        ) : (
+          <StateBlock
+            variant="empty"
+            title="No plan on this business"
+            body="Choose a plan below to switch TrackOja on."
+          />
+        )}
+      </section>
+
+      {/* ── Compare published plans ──────────────────────────────── */}
+      <section className="card" ref={compareRef}>
+        <SectionHead
+          title="Plans"
+          actions={
+            <div className="toolbar-group">
+              <button
+                type="button"
+                className={`chip${cycle === 'monthly' ? ' active' : ''}`}
+                aria-pressed={cycle === 'monthly'}
+                onClick={() => setCycle('monthly')}
+              >
+                Monthly
+              </button>
+              <button
+                type="button"
+                className={`chip${cycle === 'annual' ? ' active' : ''}`}
+                aria-pressed={cycle === 'annual'}
+                onClick={() => setCycle('annual')}
+              >
+                Annual
+              </button>
+            </div>
+          }
+        />
+
+        {catalogueProblem ? (
+          <StateBlock
+            variant="error"
+            title="Could not load the plans"
+            body={catalogueProblem}
+            actions={
+              <Button variant="outline" onClick={load}>
+                Try again
+              </Button>
+            }
+          />
+        ) : plans.length === 0 ? (
+          <StateBlock
+            variant="unavailable"
+            title="No published plans"
+            body="Nothing is published for sale yet."
+          />
+        ) : (
+          <div className="plan-grid">
+            {plans.map((plan) => {
+              const isCurrent = plan.id === currentPlanId;
+              const price = priceFor(plan, cycle);
+              const otherCycle = priceFor(plan, cycle === 'monthly' ? 'annual' : 'monthly');
+              const saving =
+                cycle === 'annual' && plan.monthlyPrice && plan.annualPrice
+                  ? plan.monthlyPrice * 12 - plan.annualPrice
+                  : 0;
+
+              return (
+                <div className={`plan-card${isCurrent ? ' is-current' : ''}`} key={plan.id}>
+                  <div className="plan-card-head">
+                    <span className="plan-card-name">{plan.name}</span>
+                    {isCurrent && <Badge tone="brand">Current</Badge>}
+                    {plan.isDefault && !isCurrent && <Badge tone="neutral">Most chosen</Badge>}
+                  </div>
+
+                  <p className="plan-card-price">
+                    {price === null ? (
+                      <span className="metric-value is-muted">Custom</span>
+                    ) : (
+                      <>
+                        <span className="metric-value">{formatMoney(price)}</span>
+                        <span className="plan-card-period">/{cycle === 'monthly' ? 'month' : 'year'}</span>
+                      </>
+                    )}
+                  </p>
+
+                  {price === null ? (
+                    <p className="plan-card-note">{plan.onboardingNote ?? 'Priced per implementation.'}</p>
+                  ) : (
+                    <p className="plan-card-note">
+                      {formatSeatLimit(plan.userLimit)} included
+                      {saving > 0 && <> · saves {formatMoney(saving)} a year</>}
+                      {otherCycle !== null && cycle === 'monthly' && plan.annualPrice !== null && (
+                        <> · {formatMoney(plan.annualPrice)} a year</>
+                      )}
+                    </p>
+                  )}
+
+                  {plan.setupFee !== null && plan.setupFee > 0 && (
+                    <p className="plan-card-note">Plus {formatMoney(plan.setupFee)} one-off implementation.</p>
+                  )}
+                  {plan.trialDays > 0 && <p className="plan-card-note">{plan.trialDays}-day trial.</p>}
+
+                  {isCurrent ? (
+                    <Button variant="outline" disabled>
+                      Your plan
+                    </Button>
+                  ) : price === null ? (
+                    <a className="btn btn-outline" href={`mailto:${CONTACT_FALLBACK}?subject=TrackOja%20${encodeURIComponent(plan.name)}`}>
+                      <span className="btn-label">Talk to us</span>
+                    </a>
+                  ) : (
+                    <Button
+                      onClick={() => handleCheckout(plan)}
+                      loading={checkoutPlanId === plan.id}
+                      disabled={!isOwner}
+                    >
+                      {entitlement ? 'Switch to this plan' : 'Choose this plan'}
+                    </Button>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
-        <div className="total-row grand">
-          <span>Current period ends</span>
-          <span>{formatDate(subscription?.currentPeriodEnd ?? null)}</span>
-        </div>
-      </div>
 
-      <div className="card">
-        <p className="list-item-title" style={{ marginBottom: 8 }}>
-          Available plans
-        </p>
-        <div className="list">
-          {plans.map((plan) => {
-            const isCurrent = plan.id === subscription?.planId;
-            return (
-              <div key={plan.id} className="list-item">
-                <div>
-                  <div className="list-item-title">
-                    {plan.name} {isCurrent && <span className="badge badge-default">Current</span>}
-                  </div>
-                  {plan.description && <div className="page-subtitle">{plan.description}</div>}
-                  <div>
-                    ₦{plan.price.toLocaleString()}
-                    {plan.price > 0 ? ` / ${plan.billingInterval === 'yearly' ? 'year' : 'month'}` : ''}
-                  </div>
-                  <div className="page-subtitle">{formatFeatureSummary(plan.featureSet)}</div>
-                </div>
-                {isOwner && !isCurrent && plan.price > 0 && (
-                  <Button
-                    className="btn-sm"
-                    onClick={() => handleUpgrade(plan.id)}
-                    loading={checkoutPlanId === plan.id}
-                  >
-                    Upgrade
-                  </Button>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      <div className="card">
-        <p className="list-item-title" style={{ marginBottom: 8 }}>
-          Payment history
-        </p>
-        {transactions.length === 0 ? (
-          <p className="page-subtitle">No payments yet.</p>
-        ) : (
-          transactions.map((txn) => (
-            <div key={txn.id} className="movement-row">
-              <div>
-                <div>{formatDate(txn.createdAt)}</div>
-                <div className="page-subtitle">{txn.reference}</div>
-              </div>
-              <div style={{ textAlign: 'right' }}>
-                <div>₦{txn.amount.toLocaleString()}</div>
-                <span
-                  className={`badge ${
-                    SUCCESS_TRANSACTION_STATUSES.includes(txn.status) ? 'badge-default' : 'badge-warning'
-                  }`}
-                >
-                  {TRANSACTION_STATUS_LABELS[txn.status] ?? txn.status}
-                </span>
-              </div>
-            </div>
-          ))
+        {!isOwner && (
+          <p className="section-sub">Only the business owner can change the subscription.</p>
         )}
-      </div>
+      </section>
+
+      {/* ── Payments ─────────────────────────────────────────────── */}
+      <section className="card">
+        <SectionHead title="Payments" />
+        {transactions.length === 0 ? (
+          <p className="section-sub">No payments recorded.</p>
+        ) : (
+          <div className="payment-list">
+            {transactions.slice(0, 8).map((txn) => (
+              <div className="payment-row" key={txn.id}>
+                <div className="payment-row-main">
+                  <span className="payment-amount">{formatMoney(txn.amount, txn.currency ?? 'NGN')}</span>
+                  <StatusBadge status={txn.status} />
+                </div>
+                <p className="attention-meta">
+                  {formatDate(txn.createdAt)} · <span className="mono">{txn.reference}</span>
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
     </div>
   );
 }
+
+/**
+ * Fallback contact for the Custom tier, which has no price to check out with.
+ * The published catalogue carries no contact address, so this is the only
+ * customer-facing place one is needed.
+ */
+const CONTACT_FALLBACK = 'mercuriusmerchandise@gmail.com';

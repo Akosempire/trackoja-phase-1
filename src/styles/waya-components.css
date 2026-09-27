@@ -1452,6 +1452,144 @@ button.metric:hover .metric-value {
   padding-top: var(--space-12);
 }
 
+/* ============================================================
+   Billing: status line, feature list, plan cards, payments
+   Shared by the customer Billing page and the platform console, so a plan looks
+   the same wherever it is described.
+   ============================================================ */
+
+/* A title block and its action on one line, without stretching either. */
+.split-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-16);
+  flex-wrap: wrap;
+}
+
+.split-head-text {
+  min-width: 0;
+  flex: 1;
+}
+
+/* Short enough to read, with the tail behind a disclosure rather than a wall
+   of ticked bullets. */
+.feature-list {
+  margin: var(--space-12) 0 0;
+  padding-left: var(--space-20);
+  display: grid;
+  gap: var(--space-4);
+  font-size: var(--text-body-sm);
+  color: var(--color-text);
+}
+
+.feature-list li {
+  max-width: var(--measure-prose);
+  overflow-wrap: anywhere;
+}
+
+/* The published catalogue, side by side. Each card is one decision. */
+.plan-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--space-16);
+  margin-top: var(--space-12);
+}
+
+.plan-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  padding: var(--space-16);
+  border: var(--border-hairline) solid var(--color-border-control);
+  border-radius: var(--radius-card);
+  background: var(--color-panel);
+}
+
+.plan-card.is-current {
+  border-color: var(--color-accent);
+  background: var(--brand-s);
+}
+
+.plan-card-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  flex-wrap: wrap;
+}
+
+.plan-card-name {
+  font-size: var(--text-body-lg);
+  font-weight: 600;
+  color: var(--color-text-strong);
+}
+
+.plan-card-price {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-4);
+  margin: var(--space-4) 0 0;
+}
+
+.plan-card-period {
+  font-size: var(--text-caption);
+  color: var(--color-text-muted);
+}
+
+.plan-card-note {
+  margin: 0;
+  font-size: var(--text-caption);
+  line-height: var(--leading-body);
+  color: var(--color-text-secondary);
+  max-width: var(--measure-prose);
+  overflow-wrap: anywhere;
+}
+
+/* The action sits at the bottom, so cards of unequal copy still line up. */
+.plan-card > .btn,
+.plan-card > a.btn {
+  margin-top: auto;
+  justify-content: center;
+}
+
+.payment-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.payment-row {
+  padding: var(--space-12) 0;
+  border-bottom: var(--border-hairline) solid var(--color-border);
+}
+
+.payment-row:last-child {
+  border-bottom: 0;
+}
+
+.payment-row-main {
+  display: flex;
+  align-items: center;
+  gap: var(--space-10);
+  flex-wrap: wrap;
+}
+
+.payment-amount {
+  font-size: var(--text-body-sm);
+  font-weight: 500;
+  color: var(--color-text-strong);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 600px) {
+  .plan-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .split-head .btn {
+    width: 100%;
+  }
+}
+
 @media (max-width: 600px) {
   .attention-item {
     grid-template-columns: auto minmax(0, 1fr);

@@ -1,8 +1,26 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+// Platform → Subscriptions & billing.
+//
+// Seven sections, one visible at a time. The chip row writes ?section=, so a
+// view can be linked and handed to someone else exactly as the Businesses
+// filters already are. A section this account cannot read is left out of the
+// chip row and refused if it is reached by URL — and every read behind it is
+// gated on the server, so the chip row is navigation, never access control.
+//
+//   overview       what needs a decision, and the counts behind it
+//   plans          the catalogue, the editor, publishing and the pricing history
+//   subscriptions  who is on what, and the authorised changes to it
+//   payments       the payment data that exists, and the gaps stated once
+//   activation     how money becomes access, and the activation-key lifecycle
+//   settings       the one settings surface there is, and what is inert
+//   audit          who changed a price, a payment, a subscription, a key or a setting
+
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import {
   PlatformAdminService,
   type PlanRevision,
+  type PlatformAuditLog,
+  type PlatformOverviewV2,
   type PlatformProduct,
   type ProductBusiness,
   type ProductPlan,
@@ -16,6 +34,7 @@ import {
   PlatformPageHead,
   RefreshButton,
 } from '../../../components/platform/PlatformPageHead';
+import { AttentionList, HealthyStrip, type AttentionItem } from '../../../components/ui/AttentionList';
 import { Badge } from '../../../components/ui/Badge';
 import { Button } from '../../../components/ui/Button';
 import { ConfirmDialog, Dialog } from '../../../components/ui/Dialog';
@@ -25,6 +44,7 @@ import { Disclosure } from '../../../components/ui/Disclosure';
 import { FormField } from '../../../components/ui/FormField';
 import { KpiCard, KpiGrid } from '../../../components/ui/KpiCard';
 import { MeterList, type MeterItem } from '../../../components/ui/MeterList';
+import { MetricStrip, type Metric } from '../../../components/ui/MetricStrip';
 import { Pagination } from '../../../components/ui/Pagination';
 import { SectionHead } from '../../../components/ui/SectionHead';
 import { SectionState, StateBlock } from '../../../components/ui/StateBlock';
@@ -42,6 +62,7 @@ import {
   formatDate,
   formatDateTime,
   formatMoney,
+  formatMoneyCompact,
   formatNumber,
   formatRelative,
   formatSeatLimit,
@@ -56,23 +77,71 @@ const PAGE_SIZE = 25;
 /** Entitlement statuses the directory endpoint can filter on (organization_products.status). */
 const ENTITLEMENT_STATUSES = ['active', 'pending', 'past_due', 'suspended', 'expired', 'cancelled'] as const;
 
-/** Permission key each panel needs. The server re-checks every one of them. */
+/** Permission key each read or write needs. The server re-checks every one of them. */
 const PERMISSIONS = {
-  /** Reads the catalogue, the pricing history and revenue. */
+  /** Overview, catalogue, pricing history and revenue reporting. */
   view: 'platform:view',
-  /** Serves the entitlement directory and one business's agreed deal. */
+  /** The subscription directory and one business's agreed deal. */
   entitlements: 'platform:manage_businesses',
-  /** Records and lists subscription adjustments. */
+  /** Reading and recording subscription adjustments. */
   payments: 'platform:manage_payments',
-  /** Writes a plan. */
+  /** Writing a plan, and publishing it. */
   plans: 'platform:manage_plans',
+  /** The activation-key lifecycle summary; the key list lives in its own area. */
+  activation: 'platform:manage_activation',
+  /** The billing settings this area reports on. */
+  settings: 'platform:manage_settings',
+  /** The billing audit trail. */
+  audit: 'platform:view_audit',
 } as const;
 
+/** list_platform_audit_logs accepts this as a fallback for platform:view_audit. */
+const AUDIT_FALLBACK = 'platform:support';
+
+type SectionId = 'overview' | 'plans' | 'subscriptions' | 'payments' | 'activation' | 'settings' | 'audit';
+
+interface Section {
+  id: SectionId;
+  label: string;
+  /** Any one of these opens the section. The server re-checks every call behind it. */
+  permissions: string[];
+}
+
+const SECTIONS: Section[] = [
+  { id: 'overview', label: 'Overview', permissions: [PERMISSIONS.view] },
+  { id: 'plans', label: 'Plans & pricing', permissions: [PERMISSIONS.plans] },
+  { id: 'subscriptions', label: 'Subscriptions', permissions: [PERMISSIONS.payments] },
+  { id: 'payments', label: 'Payments & invoices', permissions: [PERMISSIONS.payments] },
+  { id: 'activation', label: 'Activation & access', permissions: [PERMISSIONS.activation] },
+  { id: 'settings', label: 'Billing settings', permissions: [PERMISSIONS.settings] },
+  { id: 'audit', label: 'Audit trail', permissions: [PERMISSIONS.audit, AUDIT_FALLBACK] },
+];
+
 /**
- * Capabilities this screen has no backend for.
+ * Which section an inbound link opens.
+ *
+ * The dashboard links straight at /platform/billing?filter=…, written before
+ * this area had sections, so a filter, a search or a page with no explicit
+ * ?section= still opens the list it was pointing at rather than the Overview.
+ */
+function resolveSection(requested: string | null, params: URLSearchParams): SectionId {
+  if (requested !== null && SECTIONS.some((section) => section.id === requested)) {
+    return requested as SectionId;
+  }
+  const filter = params.get('filter') ?? '';
+  if (filter === 'failed') return 'payments';
+  if (filter !== '' || params.has('status') || params.has('q') || params.has('product') || params.has('plan')) {
+    return 'subscriptions';
+  }
+  return 'overview';
+}
+
+/**
+ * Capabilities this area has no backend for.
  *
  * Each is a named, verifiable absence rather than a placeholder: the console
- * states what is missing instead of drawing a figure that looks healthy.
+ * states what is missing instead of drawing a figure that looks healthy. Listed
+ * once here, and stated again in the one line beside the data each one affects.
  */
 const NOT_BUILT: { title: string; detail: string }[] = [
   {
@@ -99,6 +168,73 @@ const NOT_BUILT: { title: string; detail: string }[] = [
     title: 'Platform-wide transaction list',
     detail: 'No endpoint lists individual subscription transactions.',
   },
+  {
+    title: 'Gateway configuration',
+    detail: 'Paystack and OPay credentials live only in Edge Function environment variables.',
+  },
+];
+
+/**
+ * The audit actions this area writes.
+ *
+ * `list_platform_audit_logs` matches p_action with ILIKE '%…%', so one filter
+ * cannot cover all four families and the section merges four reads instead. The
+ * call sites are create_audit_log() in
+ * 20260926000069_platform_products_functions.sql (plans) and
+ * 20260927000089_platform_owner_hardening.sql (keys, adjustments, settings).
+ */
+const AUDIT_ACTION_FILTERS = ['PLAN', 'SUBSCRIPTION', 'ACTIVATION_KEY', 'PLATFORM_SETTING'] as const;
+
+/** Rows read per family, and the merged cap. */
+const AUDIT_LIMIT = 25;
+
+const AUDIT_ACTIONS: { action: string; means: string }[] = [
+  { action: 'PLAN_CREATED', means: 'A plan was added (upsert_product_plan).' },
+  {
+    action: 'PLAN_UPDATED',
+    means: 'A price, seat limit, feature list or status changed. The previous values are in the row.',
+  },
+  {
+    action: 'PLAN_PUBLISHED',
+    means: 'A plan was published, with the before/after pair of its publication state and prices. Platform-scoped, so it carries no business.',
+  },
+  {
+    action: 'SUBSCRIPTION_ADJUSTED',
+    means: 'A plan change, extension, suspension, cancellation or reactivation, with its reason and a before/after snapshot.',
+  },
+  {
+    action: 'ACTIVATION_KEY_ISSUED',
+    means: 'A key was issued. The code is stored masked to its last four characters.',
+  },
+  {
+    action: 'ACTIVATION_KEY_REVOKED',
+    means: 'A key was revoked, with the reason when one was given.',
+  },
+  {
+    action: 'PLATFORM_SETTING_UPDATED',
+    means: 'A setting changed. This is the only place its previous value survives.',
+  },
+];
+
+/**
+ * Why the billing settings are inert.
+ *
+ * Verified by reading the migrations rather than inferred from the key name: no
+ * function or policy reads any of the three, which is what the row says.
+ */
+const INERT_SETTINGS: { key: string; note: string }[] = [
+  {
+    key: 'billing.trial_days',
+    note: 'No code grants a trial from this value. Trial length reaches an entitlement through trial_ends_at, written when access is granted.',
+  },
+  {
+    key: 'billing.annual_months_free',
+    note: 'Nothing computes an annual price from it. The annual figure is product_plans.annual_price as entered; the catalogue compares the two and reports a disagreement.',
+  },
+  {
+    key: 'billing.currency',
+    note: 'Plans carry their own currency column, which is what billing uses.',
+  },
 ];
 
 // ------------------------------------------------------------------ helpers
@@ -122,6 +258,16 @@ function messageOf(cause: unknown): string {
 /** require_platform_permission raises these, so they are worth distinguishing. */
 function isPermissionDenied(message: string): boolean {
   return /permission denied/i.test(message);
+}
+
+/**
+ * True when the failure is a missing function rather than a refusal.
+ *
+ * PostgREST answers an unknown function with a schema cache error, and that is
+ * the one failure an operator can act on: the migration has not been applied.
+ */
+function looksUndeployed(message: string): boolean {
+  return /schema cache|could not find the function|does not exist|404/i.test(message);
 }
 
 function asNumber(value: unknown): number | null {
@@ -150,6 +296,23 @@ function nullIfBlank(value: string): string | null {
 /** Seat limits arrive as unknown from JSON payloads; -1 is unlimited, NULL custom. */
 function seatLabelFromJson(value: unknown): string {
   return formatSeatLimit(asNumber(value));
+}
+
+/** Store caps share user_limit's semantics (-1 unlimited, NULL custom) but not its noun. */
+function storeLimitLabel(limit: number | null): string {
+  if (limit === null) return 'Custom';
+  if (limit === -1) return 'Unlimited';
+  return `${formatNumber(limit)} store${limit === 1 ? '' : 's'}`;
+}
+
+function storeLimitFromJson(value: unknown): string {
+  return storeLimitLabel(asNumber(value));
+}
+
+function trialDaysLabel(value: unknown): string {
+  const days = asNumber(value);
+  if (days === null) return '—';
+  return days === 0 ? 'No trial' : `${formatNumber(days)} days`;
 }
 
 /** The server takes TIMESTAMPTZ; the form collects a date. */
@@ -202,18 +365,66 @@ function findListPlan(plans: ProductPlan[], row: ProductBusiness): ProductPlan |
 }
 
 /**
+ * Whether a plan is on sale, by the definition list_published_plans applies.
+ *
+ * Active, publicly offered, published, and past its effective date — the one test
+ * the public pricing page and the customer Billing page both read, which is what
+ * stops the three surfaces disagreeing. A NULL effective_from fails the date test,
+ * so an unpublished row cannot leak out through it.
+ *
+ * `publishedAt === undefined` means the database predates migration 092 and the
+ * column is not returned at all: the operator's intent (active and public) is then
+ * the only thing that can be reported, and the caller says so.
+ */
+function isCustomerVisible(plan: ProductPlan, now = Date.now()): boolean {
+  if (plan.status !== 'active' || !plan.isPublic) return false;
+  if (plan.publishedAt === undefined) return true;
+  if (plan.publishedAt === null || plan.effectiveFrom === null) return false;
+  const effective = new Date(plan.effectiveFrom).getTime();
+  return !Number.isNaN(effective) && effective <= now;
+}
+
+/**
+ * What the catalogue says about a plan's publication state.
+ *
+ * Three states, not two: `undefined` means list_product_plans does not return
+ * published_at at all, which says nothing about the plan. Reporting that as
+ * "never published" would be a claim the payload does not support.
+ */
+function publicationLabel(plan: ProductPlan): { value: ReactNode; muted: boolean } {
+  if (plan.publishedAt === undefined) {
+    return { value: 'Not returned by list_product_plans, so it cannot be read here', muted: true };
+  }
+  if (plan.publishedAt === null) {
+    return { value: 'Never published — a plan is customer-visible only once it is published', muted: true };
+  }
+  return {
+    value: `${formatDateTime(plan.publishedAt)} · effective ${
+      plan.effectiveFrom ? formatDate(plan.effectiveFrom) : 'not set, so not on sale yet'
+    }`,
+    muted: false,
+  };
+}
+
+interface InboundFilter {
+  status: string;
+  /**
+   * A date window the directory endpoint cannot express, applied in this browser
+   * and stated in the interface rather than silently narrowing the rows.
+   */
+  window: 'expiring' | 'trials' | null;
+  paymentsUnavailable: boolean;
+}
+
+/**
  * Maps the ?filter= values the Overview links with onto real server filters.
  *
  * Three of them cannot be served as written: "trialing" is stored as `pending`,
- * "expiring" is a window rather than a status, and "failed" would need a
- * transaction list that does not exist. Each is translated or stated, never
- * silently dropped.
+ * "expiring" and "trials" are windows rather than statuses, and "failed" would
+ * need a transaction list that does not exist. Each is translated or stated,
+ * never silently dropped.
  */
-function resolveInboundFilter(filter: string): {
-  status: string;
-  window: 'expiring' | null;
-  paymentsUnavailable: boolean;
-} {
+function resolveInboundFilter(filter: string): InboundFilter {
   switch (filter) {
     case 'active':
     case 'pending':
@@ -224,6 +435,8 @@ function resolveInboundFilter(filter: string): {
       return { status: filter, window: null, paymentsUnavailable: false };
     case 'trialing':
       return { status: 'pending', window: null, paymentsUnavailable: false };
+    case 'trials':
+      return { status: 'pending', window: 'trials', paymentsUnavailable: false };
     case 'expiring':
       return { status: 'active', window: 'expiring', paymentsUnavailable: false };
     case 'failed':
@@ -249,6 +462,16 @@ function SectionFailure({ message, onRetry }: { message: string; onRetry: () => 
         </button>
       }
     />
+  );
+}
+
+function LoadingLines() {
+  return (
+    <div className="skeleton-inline" role="status" aria-label="Loading">
+      <span className="skeleton skeleton-text" />
+      <span className="skeleton skeleton-text" />
+      <span className="skeleton skeleton-text is-short" />
+    </div>
   );
 }
 
@@ -333,6 +556,70 @@ function useEntitlements(
   return { rows, loading, error, reload: load };
 }
 
+/** How many entitlements the browser-side date windows below are computed over. */
+const WATCHLIST_LIMIT = 200;
+
+/**
+ * Trials ending soon, and entitlements past their expiry.
+ *
+ * list_product_businesses filters on status only, so a date window cannot be
+ * asked for: the newest 200 entitlements are read and the windows applied here,
+ * exactly as the entitlement directory already applies its own. Every headline
+ * count on the Overview comes from get_platform_overview_v2 instead, so a capped
+ * read can never be mistaken for the whole directory.
+ */
+function useEntitlementWatchlist(permitted: boolean, refreshToken: number) {
+  const [rows, setRows] = useState<ProductBusiness[]>([]);
+  const [loading, setLoading] = useState(permitted);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    if (!permitted) return;
+    setLoading(true);
+    setError(null);
+    try {
+      setRows(await PlatformAdminService.listBusinesses({ limit: WATCHLIST_LIMIT }));
+    } catch (cause) {
+      setRows([]);
+      setError(messageOf(cause));
+    } finally {
+      setLoading(false);
+    }
+  }, [permitted, refreshToken]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  return { rows, loading, error, reload: load };
+}
+
+function useBillingOverview(permitted: boolean, refreshToken: number) {
+  const [data, setData] = useState<PlatformOverviewV2 | null>(null);
+  const [loading, setLoading] = useState(permitted);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    if (!permitted) return;
+    setLoading(true);
+    setError(null);
+    try {
+      setData(await PlatformAdminService.getOverview());
+    } catch (cause) {
+      setData(null);
+      setError(messageOf(cause));
+    } finally {
+      setLoading(false);
+    }
+  }, [permitted, refreshToken]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  return { data, loading, error, reload: load };
+}
+
 function useRevenue(permitted: boolean, preset: ReportDateRangePreset, refreshToken: number) {
   const [summary, setSummary] = useState<PlatformRevenueSummary | null>(null);
   const [byPlan, setByPlan] = useState<PlatformRevenueByPlan[]>([]);
@@ -391,6 +678,50 @@ function useAdjustments(permitted: boolean, refreshToken: number) {
   return { rows, loading, error, reload: load };
 }
 
+/**
+ * The billing slice of the audit trail.
+ *
+ * Four filtered reads, merged and de-duplicated. One family failing leaves the
+ * other three on screen: the failure is reported beside them rather than
+ * replacing them with an error, because a partial history is still evidence.
+ */
+function useBillingAudit(permitted: boolean, refreshToken: number) {
+  const [entries, setEntries] = useState<PlatformAuditLog[]>([]);
+  const [loading, setLoading] = useState(permitted);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    if (!permitted) return;
+    setLoading(true);
+    setError(null);
+    const results = await Promise.allSettled(
+      AUDIT_ACTION_FILTERS.map((action) => PlatformAdminService.listAuditLogs({ action, limit: AUDIT_LIMIT })),
+    );
+    const merged = new Map<string, PlatformAuditLog>();
+    let failure: string | null = null;
+    for (const result of results) {
+      if (result.status === 'fulfilled') {
+        for (const entry of result.value.entries) merged.set(entry.id, entry);
+      } else {
+        failure = messageOf(result.reason);
+      }
+    }
+    setEntries(
+      Array.from(merged.values())
+        .sort((left, right) => right.createdAt.localeCompare(left.createdAt))
+        .slice(0, AUDIT_LIMIT * 2),
+    );
+    setError(failure);
+    setLoading(false);
+  }, [permitted, refreshToken]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  return { entries, loading, error, reload: load };
+}
+
 // ------------------------------------------------------------ plan revisions
 
 interface RevisionField {
@@ -402,9 +733,22 @@ interface RevisionField {
 const REVISION_FIELDS: RevisionField[] = [
   { key: 'monthly_price', label: 'Monthly', format: (value, currency) => priceFromJson(value, currency) },
   { key: 'annual_price', label: 'Annual', format: (value, currency) => priceFromJson(value, currency) },
+  { key: 'setup_fee', label: 'Setup fee', format: (value, currency) => priceFromJson(value, currency) },
   { key: 'user_limit', label: 'Seats', format: (value) => seatLabelFromJson(value) },
+  { key: 'store_limit', label: 'Stores', format: (value) => storeLimitFromJson(value) },
+  { key: 'trial_days', label: 'Trial', format: (value) => trialDaysLabel(value) },
   { key: 'status', label: 'Status', format: (value) => humaniseToken(asText(value)) },
   { key: 'billing_cycle', label: 'Billing cycle', format: (value) => humaniseToken(asText(value)) },
+  {
+    key: 'published_at',
+    label: 'Published',
+    format: (value) => (asText(value) ? formatDateTime(asText(value)) : 'not published'),
+  },
+  {
+    key: 'effective_from',
+    label: 'Effective from',
+    format: (value) => (asText(value) ? formatDate(asText(value)) : 'not set'),
+  },
 ];
 
 /**
@@ -512,7 +856,7 @@ function validateDraft(draft: PlanDraft): string | null {
 }
 
 /** Every difference the save would write, in the order the form presents them. */
-function describePlanChanges(plan: ProductPlan, draft: PlanDraft): string[] {
+function describePlanChanges(plan: ProductPlan, draft: PlanDraft, statusAfterSave: ProductPlan['status']): string[] {
   const changes: string[] = [];
   if (draft.name.trim() !== plan.name) changes.push(`Name "${plan.name}" → "${draft.name.trim()}"`);
 
@@ -530,8 +874,8 @@ function describePlanChanges(plan: ProductPlan, draft: PlanDraft): string[] {
   if (seats !== plan.userLimit) {
     changes.push(`Seat limit ${formatSeatLimit(plan.userLimit)} → ${formatSeatLimit(seats)}`);
   }
-  if (draft.status !== plan.status) {
-    changes.push(`Status ${humaniseToken(plan.status)} → ${humaniseToken(draft.status)}`);
+  if (statusAfterSave !== plan.status) {
+    changes.push(`Status ${humaniseToken(plan.status)} → ${humaniseToken(statusAfterSave)}`);
   }
   if (draft.isDefault !== plan.isDefault) {
     changes.push(`Default plan ${plan.isDefault ? 'yes' : 'no'} → ${draft.isDefault ? 'yes' : 'no'}`);
@@ -586,7 +930,16 @@ function PlanEditDialog({ plan, siblingPlans, onClose, onSaved }: PlanEditDialog
   // TypeScript does not carry a parameter's narrowing into a nested function.
   const storedPlan = plan;
   const activeDraft = draft;
-  const changes = describePlanChanges(storedPlan, activeDraft);
+
+  /*
+   * An edit neither publishes nor unpublishes. `published_at` is absent from
+   * upsert_product_plan's ON CONFLICT DO UPDATE list by design, so a live plan
+   * stays live through a typo fix and a plan created here starts unpublished
+   * (the column defaults to NULL) — which is what makes preview-then-publish mean
+   * something. Publishing is the separate action below.
+   */
+  const statusAfterSave = activeDraft.status;
+  const changes = describePlanChanges(storedPlan, activeDraft, statusAfterSave);
   const otherDefault = siblingPlans.find((candidate) => candidate.isDefault && candidate.id !== storedPlan.id);
   const seats = parseNumberField(activeDraft.userLimit);
 
@@ -623,7 +976,7 @@ function PlanEditDialog({ plan, siblingPlans, onClose, onSaved }: PlanEditDialog
         userLimit: parseNumberField(activeDraft.userLimit),
         features: JSON.parse(activeDraft.featuresJson) as { key: string; label: string; upcoming?: boolean }[],
         onboardingNote: nullIfBlank(activeDraft.onboardingNote),
-        status: activeDraft.status,
+        status: statusAfterSave,
         isDefault: activeDraft.isDefault,
         isPublic: activeDraft.isPublic,
         sortOrder: storedPlan.sortOrder,
@@ -632,7 +985,7 @@ function PlanEditDialog({ plan, siblingPlans, onClose, onSaved }: PlanEditDialog
       toast.update(toastId, {
         variant: 'success',
         message: `${storedPlan.name} saved`,
-        description: 'Journalled in product_plan_revisions. Existing subscribers keep their agreed prices.',
+        description: `${humaniseToken(statusAfterSave)}. Journalled in product_plan_revisions. Existing subscribers keep their agreed prices.`,
       });
       onSaved();
       onClose();
@@ -652,8 +1005,10 @@ function PlanEditDialog({ plan, siblingPlans, onClose, onSaved }: PlanEditDialog
     activeDraft.isDefault && otherDefault
       ? `Making this the default also clears the flag on ${otherDefault.name}.`
       : '',
-    'No billing cycle is sent, and the function defaults a missing cycle to monthly, so an annual or custom plan resets to monthly; the revision journal records the new value.',
-    'A price change re-quotes new subscriptions only: nothing charges or credits an existing subscriber.',
+    storedPlan.publishedAt
+      ? 'This plan is already published and an edit never changes that, so it stays on sale with the new values.'
+      : 'This plan is not published. Saving does not publish it: it stays invisible to customers until it is published.',
+    'The stored billing cycle, setup fee, trial length and store cap are read back and sent unchanged, because upsert_product_plan would otherwise reset each of them to its default.',
   ]
     .filter(Boolean)
     .join(' ');
@@ -749,7 +1104,11 @@ function PlanEditDialog({ plan, siblingPlans, onClose, onSaved }: PlanEditDialog
               <option value="inactive">Inactive</option>
               <option value="retired">Retired</option>
             </select>
-            <p className="form-hint">Retired keeps the row for existing subscribers but blocks new signups.</p>
+            <p className="form-hint">
+              {statusAfterSave === 'draft'
+                ? 'A draft stays invisible to customers whatever the other switches say.'
+                : 'Retired keeps the row for existing subscribers but blocks new signups.'}
+            </p>
           </div>
         </div>
         <p className="form-hint">
@@ -835,8 +1194,8 @@ function PlanEditDialog({ plan, siblingPlans, onClose, onSaved }: PlanEditDialog
         open={stage === 'preview'}
         onClose={() => setStage('form')}
         onConfirm={save}
-        title={`Publish changes to ${plan.name}?`}
-        confirmLabel="Save price change"
+        title={`Save changes to ${plan.name}?`}
+        confirmLabel="Save plan change"
         requireReason
         reasonLabel="Change note"
         reasonHint="At least 5 characters. Written to product_plan_revisions.note and the audit trail."
@@ -846,10 +1205,196 @@ function PlanEditDialog({ plan, siblingPlans, onClose, onSaved }: PlanEditDialog
   );
 }
 
+// ---------------------------------------------------------------- publishing
+
+interface PublishPlanDialogProps {
+  plan: ProductPlan | null;
+  onClose: () => void;
+  onPublished: () => void;
+}
+
+/**
+ * Publishing, as a separate and deliberate step.
+ *
+ * publish_product_plan stamps published_at and the effective date and journals a
+ * `published` revision. The impact statement below comes from the model rather
+ * than from a guess: organization_products snapshots agreed_monthly_price,
+ * agreed_annual_price and agreed_user_limit at activation, so a published price
+ * applies to new customers only. No list of affected subscribers is drawn,
+ * because no such list exists — the snapshot is per entitlement, and nothing
+ * records which subscriptions a given price change would touch.
+ */
+function PublishPlanDialog({ plan, onClose, onPublished }: PublishPlanDialogProps) {
+  const toast = useToast();
+  const [note, setNote] = useState('');
+  const [effectiveFrom, setEffectiveFrom] = useState('');
+  const [stage, setStage] = useState<'form' | 'review'>('form');
+  const [formError, setFormError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    setNote('');
+    setEffectiveFrom('');
+    setStage('form');
+    setFormError(null);
+    setBusy(false);
+  }, [plan]);
+
+  if (!plan) return null;
+
+  const storedPlan = plan;
+
+  function review() {
+    if (note.trim().length < 5) {
+      // publish_product_plan accepts a NULL note, but an unexplained price change
+      // is exactly what the pricing history exists to prevent.
+      setFormError('Describe the change (at least 5 characters).');
+      return;
+    }
+    if (effectiveFrom !== '') {
+      const chosen = toTimestamp(effectiveFrom);
+      const startOfToday = new Date();
+      startOfToday.setHours(0, 0, 0, 0);
+      // The server's own requirement, restated with its own wording:
+      // 'The effective date cannot be in the past'.
+      if (chosen === null || new Date(chosen).getTime() < startOfToday.getTime()) {
+        setFormError('The effective date cannot be in the past');
+        return;
+      }
+    }
+    setFormError(null);
+    setStage('review');
+  }
+
+  async function publish() {
+    setBusy(true);
+    const toastId = toast.loading(`Publishing ${storedPlan.name}…`);
+    try {
+      await PlatformAdminService.publishPlan({
+        productKey: storedPlan.productKey,
+        planKey: storedPlan.key,
+        note: note.trim(),
+        effectiveFrom: toTimestamp(effectiveFrom),
+      });
+      toast.update(toastId, {
+        variant: 'success',
+        message: `${storedPlan.name} published`,
+        description:
+          'Status is now active. New subscriptions pay the published prices; existing subscribers are not repriced.',
+      });
+      onPublished();
+      onClose();
+    } catch (cause) {
+      const message = messageOf(cause);
+      const explained = looksUndeployed(message)
+        ? 'publish_product_plan is not available on this database, so nothing was published. The publishing migration has not been applied here.'
+        : message;
+      toast.update(toastId, { variant: 'error', message: 'The plan was not published', description: explained });
+      // Rethrown so the confirmation stays open showing the server's own words.
+      throw new Error(explained);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const consequence = [
+    `${formatNumber(storedPlan.subscriberCount)} subscriber${storedPlan.subscriberCount === 1 ? '' : 's'} hold this plan now, and none is repriced — agreed prices are snapshotted at activation.`,
+    `New customers pay ${priceLabel(storedPlan.monthlyPrice, storedPlan.currency)}/month, ${priceLabel(storedPlan.annualPrice, storedPlan.currency)}/year, ${formatSeatLimit(storedPlan.userLimit)} seats.`,
+    storedPlan.effectiveFrom
+      ? `This plan already has an effective date of ${formatDate(storedPlan.effectiveFrom)} and publishing keeps it: the argument is COALESCEd, so a new date is recorded only when none is set.`
+      : `Effective ${effectiveFrom ? formatDate(toTimestamp(effectiveFrom)) : 'immediately'}, and not buyable until that date arrives.`,
+    `Note: ${note.trim()}`,
+  ].join(' ');
+
+  return (
+    <>
+      <Dialog
+        open={stage === 'form'}
+        onClose={onClose}
+        title={`Publish ${storedPlan.name}`}
+        description={`${storedPlan.productName} · plan key ${storedPlan.key}. Editing wrote the draft; this is what puts it in front of customers.`}
+        footer={
+          <>
+            <Button variant="outline" onClick={onClose} disabled={busy}>
+              Cancel
+            </Button>
+            <Button onClick={review} disabled={busy}>
+              Review impact
+            </Button>
+          </>
+        }
+      >
+        <div className="callout callout-info">
+          <div>
+            <p className="callout-title">Who this reaches</p>
+            <p className="callout-text">
+              New customers only. {formatNumber(storedPlan.subscriberCount)} existing subscriber
+              {storedPlan.subscriberCount === 1 ? '' : 's'} keep the agreed monthly price, annual price and seat limit
+              snapshotted on organization_products when they activated.
+            </p>
+          </div>
+        </div>
+
+        <FormField
+          id="publish-note"
+          label="Publishing note"
+          value={note}
+          onChange={setNote}
+          placeholder="What changed, and why"
+          hint="At least 5 characters. Written to product_plan_revisions and the audit trail."
+          disabled={busy}
+        />
+
+        <FormField
+          id="publish-effective-from"
+          label="Effective from (optional)"
+          type="date"
+          value={effectiveFrom}
+          onChange={setEffectiveFrom}
+          disabled={busy}
+        />
+        <p className="form-hint">
+          Blank publishes with immediate effect; the server refuses a date in the past. Nothing schedules a future
+          date — the plan is simply not buyable until it arrives.
+        </p>
+
+        {storedPlan.publishedAt ? (
+          <p className="form-hint">
+            Already published. publish_product_plan COALESCEs both stamps, so re-publishing records the note and any
+            status change but does not move an existing effective date.
+          </p>
+        ) : null}
+
+        {storedPlan.publishedAt === undefined && (
+          <p className="form-hint">
+            list_product_plans does not return published_at on this database, so the current published stamp cannot be
+            shown — only the status above.
+          </p>
+        )}
+
+        {formError && (
+          <p className="form-error" role="alert">
+            {formError}
+          </p>
+        )}
+      </Dialog>
+
+      <ConfirmDialog
+        open={stage === 'review'}
+        onClose={() => setStage('form')}
+        onConfirm={publish}
+        title={`Publish ${plan.name}?`}
+        confirmLabel="Publish plan"
+        consequence={consequence}
+      />
+    </>
+  );
+}
+
 // --------------------------------------------------- subscription adjustment
 
 interface AdjustmentIntent {
-  value: 'upgrade' | 'downgrade' | 'extend_expiry' | 'cancel' | 'reactivate' | 'seat_change';
+  value: 'upgrade' | 'downgrade' | 'extend_expiry' | 'cancel' | 'suspend' | 'reactivate' | 'seat_change';
   label: string;
   requiresPlan: boolean;
   requiresExpiry: boolean;
@@ -860,14 +1405,15 @@ interface AdjustmentIntent {
 }
 
 /**
- * The six adjustment types this screen performs, each with the condition the
+ * The seven adjustment types this screen performs, each with the condition the
  * function actually enforces.
  *
- * record_subscription_adjustment accepts more (suspend, shorten_expiry,
- * manual_price, manual_activation); they are left out of this form rather than
- * half-built. The conditions below are quoted from
- * 20260926000071_platform_activation_support_functions.sql, lines 613-636, which
- * 20260927000089_platform_owner_hardening.sql re-created unchanged.
+ * record_subscription_adjustment accepts five more (change_plan, shorten_expiry,
+ * reinstate, manual_price, manual_activation); they are left out of this form
+ * rather than half-built, and change_plan and reinstate are each the same write as
+ * an upgrade and a reactivate. The conditions below are quoted from
+ * 20260927000089_platform_owner_hardening.sql, lines 705-841, which re-created
+ * the function from 20260926000071 unchanged in this respect.
  */
 const ADJUSTMENT_INTENTS: AdjustmentIntent[] = [
   {
@@ -912,15 +1458,25 @@ const ADJUSTMENT_INTENTS: AdjustmentIntent[] = [
       'The entitlement is marked cancelled and stamped with the time. Prices, staff and data are untouched, and adding a staff member is refused afterwards.',
   },
   {
+    value: 'suspend',
+    label: 'Suspend access',
+    requiresPlan: false,
+    requiresExpiry: false,
+    requiresSeats: false,
+    requirement: 'No extra field is required; the reason alone is enough.',
+    consequence:
+      'The entitlement stops counting as live, so the seat check refuses new staff with "This business has no active subscription". Existing staff keep working, and the agreed prices, expiry and recorded billing status are untouched.',
+  },
+  {
     value: 'reactivate',
-    label: 'Reactivate',
+    label: 'Reactivate / reinstate',
     requiresPlan: false,
     requiresExpiry: false,
     requiresSeats: false,
     requirement:
       'A plan key and a seat limit are optional; an entitlement that has already expired also needs a new expiry date.',
     consequence:
-      'The entitlement returns to active and any cancellation is cleared. A plan or seat limit supplied here also rewrites the agreed deal.',
+      'The entitlement returns to active and any cancellation is cleared, so this is also how a suspension is lifted. A plan or seat limit supplied here rewrites the agreed deal.',
   },
   {
     value: 'seat_change',
@@ -1097,7 +1653,7 @@ function SubscriptionChangeDialog({ target, plans, onClose, onRecorded }: Subscr
             {productPlans.length === 0 && (
               <p className="form-hint">
                 No plans could be read for {target.productKey}, so a plan change cannot be completed here. Expiry,
-                cancellation and seat changes still work.
+                suspension, cancellation and seat changes still work.
               </p>
             )}
           </div>
@@ -1144,7 +1700,7 @@ function SubscriptionChangeDialog({ target, plans, onClose, onRecorded }: Subscr
         onConfirm={record}
         title="Record this change?"
         confirmLabel="Record adjustment"
-        danger={intent.value === 'cancel' || intent.value === 'downgrade'}
+        danger={['cancel', 'downgrade', 'suspend'].includes(intent.value)}
         requireReason
         reasonLabel="Reason"
         reasonHint="At least 5 characters (the server refuses less). Stored on the adjustment and copied to the business's support timeline."
@@ -1198,7 +1754,7 @@ interface CompareState {
 // ------------------------------------------------------------------- screen
 
 export default function BillingArea() {
-  const { can, settings } = usePlatform();
+  const { can, settings, environment, access } = usePlatform();
   const [searchParams, setSearchParams] = useSearchParams();
 
   // Panel permissions, resolved once. The server re-checks every one of them, so
@@ -1207,10 +1763,22 @@ export default function BillingArea() {
   const mayReadEntitlements = can(PERMISSIONS.entitlements);
   const mayManagePayments = can(PERMISSIONS.payments);
   const mayManagePlans = can(PERMISSIONS.plans);
+  const mayReadAudit = can(PERMISSIONS.audit) || can(AUDIT_FALLBACK);
   const areaReachable = AREA.permissions.some((permission) => can(permission)) || mayView;
+
+  // A section is offered only when the account holds one of its permissions, and
+  // reaching it by URL shows the refusal instead of the panel.
+  const availableSections = SECTIONS.filter((candidate) =>
+    candidate.permissions.some((permission) => can(permission)),
+  );
+  const availableIds = new Set(availableSections.map((candidate) => candidate.id));
+  const section = resolveSection(searchParams.get('section'), searchParams);
+  const definition = SECTIONS.find((candidate) => candidate.id === section)!;
+  const sectionAllowed = availableIds.has(section);
 
   const inbound = resolveInboundFilter(searchParams.get('filter') ?? '');
   const productFilter = searchParams.get('product') ?? '';
+  const planFilter = searchParams.get('plan') ?? '';
   const search = searchParams.get('q') ?? '';
   const statusFilter = searchParams.get('status') ?? inbound.status;
   const expiryWindow = searchParams.has('status') ? null : inbound.window;
@@ -1224,14 +1792,20 @@ export default function BillingArea() {
   const [revisionsLoading, setRevisionsLoading] = useState(false);
   const [revisionsError, setRevisionsError] = useState<string | null>(null);
   const [editingPlan, setEditingPlan] = useState<ProductPlan | null>(null);
+  const [publishingPlan, setPublishingPlan] = useState<ProductPlan | null>(null);
   const [adjustTarget, setAdjustTarget] = useState<ProductBusiness | null>(null);
   const [agreedByOrg, setAgreedByOrg] = useState<Record<string, AgreedSnapshot>>({});
   const [compare, setCompare] = useState<CompareState | null>(null);
 
   const catalogue = useCatalogue(mayView, productFilter, refreshToken);
   const entitlements = useEntitlements(mayReadEntitlements, productFilter, search, statusFilter, page, refreshToken);
+  // Read only while the Overview is open: it is a second pass over the same
+  // directory, and no other section uses it.
+  const watchlist = useEntitlementWatchlist(mayReadEntitlements && section === 'overview', refreshToken);
+  const overview = useBillingOverview(mayView && section === 'overview', refreshToken);
   const revenue = useRevenue(mayView, preset, refreshToken);
   const adjustments = useAdjustments(mayManagePayments, refreshToken);
+  const audit = useBillingAudit(mayReadAudit && section === 'audit', refreshToken);
 
   const { plans, products } = catalogue;
   const visiblePlan = useMemo(
@@ -1262,6 +1836,24 @@ export default function BillingArea() {
     }
     void loadRevisions(selectedPlanId);
   }, [selectedPlanId, loadRevisions, refreshToken]);
+
+  /**
+   * Moves to a section, applying the filters that view is behind.
+   *
+   * An empty value clears the key, so a metric can both set what it wants and
+   * drop what would otherwise contradict it.
+   */
+  function openSection(id: SectionId, filters: Record<string, string> = {}) {
+    const next = new URLSearchParams(searchParams);
+    if (id === 'overview') next.delete('section');
+    else next.set('section', id);
+    for (const [key, value] of Object.entries(filters)) {
+      if (value) next.set(key, value);
+      else next.delete(key);
+    }
+    next.delete('page');
+    setSearchParams(next, { replace: true });
+  }
 
   /** Applies a URL filter and returns to page one, since offsets shift under it. */
   function setFilter(key: string, value: string) {
@@ -1299,18 +1891,27 @@ export default function BillingArea() {
     }
   }
 
-  // The expiry window is applied here because the directory endpoint filters on
+  // The date windows are applied here because the directory endpoint filters on
   // status only; the narrowing is stated in the UI rather than implied.
   const visibleRows = useMemo(() => {
-    if (expiryWindow !== 'expiring') return entitlements.rows;
+    let rows = entitlements.rows;
+    if (planFilter) {
+      const wanted = planFilter.trim().toLowerCase();
+      rows = rows.filter(
+        (row) =>
+          (row.planKey ?? '').toLowerCase() === wanted || (row.planName ?? '').toLowerCase() === wanted,
+      );
+    }
+    if (expiryWindow === null) return rows;
     const now = Date.now();
-    return entitlements.rows.filter((row) => {
-      const days = daysUntil(row.expiresAt, now);
+    return rows.filter((row) => {
+      const days = daysUntil(expiryWindow === 'trials' ? row.trialEndsAt : row.expiresAt, now);
       return days !== null && days >= 0 && days <= 30;
     });
-  }, [entitlements.rows, expiryWindow]);
+  }, [entitlements.rows, expiryWindow, planFilter]);
 
-  const cataloguedPlans = plans.filter((plan) => plan.isPublic && plan.status === 'active');
+  const cataloguedPlans = plans.filter((plan) => isCustomerVisible(plan));
+  const publishedStampMissing = plans.some((plan) => plan.publishedAt === undefined);
   const subscriberTotal = plans.reduce((total, plan) => total + plan.subscriberCount, 0);
   const declaredFreeMonths = asNumber(
     settings.find((setting) => setting.key === 'billing.annual_months_free')?.value,
@@ -1332,7 +1933,14 @@ export default function BillingArea() {
       title: `${humaniseToken(revision.changeType)}${revision.note ? ` — ${revision.note}` : ' — no note recorded'}`,
       meta: `${revision.changedByEmail ?? 'Unknown operator'} · ${formatDateTime(revision.createdAt)} · ${formatRelative(revision.createdAt)}`,
       text: describeRevision(revision, visiblePlan),
-      tone: revision.changeType === 'retired' ? 'danger' : revision.changeType === 'created' ? 'accent' : 'neutral',
+      tone:
+        revision.changeType === 'retired'
+          ? 'danger'
+          : revision.changeType === 'published'
+            ? 'success'
+            : revision.changeType === 'created'
+              ? 'accent'
+              : 'neutral',
     }));
   }, [revisions, visiblePlan]);
 
@@ -1390,6 +1998,22 @@ export default function BillingArea() {
     });
   }, [adjustments.rows]);
 
+  const auditEntries = useMemo<TimelineEntry[]>(() => {
+    return audit.entries.map((entry) => {
+      const details = entry.details ?? {};
+      const reason = asText(details.reason) ?? asText(details.note);
+      return {
+        id: entry.id,
+        title: `${humaniseToken(entry.action)}${entry.resourceName ? ` — ${entry.resourceName}` : ''}`,
+        meta: `${entry.actorEmail ?? 'Unknown operator'} · ${entry.orgName ?? 'Platform'} · ${formatDateTime(
+          entry.createdAt,
+        )} · ${formatRelative(entry.createdAt)}`,
+        text: reason ? `Why: ${reason}` : undefined,
+        tone: (entry.status === 'failed' ? 'danger' : 'neutral') as TimelineEntry['tone'],
+      };
+    });
+  }, [audit.entries]);
+
   const revenueMeters = useMemo<MeterItem[]>(() => {
     return revenue.byPlan
       .filter((row) => row.revenue > 0)
@@ -1406,6 +2030,25 @@ export default function BillingArea() {
     [revenue.byPlan],
   );
 
+  const watch = useMemo(() => {
+    const now = Date.now();
+    let trials = 0;
+    let expired = 0;
+    let soonestTrial: string | null = null;
+    for (const row of watchlist.rows) {
+      const trialDays = daysUntil(row.trialEndsAt, now);
+      if (row.entitlementStatus === 'pending' && trialDays !== null && trialDays >= 0 && trialDays <= 30) {
+        trials += 1;
+        if (!soonestTrial || (row.trialEndsAt ?? '') < soonestTrial) soonestTrial = row.trialEndsAt;
+      }
+      const expiryDays = daysUntil(row.expiresAt, now);
+      if (expiryDays !== null && expiryDays < 0) expired += 1;
+    }
+    return { trials, expired, soonestTrial };
+  }, [watchlist.rows]);
+
+  const periodLabel = REPORT_DATE_RANGE_PRESETS.find((option) => option.value === preset)?.label ?? 'Selected period';
+
   const planColumns = useMemo<DataTableColumn<ProductPlan>[]>(
     () => [
       {
@@ -1418,7 +2061,9 @@ export default function BillingArea() {
             <span className="data-table-primary">{plan.name}</span> <span className="mono">{plan.key}</span>
             <div className="chip-row">
               {plan.isDefault && <Badge tone="brand">default</Badge>}
-              <Badge tone={plan.isPublic ? 'success' : 'neutral'}>{plan.isPublic ? 'public' : 'not public'}</Badge>
+              <Badge tone={isCustomerVisible(plan) ? 'success' : 'neutral'}>
+                {isCustomerVisible(plan) ? 'on sale' : 'not on sale'}
+              </Badge>
             </div>
           </div>
         ),
@@ -1461,9 +2106,7 @@ export default function BillingArea() {
           if (!offer) {
             return (
               <span className="data-table-secondary">
-                {plan.monthlyPrice === null || plan.annualPrice === null
-                  ? 'Not priced'
-                  : 'No monthly price'}
+                {plan.monthlyPrice === null || plan.annualPrice === null ? 'Not priced' : 'No monthly price'}
               </span>
             );
           }
@@ -1544,7 +2187,9 @@ export default function BillingArea() {
         sortValue: (row) => row.name.toLowerCase(),
         render: (row) => (
           <div>
-            <span className="data-table-primary">{row.name}</span>{' '}
+            <Link className="data-table-primary" to={`/platform/businesses/${row.orgId}`}>
+              {row.name}
+            </Link>{' '}
             {row.isSandbox && <Badge tone="workspace">sandbox</Badge>}
             <p className="data-table-secondary">{row.ownerEmail ?? 'No owner email'}</p>
           </div>
@@ -1554,14 +2199,24 @@ export default function BillingArea() {
         key: 'plan',
         header: 'Plan',
         sortValue: (row) => row.planName ?? '',
-        render: (row) => (
-          <div>
-            <span className="data-table-primary">{row.planName ?? 'No plan'}</span>
-            <p className="data-table-secondary">
-              {row.productName} <span className="mono">{row.planKey ?? '—'}</span>
-            </p>
-          </div>
-        ),
+        render: (row) => {
+          const listPlan = mayView ? findListPlan(plans, row) : null;
+          return (
+            <div>
+              <span className="data-table-primary">{row.planName ?? 'No plan'}</span>
+              <p className="data-table-secondary">
+                {row.productName} <span className="mono">{row.planKey ?? '—'}</span>
+              </p>
+              <p className="data-table-secondary">
+                {!mayView
+                  ? 'Billing cycle not readable with this account'
+                  : listPlan
+                    ? `${humaniseToken(listPlan.billingCycle)} billing`
+                    : 'Plan not in the catalogue'}
+              </p>
+            </div>
+          );
+        },
       },
       {
         key: 'access',
@@ -1593,7 +2248,7 @@ export default function BillingArea() {
       },
       {
         key: 'expiry',
-        header: 'Expires',
+        header: 'Renews / expires',
         sortValue: (row) => row.expiresAt ?? '',
         render: (row) => {
           if (row.expiresAt === null) {
@@ -1681,7 +2336,8 @@ export default function BillingArea() {
           ),
       },
     ],
-    // The columns read the catalogue (for list prices) and the agreed-price cache.
+    // The columns read the catalogue (for list prices and the billing cycle) and
+    // the agreed-price cache.
     [agreedByOrg, plans, mayManagePayments, mayView],
   );
 
@@ -1697,509 +2353,1266 @@ export default function BillingArea() {
     );
   }
 
-  const filtersActive = Boolean(search || statusFilter || productFilter || expiryWindow);
+  const filtersActive = Boolean(search || statusFilter || productFilter || planFilter || expiryWindow);
   const compareSnapshot = compare ? agreedByOrg[compare.row.orgId] : undefined;
+  const periodChips = (
+    <div className="chip-row">
+      {REPORT_DATE_RANGE_PRESETS.map((option) => (
+        <button
+          key={option.value}
+          type="button"
+          className={`chip${preset === option.value ? ' active' : ''}`}
+          aria-pressed={preset === option.value}
+          onClick={() => setPreset(option.value)}
+        >
+          {option.label}
+        </button>
+      ))}
+    </div>
+  );
+  const productChips = (
+    <div className="chip-row">
+      <button
+        type="button"
+        className={`chip${productFilter === '' ? ' active' : ''}`}
+        aria-pressed={productFilter === ''}
+        onClick={() => setFilter('product', '')}
+      >
+        All products
+      </button>
+      {products.map((product) => (
+        <button
+          key={product.key}
+          type="button"
+          className={`chip${productFilter === product.key ? ' active' : ''}`}
+          aria-pressed={productFilter === product.key}
+          onClick={() => setFilter('product', product.key)}
+        >
+          {product.name}
+        </button>
+      ))}
+    </div>
+  );
+
+  /*
+   * The queue. Every entry is something an operator can act on today, in the
+   * order that costs the most if it is left: money that did not arrive, access
+   * already past due, then access about to lapse.
+   */
+  const attention: AttentionItem[] = [];
+  const failedCount = revenue.summary?.failedCount ?? 0;
+  if (failedCount > 0) {
+    attention.push({
+      id: 'failed-payments',
+      tone: 'danger',
+      title: `${formatNumber(failedCount)} failed payment${failedCount === 1 ? '' : 's'}`,
+      meta: `${periodLabel}. ${formatNumber(revenue.summary?.successfulCount ?? null)} succeeded in the same period.`,
+      action: (
+        <Button variant="outline" className="btn-sm" onClick={() => openSection('payments')}>
+          Review
+        </Button>
+      ),
+    });
+  }
+  const pastDueCount = overview.data?.pastDueSubscriptions ?? 0;
+  if (pastDueCount > 0) {
+    attention.push({
+      id: 'past-due',
+      tone: 'danger',
+      title: `${formatNumber(pastDueCount)} subscription${pastDueCount === 1 ? '' : 's'} past due`,
+      meta: 'Access continues until the seat check next runs.',
+      action: (
+        <Button
+          variant="outline"
+          className="btn-sm"
+          onClick={() => openSection('subscriptions', { status: 'past_due', filter: '' })}
+        >
+          Review
+        </Button>
+      ),
+    });
+  }
+  if (watch.trials > 0) {
+    attention.push({
+      id: 'trials-ending',
+      tone: 'warning',
+      title: `${formatNumber(watch.trials)} trial${watch.trials === 1 ? '' : 's'} ending within 30 days`,
+      meta: watch.soonestTrial ? `Soonest ${formatRelative(watch.soonestTrial)}.` : 'Convert or extend.',
+      action: (
+        <Button
+          variant="outline"
+          className="btn-sm"
+          onClick={() => openSection('subscriptions', { filter: 'trials', status: '' })}
+        >
+          Review
+        </Button>
+      ),
+    });
+  }
+  const expiringCount = overview.data?.expiringWithin30d ?? 0;
+  if (expiringCount > 0) {
+    attention.push({
+      id: 'expiring',
+      tone: 'warning',
+      title: `${formatNumber(expiringCount)} expiring within 30 days`,
+      meta: 'A renewal is an extend_expiry adjustment; nothing renews these automatically.',
+      action: (
+        <Button
+          variant="outline"
+          className="btn-sm"
+          onClick={() => openSection('subscriptions', { filter: 'expiring', status: '' })}
+        >
+          Review
+        </Button>
+      ),
+    });
+  }
+  if (watch.expired > 0) {
+    attention.push({
+      id: 'expired',
+      tone: 'danger',
+      title: `${formatNumber(watch.expired)} past their expiry date`,
+      meta: 'Nothing sweeps these, so they keep working until an adjustment moves them.',
+      action: (
+        <Button
+          variant="outline"
+          className="btn-sm"
+          onClick={() => openSection('subscriptions', { filter: 'expired', status: '' })}
+        >
+          Review
+        </Button>
+      ),
+    });
+  }
+
+  // Named in the brief as part of this area; none has a backend, so it is stated
+  // once instead of drawn as an empty list that would read as "none exist".
+  const unmonitored: AttentionItem[] = [
+    {
+      id: 'not-built',
+      tone: 'muted',
+      title: 'Invoices, receipts and a platform-wide payment list do not exist',
+      meta: 'subscription_transactions is real, but the only per-transaction view is the last 20 on one business.',
+      action: (
+        <Button variant="ghost" className="btn-sm" onClick={() => openSection('payments')}>
+          Details
+        </Button>
+      ),
+    },
+  ];
+
+  const metrics: Metric[] = [
+    {
+      id: 'active',
+      label: 'Active subscriptions',
+      value: overview.loading ? '—' : formatNumber(overview.data?.activeSubscriptions ?? null),
+      foot: 'Entitlements with status active',
+      onClick: () => openSection('subscriptions', { filter: 'active', status: '' }),
+    },
+    {
+      id: 'trialing',
+      label: 'On trial',
+      value: overview.loading ? '—' : formatNumber(overview.data?.trialingSubscriptions ?? null),
+      foot: 'Status pending, trial not ended',
+      onClick: () => openSection('subscriptions', { filter: 'trialing', status: '' }),
+    },
+    {
+      id: 'trials-ending',
+      label: 'Trials ending in 30 days',
+      value: !mayReadEntitlements
+        ? 'Not readable'
+        : watchlist.loading
+          ? '—'
+          : watchlist.error
+            ? 'Not read'
+            : formatNumber(watch.trials),
+      foot: !mayReadEntitlements
+        ? 'Needs platform:manage_businesses'
+        : watchlist.error
+          ? `Read failed: ${watchlist.error}`
+          : `Computed over the newest ${formatNumber(WATCHLIST_LIMIT)} entitlements`,
+      tone: watch.trials > 0 ? 'warning' : 'muted',
+      onClick: () => openSection('subscriptions', { filter: 'trials', status: '' }),
+    },
+    {
+      id: 'renewals',
+      label: 'Renewals in 30 days',
+      value: overview.loading ? '—' : formatNumber(overview.data?.expiringWithin30d ?? null),
+      foot: 'Entitlements expiring inside 30 days',
+      onClick: () => openSection('subscriptions', { filter: 'expiring', status: '' }),
+    },
+    {
+      id: 'failed',
+      label: 'Failed payments',
+      value: revenue.loading ? '—' : formatNumber(revenue.summary?.failedCount ?? null),
+      foot: periodLabel,
+      tone: failedCount > 0 ? 'danger' : 'muted',
+      onClick: () => openSection('payments'),
+    },
+    {
+      id: 'unpaid',
+      label: 'Unpaid invoices',
+      value: 'Not built',
+      foot: 'No invoice or receipt table exists',
+      tone: 'muted',
+      onClick: () => openSection('payments'),
+    },
+    {
+      id: 'revenue',
+      label: 'Revenue',
+      value: revenue.loading ? '—' : formatMoneyCompact(revenue.summary?.totalRevenue ?? null),
+      foot: `${periodLabel} · sandbox excluded`,
+      onClick: () => openSection('payments'),
+    },
+  ];
+
+  const paymentsInPeriod = revenue.summary?.transactionCount ?? null;
 
   return (
     <>
       <PlatformPageHead
         area={AREA}
-        description="Reads are permission-scoped: a panel this account cannot read says so."
+        description={`Signed in as ${
+          access?.isSuperAdmin ? 'platform owner' : 'platform admin'
+        } in ${environment.label.toLowerCase()}.`}
         actions={<RefreshButton onClick={refreshAll} loading={catalogue.loading || entitlements.loading} />}
       />
 
       <AreaCoverage gaps={AREA.gaps} title="What this page cannot show yet" />
 
-      {/* ── Plan catalogue ────────────────────────────────────────── */}
-      <section className="card" aria-labelledby="billing-catalogue">
-        <SectionHead
-          id="billing-catalogue"
-          title="Plan catalogue and pricing"
-          sub="List prices quoted to new subscriptions."
-          actions={
-            <div className="chip-row">
-              <button
-                type="button"
-                className={`chip${productFilter === '' ? ' active' : ''}`}
-                aria-pressed={productFilter === ''}
-                onClick={() => setFilter('product', '')}
-              >
-                All products
-              </button>
-              {products.map((product) => (
-                <button
-                  key={product.key}
-                  type="button"
-                  className={`chip${productFilter === product.key ? ' active' : ''}`}
-                  aria-pressed={productFilter === product.key}
-                  onClick={() => setFilter('product', product.key)}
-                >
-                  {product.name}
-                </button>
-              ))}
-            </div>
-          }
+      {/* ── Section navigation ────────────────────────────────────── */}
+      <nav className="chip-row" aria-label="Subscriptions and billing sections">
+        {availableSections.map((option) => (
+          <button
+            key={option.id}
+            type="button"
+            className={`chip${section === option.id ? ' active' : ''}`}
+            aria-pressed={section === option.id}
+            onClick={() => openSection(option.id)}
+          >
+            {option.label}
+          </button>
+        ))}
+      </nav>
+
+      {!sectionAllowed ? (
+        <PermissionDenied
+          what={`${definition.label} in subscriptions and billing`}
+          permission={definition.permissions.join(' or ')}
         />
-
-        <KpiGrid>
-          <KpiCard
-            label="Published tiers"
-            value={catalogue.loading ? '—' : formatNumber(cataloguedPlans.length)}
-            foot={`${formatNumber(plans.length)} rows, including drafts and retired`}
-          />
-          <KpiCard
-            label="Entitlements on priced plans"
-            value={catalogue.loading ? '—' : formatNumber(subscriberTotal)}
-          />
-          <KpiCard
-            label="Annual terms"
-            value={catalogue.loading ? '—' : offerMonths === null ? 'Not uniform' : `${monthsFreeLabel(offerMonths)} free`}
-            foot={`billing.annual_months_free = ${
-              declaredFreeMonths === null ? 'not set' : formatNumber(declaredFreeMonths)
-            }`}
-            tone={
-              declaredFreeMonths !== null && offerMonths !== null && declaredFreeMonths !== offerMonths
-                ? 'warning'
-                : 'default'
-            }
-          />
-        </KpiGrid>
-
-        {!mayView ? (
-          <StateBlock
-            variant="denied"
-            title="The plan catalogue needs platform:view"
-            body="list_product_plans and list_plan_revisions are gated on platform:view, so no price is shown rather than a blank one."
-          />
-        ) : catalogue.error ? (
-          <SectionFailure message={catalogue.error} onRetry={catalogue.reload} />
-        ) : (
-          <DataTable
-            columns={planColumns}
-            rows={plans}
-            rowKey={(plan) => plan.id}
-            stacked
-            loading={catalogue.loading}
-            caption="Product plans and list prices"
-            empty={
-              <StateBlock
-                variant="empty"
-                title={
-                  productFilter
-                    ? `No plans exist for ${
-                        products.find((product) => product.key === productFilter)?.name ?? productFilter
-                      }`
-                    : 'No plans exist yet'
-                }
-                body={
-                  productFilter === 'trackoja_works'
-                    ? 'TrackOja Works was seeded as a product row only: no plans, prices, features or limits were invented for it.'
-                    : 'Plans appear here once they are created.'
-                }
-              />
-            }
-          />
-        )}
-      </section>
-
-      {/* ── Selected plan: stored values, edit, history ───────────── */}
-      <section className="card" aria-labelledby="billing-plan-detail">
-        <SectionHead
-          id="billing-plan-detail"
-          title="Plan detail and pricing history"
-        />
-
-        {!visiblePlan ? (
-          <StateBlock
-            variant="empty"
-            title="No plan selected"
-            body="Choose Open on a plan above."
-          />
-        ) : (
-          <>
-            <DefList
-              rows={[
-                { term: 'Plan', value: `${visiblePlan.name} (${visiblePlan.key})` },
-                { term: 'Product', value: `${visiblePlan.productName} (${visiblePlan.productKey})` },
-                { term: 'Monthly price', value: priceLabel(visiblePlan.monthlyPrice, visiblePlan.currency) },
-                { term: 'Annual price', value: priceLabel(visiblePlan.annualPrice, visiblePlan.currency) },
-                {
-                  term: 'Annual offer',
-                  value: (() => {
-                    const offer = annualOffer(visiblePlan);
-                    if (!offer) return <span className="is-locked">Not priced — nothing to compare</span>;
-                    if (offer.amount < 0) {
-                      return `${formatMoney(Math.abs(offer.amount), visiblePlan.currency)} more than 12 monthly payments`;
-                    }
-                    return `${formatMoney(offer.amount, visiblePlan.currency)} saved (${monthsFreeLabel(offer.months)} free)`;
-                  })(),
-                },
-                { term: 'Seat limit', value: formatSeatLimit(visiblePlan.userLimit) },
-                { term: 'Status', value: <StatusBadge status={visiblePlan.status} /> },
-                { term: 'Default plan', value: visiblePlan.isDefault ? 'Yes — new businesses start here' : 'No' },
-                { term: 'Publicly offered', value: visiblePlan.isPublic ? 'Yes' : 'No' },
-                {
-                  term: 'Subscribers',
-                  value: `${formatNumber(visiblePlan.subscriberCount)} entitlement${
-                    visiblePlan.subscriberCount === 1 ? '' : 's'
-                  } with status active or pending`,
-                },
-                {
-                  term: 'Description',
-                  value: visiblePlan.description ?? <span className="is-locked">No description recorded</span>,
-                },
-                {
-                  term: 'Onboarding note',
-                  value: visiblePlan.onboardingNote ?? <span className="is-locked">No onboarding note recorded</span>,
-                },
-                {
-                  term: 'Feature list',
-                  value:
-                    visiblePlan.features.length > 0 ? (
-                      <div className="chip-row">
-                        {visiblePlan.features.map((feature) => (
-                          <Badge key={feature.key} tone={feature.upcoming ? 'outline' : 'neutral'}>
-                            {feature.label}
-                            {feature.upcoming ? ' (upcoming)' : ''}
-                          </Badge>
-                        ))}
-                      </div>
-                    ) : (
-                      <span className="is-locked">No features recorded for this plan</span>
-                    ),
-                },
-                {
-                  term: 'Last updated',
-                  value: visiblePlan.updatedAt
-                    ? `${formatDateTime(visiblePlan.updatedAt)} · ${formatRelative(visiblePlan.updatedAt)}`
-                    : 'Never updated since it was created',
-                },
-              ]}
+      ) : section === 'overview' ? (
+        <>
+          {/* ── Overview: needs attention ─────────────────────────── */}
+          <section className="card" aria-labelledby="billing-overview-attention">
+            <SectionHead
+              id="billing-overview-attention"
+              title="Needs attention"
+              sub={`${periodLabel} · sandbox payments excluded`}
+              actions={
+                attention.length > 0 ? <span className="badge badge-warning">{attention.length}</span> : undefined
+              }
             />
 
-            <div className="btn-row">
-              {mayManagePlans ? (
-                <Button onClick={() => setEditingPlan(visiblePlan)}>Edit plan</Button>
-              ) : (
-                <span className="is-locked">Read-only. Changing a plan needs platform:manage_plans.</span>
-              )}
-            </div>
-
-            <p className="form-hint">
-              Existing subscribers are not repriced by a plan edit: their agreed prices are snapshotted at activation.
-            </p>
-
-            <p className="plat-section-sub">Change history (effective dates and before/after values)</p>
-            <SectionState
-              loading={revisionsLoading}
-              error={revisionsError}
-              empty={!revisionsLoading && !revisionsError && revisionEntries.length === 0}
-              emptyTitle="No revisions recorded for this plan"
-              emptyBody="product_plan_revisions is written by upsert_product_plan, so a plan priced by a data migration has no rows here."
-              onRetry={() => void loadRevisions(visiblePlan.id)}
-            >
-              <Timeline items={revisionEntries} />
-            </SectionState>
-          </>
-        )}
-      </section>
-
-      {/* ── Entitlements: who is on what ──────────────────────────── */}
-      <section className="card" aria-labelledby="billing-entitlements">
-        <SectionHead
-          id="billing-entitlements"
-          title="Who is on what"
-          sub="One row per business per product."
-        />
-
-        {!mayReadEntitlements ? (
-          <StateBlock
-            variant="denied"
-            title="The entitlement directory needs platform:manage_businesses"
-            body="list_product_businesses and get_platform_business are gated on that key, so this panel states the requirement instead of showing an empty table."
-          />
-        ) : (
-          <>
-            <form
-              className="toolbar"
-              onSubmit={(event) => {
-                event.preventDefault();
-                setFilter('q', searchDraft.trim());
-              }}
-            >
-              <div className="toolbar-grow">
-                <label className="form-label" htmlFor="billing-search">
-                  Search businesses
-                </label>
-                <input
-                  id="billing-search"
-                  className="form-input"
-                  type="search"
-                  value={searchDraft}
-                  placeholder="Name, owner email or slug"
-                  onChange={(event) => setSearchDraft(event.target.value)}
-                />
-              </div>
-
-              <div className="plat-field">
-                <label className="form-label" htmlFor="billing-status">
-                  Entitlement status
-                </label>
-                <select
-                  id="billing-status"
-                  className="select-input"
-                  value={statusFilter}
-                  onChange={(event) => setFilter('status', event.target.value)}
-                >
-                  <option value="">Any status</option>
-                  {ENTITLEMENT_STATUSES.map((value) => (
-                    <option key={value} value={value}>
-                      {humaniseToken(value)}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <button type="submit" className="btn btn-neutral btn-sm">
-                <span className="btn-label">Search</span>
-              </button>
-
-              {filtersActive && (
-                <button
-                  type="button"
-                  className="btn btn-ghost btn-sm"
-                  onClick={() => {
-                    setSearchDraft('');
-                    setSearchParams(new URLSearchParams(), { replace: true });
-                  }}
-                >
-                  <span className="btn-label">Clear filters</span>
-                </button>
-              )}
-            </form>
-
-            {expiryWindow === 'expiring' ? (
+            {overview.error && (
               <p className="form-hint">
-                Showing entitlements expiring within 30 days. The window is applied in this browser because the endpoint
-                filters on status only, so a page can hold fewer rows than its page size.
+                get_platform_overview_v2 did not answer, so some counts are missing rather than zero: {overview.error}
               </p>
-            ) : (
-              (searchParams.get('filter') ?? '') !== '' && (
-                <p className="form-hint">
-                  The dashboard link asked for <span className="mono">{searchParams.get('filter')}</span>, translated to{' '}
-                  {statusFilter ? `${humaniseToken(statusFilter)} entitlements` : 'no filter'}.
-                </p>
-              )
             )}
 
-            {entitlements.error ? (
-              <SectionFailure message={entitlements.error} onRetry={entitlements.reload} />
+            {overview.loading || watchlist.loading ? (
+              <LoadingLines />
+            ) : overview.error && attention.length === 0 ? (
+              <SectionFailure message={overview.error} onRetry={overview.reload} />
+            ) : attention.length > 0 ? (
+              <>
+                <AttentionList items={attention} />
+                <AttentionList items={unmonitored} />
+              </>
             ) : (
               <>
-                <DataTable
-                  columns={entitlementColumns}
-                  rows={visibleRows}
-                  rowKey={(row) => `${row.orgId}:${row.productKey}`}
-                  stacked
-                  loading={entitlements.loading}
-                  caption="Businesses, their plan and their agreed price"
-                  empty={
-                    <StateBlock
-                      variant="empty"
-                      title={filtersActive ? 'No businesses match these filters' : 'No entitlements yet'}
-                      body={
-                        filtersActive
-                          ? 'Clear the filters or widen the search.'
-                          : 'Entitlements appear as businesses subscribe or redeem an activation key.'
-                      }
-                    />
-                  }
-                />
-                <Pagination
-                  page={page}
-                  pageSize={PAGE_SIZE}
-                  total={null}
-                  noun="entitlements"
-                  hasNext={entitlements.rows.length === PAGE_SIZE}
-                  onPageChange={(next) => setFilter('page', String(next))}
-                />
+                <HealthyStrip>
+                  Nothing needs attention. No failed payments in the selected period, nothing past due, and no
+                  subscription expiring in the next 30 days.
+                </HealthyStrip>
+                <AttentionList items={unmonitored} />
               </>
             )}
+          </section>
 
-            <p className="form-hint">
-              Check reads the agreed price for one business.
-            </p>
-          </>
-        )}
-      </section>
-
-      {/* ── Subscription changes ──────────────────────────────────── */}
-      <section className="card" aria-labelledby="billing-changes">
-        <SectionHead
-          id="billing-changes"
-          title="Subscription changes"
-          sub="Written to subscription_adjustments; nothing here re-prices a customer."
-        />
-
-        {!mayManagePayments ? (
-          <StateBlock
-            variant="denied"
-            title="Recording a change needs platform:manage_payments"
-            body="record_subscription_adjustment and list_subscription_adjustments are gated on that key, so the history cannot be read and the control is not offered. A platform owner can grant it from Users & roles."
-          />
-        ) : (
-          <>
-            <SectionState
-              loading={adjustments.loading}
-              error={adjustments.error}
-              empty={!adjustments.loading && !adjustments.error && adjustmentEntries.length === 0}
-              emptyTitle="No subscription changes recorded yet"
-              emptyBody="Adjustments appear here with their before and after values."
-              onRetry={adjustments.reload}
-            >
-              <Timeline items={adjustmentEntries} />
-            </SectionState>
-
-            <p className="form-hint">Most recent 100 platform-wide; no total is returned.</p>
-          </>
-        )}
-      </section>
-
-      {/* ── Payment status ────────────────────────────────────────── */}
-      <section className="card" aria-labelledby="billing-payments">
-        <SectionHead
-          id="billing-payments"
-          title="Payment status"
-          sub="Subscription payments in the selected period; sandbox transactions excluded."
-          actions={
-            <div className="toolbar-group">
-              {REPORT_DATE_RANGE_PRESETS.map((option) => (
-                <button
-                  key={option.value}
-                  type="button"
-                  className={`chip${preset === option.value ? ' active' : ''}`}
-                  aria-pressed={preset === option.value}
-                  onClick={() => setPreset(option.value)}
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
-          }
-        />
-
-        {!mayView ? (
-          <StateBlock
-            variant="denied"
-            title="Revenue reporting needs platform:view"
-            body="get_platform_revenue_summary and get_platform_revenue_by_plan are gated on that key, so no figure is shown."
-          />
-        ) : revenue.error ? (
-          <SectionFailure message={revenue.error} onRetry={revenue.reload} />
-        ) : (
-          <>
-            {inbound.paymentsUnavailable && (
-              <div className="callout callout-warning">
-                <div>
-                  <p className="callout-title">Failed payments cannot be listed</p>
-                  <p className="callout-text">
-                    The dashboard link asked for failed payments. Only the aggregate totals below exist, so no list of
-                    individual failures can be shown: the count is real, the rows behind it are not reachable here.
-                  </p>
-                </div>
-              </div>
+          {/* ── Overview: counts, each a route to the list behind it ── */}
+          <section className="card" aria-labelledby="billing-overview-metrics">
+            <SectionHead
+              id="billing-overview-metrics"
+              title="At a glance"
+              sub="Every figure opens the list it counts."
+            />
+            <MetricStrip metrics={metrics} />
+            {mayReadEntitlements && watchlist.rows.length >= WATCHLIST_LIMIT && (
+              <p className="form-hint">
+                Trial and expiry windows are computed from the newest {formatNumber(WATCHLIST_LIMIT)} entitlements, so
+                those two counts can under-report. The other counts are totals.
+              </p>
             )}
+
+            <Disclosure summary={`Not built here (${NOT_BUILT.length})`}>
+              <ul className="list">
+                {NOT_BUILT.map((item) => (
+                  <li className="list-item" key={item.title}>
+                    <div>
+                      <p className="list-item-title">
+                        {item.title} <StatusBadge status="not_configured" />
+                      </p>
+                      <p className="list-item-subtitle">{item.detail}</p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+              <p className="plat-section-sub">Permissions each section needs</p>
+              <DefList
+                rows={[
+                  { term: 'Overview, catalogue and revenue', value: <span className="mono">{PERMISSIONS.view}</span> },
+                  { term: 'Plans and publishing', value: <span className="mono">{PERMISSIONS.plans}</span> },
+                  {
+                    term: 'Subscriptions and payments',
+                    value: (
+                      <>
+                        <span className="mono">{PERMISSIONS.payments}</span> and{' '}
+                        <span className="mono">{PERMISSIONS.entitlements}</span> for the directory
+                      </>
+                    ),
+                  },
+                  { term: 'Activation and access', value: <span className="mono">{PERMISSIONS.activation}</span> },
+                  { term: 'Billing settings', value: <span className="mono">{PERMISSIONS.settings}</span> },
+                  {
+                    term: 'Audit trail',
+                    value: (
+                      <>
+                        <span className="mono">{PERMISSIONS.audit}</span> or{' '}
+                        <span className="mono">{AUDIT_FALLBACK}</span>
+                      </>
+                    ),
+                  },
+                ]}
+              />
+              <p className="form-hint">The server re-checks every call; hiding a control is never the control.</p>
+            </Disclosure>
+          </section>
+        </>
+      ) : section === 'plans' ? (
+        <>
+          {/* ── Plans: catalogue ──────────────────────────────────── */}
+          <section className="card" aria-labelledby="billing-catalogue">
+            <SectionHead
+              id="billing-catalogue"
+              title="Plan catalogue"
+              sub="List prices quoted to new subscriptions. A published change reaches new customers only."
+              actions={productChips}
+            />
 
             <KpiGrid>
               <KpiCard
-                label="Revenue in period"
-                value={revenue.loading ? '—' : formatMoney(revenue.summary?.totalRevenue ?? null)}
-                foot={`${formatNumber(revenue.summary?.successfulCount ?? null)} successful payments`}
+                label="Customer-visible tiers"
+                value={catalogue.loading ? '—' : formatNumber(cataloguedPlans.length)}
+                foot={
+                  publishedStampMissing
+                    ? 'Computed as active and public: list_product_plans does not return published_at here'
+                    : `${formatNumber(plans.length)} rows, including drafts, retired and future-dated`
+                }
               />
               <KpiCard
-                label="Failed payments"
-                value={revenue.loading ? '—' : formatNumber(revenue.summary?.failedCount ?? null)}
-                tone={(revenue.summary?.failedCount ?? 0) > 0 ? 'warning' : 'default'}
-                foot="From subscription_transactions"
+                label="Entitlements on priced plans"
+                value={catalogue.loading ? '—' : formatNumber(subscriberTotal)}
               />
               <KpiCard
-                label="Attempts in period"
-                value={revenue.loading ? '—' : formatNumber(revenue.summary?.transactionCount ?? null)}
-                foot="Sandbox excluded"
-              />
-              <KpiCard
-                label="Attributed to a plan"
-                value={revenue.loading ? '—' : formatMoney(breakdownTotal)}
-                foot="From the bars below"
+                label="Annual terms"
+                value={
+                  catalogue.loading
+                    ? '—'
+                    : offerMonths === null
+                      ? 'Not uniform'
+                      : `${monthsFreeLabel(offerMonths)} free`
+                }
+                foot={`billing.annual_months_free = ${
+                  declaredFreeMonths === null ? 'not set' : formatNumber(declaredFreeMonths)
+                }`}
+                tone={
+                  declaredFreeMonths !== null && offerMonths !== null && declaredFreeMonths !== offerMonths
+                    ? 'warning'
+                    : 'default'
+                }
               />
             </KpiGrid>
 
-            <div className="section-head">
-              <div className="section-head-text">
-                <h3 className="section-title">Revenue by plan</h3>
-                <p className="section-sub">
-                  Period total: {revenue.loading ? '—' : formatMoney(revenue.summary?.totalRevenue ?? null)}
-                </p>
-              </div>
-            </div>
-            {revenueMeters.length > 0 ? (
-              <MeterList items={revenueMeters} />
-            ) : (
+            {!mayView ? (
               <StateBlock
-                variant="empty"
-                title="No revenue recorded in this period"
-                body="No subscription payment succeeded in the selected range. Try a longer period."
+                variant="denied"
+                title="The plan catalogue needs platform:view"
+                body="list_product_plans and list_plan_revisions are gated on platform:view, so no price is shown rather than a blank one."
+              />
+            ) : catalogue.error ? (
+              <SectionFailure message={catalogue.error} onRetry={catalogue.reload} />
+            ) : (
+              <DataTable
+                columns={planColumns}
+                rows={plans}
+                rowKey={(plan) => plan.id}
+                stacked
+                loading={catalogue.loading}
+                caption="Product plans and list prices"
+                empty={
+                  <StateBlock
+                    variant="empty"
+                    title={
+                      productFilter
+                        ? `No plans exist for ${
+                            products.find((product) => product.key === productFilter)?.name ?? productFilter
+                          }`
+                        : 'No plans exist yet'
+                    }
+                    body={
+                      productFilter === 'trackoja_works'
+                        ? 'TrackOja Works was seeded as a product row only: no plans, prices, features or limits were invented for it.'
+                        : 'Plans appear here once they are created.'
+                    }
+                  />
+                }
               />
             )}
 
-            <Disclosure summary="How the revenue figures are grouped">
+            <Disclosure summary="What makes a plan customer-visible">
               <p>
-                Sandbox transactions are excluded. Grouping is by the legacy subscription_plans table, not the plan
-                ladder above, so a name can differ and a payment with no legacy plan appears in no bar.
+                A plan is on sale only when it is active, publicly offered, published and past its effective date. That
+                is the test list_published_plans applies, and it is the only place the product defines it — the public
+                pricing page, the customer Billing page and checkout all read that one function, so they cannot
+                disagree with each other or with this table. A plan with no effective date fails the test, which is why
+                an unpublished row cannot leak out through the date.
+              </p>
+              <p>
+                Editing never changes any of the four: published_at and effective_from are absent from
+                upsert_product_plan's update list, and a new plan starts with them NULL. Publishing is the only write
+                that sets them, and it forces status to active while leaving is_public as you set it.
               </p>
             </Disclosure>
-          </>
-        )}
-      </section>
+          </section>
 
-      {/* ── Not built yet ─────────────────────────────────────────── */}
-      <section className="card" aria-labelledby="billing-not-built">
-        <SectionHead
-          id="billing-not-built"
-          title="Not built yet"
-        />
-        <ul className="list">
-          {NOT_BUILT.map((item) => (
-            <li className="list-item" key={item.title}>
-              <div>
-                <p className="list-item-title">
-                  {item.title} <StatusBadge status="not_configured" />
+          {/* ── Plans: detail, impact, history ────────────────────── */}
+          <section className="card" aria-labelledby="billing-plan-detail">
+            <SectionHead id="billing-plan-detail" title="Plan detail, publishing and history" />
+
+            {!visiblePlan ? (
+              <StateBlock variant="empty" title="No plan selected" body="Choose Open on a plan above." />
+            ) : (
+              <>
+                <DefList
+                  rows={[
+                    { term: 'Plan', value: `${visiblePlan.name} (${visiblePlan.key})` },
+                    { term: 'Product', value: `${visiblePlan.productName} (${visiblePlan.productKey})` },
+                    { term: 'Monthly price', value: priceLabel(visiblePlan.monthlyPrice, visiblePlan.currency) },
+                    { term: 'Annual price', value: priceLabel(visiblePlan.annualPrice, visiblePlan.currency) },
+                    {
+                      term: 'Annual offer',
+                      value: (() => {
+                        const offer = annualOffer(visiblePlan);
+                        if (!offer) return <span className="is-locked">Not priced — nothing to compare</span>;
+                        if (offer.amount < 0) {
+                          return `${formatMoney(Math.abs(offer.amount), visiblePlan.currency)} more than 12 monthly payments`;
+                        }
+                        return `${formatMoney(offer.amount, visiblePlan.currency)} saved (${monthsFreeLabel(offer.months)} free)`;
+                      })(),
+                    },
+                    { term: 'Seat limit', value: formatSeatLimit(visiblePlan.userLimit) },
+                    { term: 'Billing cycle', value: humaniseToken(visiblePlan.billingCycle) },
+                    { term: 'Status', value: <StatusBadge status={visiblePlan.status} /> },
+                    { term: 'Published', ...publicationLabel(visiblePlan) },
+                    { term: 'Default plan', value: visiblePlan.isDefault ? 'Yes — new businesses start here' : 'No' },
+                    { term: 'Publicly offered', value: visiblePlan.isPublic ? 'Yes' : 'No' },
+                    {
+                      term: 'Subscribers',
+                      value: `${formatNumber(visiblePlan.subscriberCount)} entitlement${
+                        visiblePlan.subscriberCount === 1 ? '' : 's'
+                      } with status active or pending`,
+                    },
+                    {
+                      term: 'Description',
+                      value: visiblePlan.description ?? <span className="is-locked">No description recorded</span>,
+                    },
+                    {
+                      term: 'Onboarding note',
+                      value: visiblePlan.onboardingNote ?? (
+                        <span className="is-locked">No onboarding note recorded</span>
+                      ),
+                    },
+                    {
+                      term: 'Feature list',
+                      value:
+                        visiblePlan.features.length > 0 ? (
+                          <div className="chip-row">
+                            {visiblePlan.features.map((feature) => (
+                              <Badge key={feature.key} tone={feature.upcoming ? 'outline' : 'neutral'}>
+                                {feature.label}
+                                {feature.upcoming ? ' (upcoming)' : ''}
+                              </Badge>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="is-locked">No features recorded for this plan</span>
+                        ),
+                    },
+                    {
+                      term: 'Last updated',
+                      value: visiblePlan.updatedAt
+                        ? `${formatDateTime(visiblePlan.updatedAt)} · ${formatRelative(visiblePlan.updatedAt)}`
+                        : 'Never updated since it was created',
+                    },
+                  ]}
+                />
+
+                <div className="btn-row">
+                  {mayManagePlans ? (
+                    <>
+                      <Button onClick={() => setEditingPlan(visiblePlan)}>Edit plan</Button>
+                      <Button variant="outline" onClick={() => setPublishingPlan(visiblePlan)}>
+                        Publish…
+                      </Button>
+                    </>
+                  ) : (
+                    <span className="is-locked">Read-only. Changing a plan needs platform:manage_plans.</span>
+                  )}
+                </div>
+                <p className="form-hint">
+                  Editing saves the row and journals a revision; it does not publish. Publishing stamps published_at and
+                  the effective date, and is the only way a price becomes customer-visible.
                 </p>
-                <p className="list-item-subtitle">{item.detail}</p>
-              </div>
-            </li>
-          ))}
-        </ul>
 
-        <p className="plat-section-sub">Permissions</p>
-        <DefList
-          rows={[
-            { term: 'Catalogue, pricing and revenue', value: <span className="mono">{PERMISSIONS.view}</span> },
-            {
-              term: 'Entitlements and agreed prices',
-              value: <span className="mono">{PERMISSIONS.entitlements}</span>,
-            },
-            {
-              term: 'Subscription changes',
-              value: <span className="mono">{PERMISSIONS.payments}</span>,
-            },
-            { term: 'Saving a plan', value: <span className="mono">{PERMISSIONS.plans}</span> },
-          ]}
-        />
-        <p className="form-hint">
-          The server re-checks every call; hiding a control is never the control.
-        </p>
-      </section>
+                <p className="plat-section-sub">Who a published change affects</p>
+                <DefList
+                  rows={[
+                    {
+                      term: 'New customers',
+                      value: 'Pay the published monthly and annual prices from the effective date.',
+                    },
+                    {
+                      term: 'Existing subscribers',
+                      value: `Not repriced. The agreed monthly price, annual price and seat limit were snapshotted on organization_products at activation, and a plan edit never rewrites them — ${formatNumber(
+                        visiblePlan.subscriberCount,
+                      )} entitlement${visiblePlan.subscriberCount === 1 ? '' : 's'} hold this plan.`,
+                    },
+                    {
+                      term: 'Named subscribers',
+                      value: (
+                        <span className="is-locked">
+                          Not listed: nothing records which subscriptions a price change would touch, so any list here
+                          would be invented.
+                        </span>
+                      ),
+                      muted: true,
+                    },
+                  ]}
+                />
+
+                <p className="plat-section-sub">Change history</p>
+                <SectionState
+                  loading={revisionsLoading}
+                  error={revisionsError}
+                  empty={!revisionsLoading && !revisionsError && revisionEntries.length === 0}
+                  emptyTitle="No revisions recorded for this plan"
+                  emptyBody="product_plan_revisions is written by upsert_product_plan and publish_product_plan, so a plan priced by a data migration has no rows here."
+                  onRetry={() => void loadRevisions(visiblePlan.id)}
+                >
+                  <Timeline items={revisionEntries} />
+                </SectionState>
+              </>
+            )}
+          </section>
+        </>
+      ) : section === 'subscriptions' ? (
+        <>
+          {/* ── Subscriptions: the directory ──────────────────────── */}
+          <section className="card" aria-labelledby="billing-entitlements">
+            <SectionHead
+              id="billing-entitlements"
+              title="Subscriptions"
+              sub="One row per business per product. Open a business for its plan, seats, payments and adjustment history."
+              actions={productChips}
+            />
+
+            {!mayReadEntitlements ? (
+              <StateBlock
+                variant="denied"
+                title="The subscription directory needs platform:manage_businesses"
+                body="list_product_businesses and get_platform_business are gated on that key, so this panel states the requirement instead of showing an empty table."
+              />
+            ) : (
+              <>
+                <form
+                  className="toolbar"
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    setFilter('q', searchDraft.trim());
+                  }}
+                >
+                  <div className="toolbar-grow">
+                    <label className="form-label" htmlFor="billing-search">
+                      Search businesses
+                    </label>
+                    <input
+                      id="billing-search"
+                      className="form-input"
+                      type="search"
+                      value={searchDraft}
+                      placeholder="Name, owner email or slug"
+                      onChange={(event) => setSearchDraft(event.target.value)}
+                    />
+                  </div>
+
+                  <div className="plat-field">
+                    <label className="form-label" htmlFor="billing-status">
+                      Entitlement status
+                    </label>
+                    <select
+                      id="billing-status"
+                      className="select-input"
+                      value={statusFilter}
+                      onChange={(event) => setFilter('status', event.target.value)}
+                    >
+                      <option value="">Any status</option>
+                      {ENTITLEMENT_STATUSES.map((value) => (
+                        <option key={value} value={value}>
+                          {humaniseToken(value)}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="plat-field">
+                    <label className="form-label" htmlFor="billing-plan">
+                      Plan
+                    </label>
+                    <select
+                      id="billing-plan"
+                      className="select-input"
+                      value={planFilter}
+                      onChange={(event) => setFilter('plan', event.target.value)}
+                      disabled={plans.length === 0}
+                    >
+                      <option value="">Any plan</option>
+                      {plans.map((plan) => (
+                        <option key={plan.id} value={plan.key}>
+                          {plan.productName} — {plan.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <button type="submit" className="btn btn-neutral btn-sm">
+                    <span className="btn-label">Search</span>
+                  </button>
+
+                  {filtersActive && (
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-sm"
+                      onClick={() => {
+                        setSearchDraft('');
+                        // The section is navigation, not a filter: clearing the
+                        // filters leaves the operator where they were. This
+                        // control only exists inside a named section.
+                        const next = new URLSearchParams();
+                        next.set('section', section);
+                        setSearchParams(next, { replace: true });
+                      }}
+                    >
+                      <span className="btn-label">Clear filters</span>
+                    </button>
+                  )}
+                </form>
+
+                {expiryWindow !== null ? (
+                  <p className="form-hint">
+                    Showing {expiryWindow === 'trials' ? 'trials' : 'entitlements'} inside the next 30 days. The window is
+                    applied in this browser because the endpoint filters on status only, so a page can hold fewer rows
+                    than its page size.
+                  </p>
+                ) : (
+                  (searchParams.get('filter') ?? '') !== '' && (
+                    <p className="form-hint">
+                      The dashboard link asked for <span className="mono">{searchParams.get('filter')}</span>, translated
+                      to {statusFilter ? `${humaniseToken(statusFilter)} entitlements` : 'no filter'}.
+                    </p>
+                  )
+                )}
+                {planFilter !== '' && (
+                  <p className="form-hint">
+                    The plan filter is applied in this browser, so a page can show fewer rows than the page size.
+                  </p>
+                )}
+                {plans.length === 0 && !catalogue.loading && (
+                  <p className="form-hint">
+                    The plan list could not be read (it needs platform:view), so only the status filter is available.
+                  </p>
+                )}
+
+                {entitlements.error ? (
+                  <SectionFailure message={entitlements.error} onRetry={entitlements.reload} />
+                ) : (
+                  <>
+                    <DataTable
+                      columns={entitlementColumns}
+                      rows={visibleRows}
+                      rowKey={(row) => `${row.orgId}:${row.productKey}`}
+                      stacked
+                      loading={entitlements.loading}
+                      caption="Businesses, their plan and their agreed price"
+                      empty={
+                        <StateBlock
+                          variant="empty"
+                          title={filtersActive ? 'No businesses match these filters' : 'No entitlements yet'}
+                          body={
+                            filtersActive
+                              ? 'Clear the filters or widen the search.'
+                              : 'Entitlements appear as businesses subscribe or redeem an activation key.'
+                          }
+                        />
+                      }
+                    />
+                    <Pagination
+                      page={page}
+                      pageSize={PAGE_SIZE}
+                      total={null}
+                      noun="entitlements"
+                      hasNext={entitlements.rows.length === PAGE_SIZE}
+                      onPageChange={(next) => setFilter('page', String(next))}
+                    />
+                  </>
+                )}
+
+                <p className="form-hint">
+                  Check reads the agreed price for one business, from get_platform_business. The renewal date is the
+                  entitlement's expiry; a renewal is the extend_expiry adjustment below.
+                </p>
+              </>
+            )}
+          </section>
+
+          {/* ── Subscriptions: authorised changes ─────────────────── */}
+          <section className="card" aria-labelledby="billing-changes">
+            <SectionHead
+              id="billing-changes"
+              title="Subscription changes"
+              sub="Every plan change, extension, suspension, cancellation and reactivation goes through record_subscription_adjustment."
+            />
+
+            {!mayManagePayments ? (
+              <StateBlock
+                variant="denied"
+                title="Recording a change needs platform:manage_payments"
+                body="record_subscription_adjustment and list_subscription_adjustments are gated on that key, so the history cannot be read and the control is not offered. A platform owner can grant it from Users & roles."
+              />
+            ) : (
+              <>
+                <SectionState
+                  loading={adjustments.loading}
+                  error={adjustments.error}
+                  empty={!adjustments.loading && !adjustments.error && adjustmentEntries.length === 0}
+                  emptyTitle="No subscription changes recorded yet"
+                  emptyBody="Adjustments appear here with their before and after values."
+                  onRetry={adjustments.reload}
+                >
+                  <Timeline items={adjustmentEntries} />
+                </SectionState>
+
+                <p className="form-hint">
+                  Most recent 100 platform-wide; no total is returned. A reason of at least 5 characters is required for
+                  every adjustment, and each one is copied to the business's support timeline and the audit trail.
+                </p>
+              </>
+            )}
+          </section>
+        </>
+      ) : section === 'payments' ? (
+        <section className="card" aria-labelledby="billing-payments">
+          <SectionHead
+            id="billing-payments"
+            title="Payments and invoices"
+            sub={`Subscription transactions, ${periodLabel.toLowerCase()}. Sandbox transactions excluded.`}
+            actions={periodChips}
+          />
+
+          <p className="form-hint">
+            subscription_transactions is the only payment table, and there is no platform-facing transaction list: the
+            only per-transaction view is the last 20 on one business, under Subscriptions. No invoice or receipt table
+            exists.
+          </p>
+
+          {!mayView ? (
+            <StateBlock
+              variant="denied"
+              title="Revenue reporting needs platform:view"
+              body="get_platform_revenue_summary and get_platform_revenue_by_plan are gated on that key, so no figure is shown."
+            />
+          ) : revenue.error ? (
+            <SectionFailure message={revenue.error} onRetry={revenue.reload} />
+          ) : (
+            <>
+              {inbound.paymentsUnavailable && (
+                <div className="callout callout-warning">
+                  <div>
+                    <p className="callout-title">Failed payments cannot be listed</p>
+                    <p className="callout-text">
+                      The dashboard link asked for failed payments. Only the aggregate totals below exist, so no list of
+                      individual failures can be shown: the count is real, the rows behind it are not reachable here.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              <KpiGrid>
+                <KpiCard
+                  label="Revenue in period"
+                  value={revenue.loading ? '—' : formatMoney(revenue.summary?.totalRevenue ?? null)}
+                  foot={`${formatNumber(revenue.summary?.successfulCount ?? null)} successful payments`}
+                />
+                <KpiCard
+                  label="Failed payments"
+                  value={revenue.loading ? '—' : formatNumber(revenue.summary?.failedCount ?? null)}
+                  tone={failedCount > 0 ? 'warning' : 'default'}
+                  foot="From subscription_transactions"
+                />
+                <KpiCard
+                  label="Attempts in period"
+                  value={revenue.loading ? '—' : formatNumber(paymentsInPeriod)}
+                  foot="Sandbox excluded"
+                />
+                <KpiCard
+                  label="Attributed to a plan"
+                  value={revenue.loading ? '—' : formatMoney(breakdownTotal)}
+                  foot="From the bars below"
+                />
+              </KpiGrid>
+
+              <div className="section-head">
+                <div className="section-head-text">
+                  <h3 className="section-title">Revenue by plan</h3>
+                  <p className="section-sub">
+                    Period total: {revenue.loading ? '—' : formatMoney(revenue.summary?.totalRevenue ?? null)}
+                  </p>
+                </div>
+              </div>
+              {revenueMeters.length > 0 ? (
+                <MeterList items={revenueMeters} />
+              ) : (
+                <StateBlock
+                  variant="empty"
+                  title="No revenue recorded in this period"
+                  body="No subscription payment succeeded in the selected range. Try a longer period."
+                />
+              )}
+
+              <Disclosure summary="How the revenue figures are grouped">
+                <p>
+                  Sandbox transactions are excluded. Grouping is by the legacy subscription_plans table, not the plan
+                  ladder above, so a name can differ and a payment with no legacy plan appears in no bar.
+                </p>
+              </Disclosure>
+
+              <Disclosure summary="What is real here, and what is not">
+                <ul className="list">
+                  <li className="list-item">
+                    <div>
+                      <p className="list-item-title">Gateway transactions</p>
+                      <p className="list-item-subtitle">
+                        initiate_subscription_checkout writes the row, the paystack-initialize and
+                        opay-initiate-payment Edge Functions start the payment, and the webhook maps the terminal status.
+                        Both gateways write this one table; the provider payload lands in paystack_data.
+                      </p>
+                    </div>
+                  </li>
+                  <li className="list-item">
+                    <div>
+                      <p className="list-item-title">Pending verification</p>
+                      <p className="list-item-subtitle">
+                        Status pending means a checkout was started and no terminal webhook has arrived — not that money
+                        was received. The stored statuses are pending, success, failed and abandoned.
+                      </p>
+                    </div>
+                  </li>
+                  <li className="list-item">
+                    <div>
+                      <p className="list-item-title">Confirmed payment</p>
+                      <p className="list-item-subtitle">
+                        A successful webhook calls activate_subscription, which writes the entitlement. That is the point
+                        at which money becomes access — see Activation &amp; access.
+                      </p>
+                    </div>
+                  </li>
+                  <li className="list-item">
+                    <div>
+                      <p className="list-item-title">Manual payments</p>
+                      <p className="list-item-subtitle">
+                        Recorded as an activation-key payment_reference (written at issue, and not returned by
+                        list_activation_keys) or as a manual_activation adjustment. Neither creates a transaction row.
+                      </p>
+                    </div>
+                  </li>
+                  <li className="list-item">
+                    <div>
+                      <p className="list-item-title">Refunds and reconciliation</p>
+                      <p className="list-item-subtitle">
+                        No refund path and no reconciliation endpoint exists for subscription payments. The refunds table
+                        belongs to merchant sales, not to platform billing, so a subscription refund has to be handled at
+                        the gateway and then recorded as a cancellation.
+                      </p>
+                    </div>
+                  </li>
+                  <li className="list-item">
+                    <div>
+                      <p className="list-item-title">Receipts</p>
+                      <p className="list-item-subtitle">
+                        Nothing issues a receipt. The reference, amount, currency and paid_at on a transaction are the
+                        only record of a payment.
+                      </p>
+                    </div>
+                  </li>
+                </ul>
+              </Disclosure>
+            </>
+          )}
+        </section>
+      ) : section === 'activation' ? (
+        <>
+          <section className="card" aria-labelledby="billing-activation-path">
+            <SectionHead
+              id="billing-activation-path"
+              title="Activation and access"
+              sub="The three routes that turn money into access. All of them write the same entitlement row."
+              actions={
+                <Link className="btn btn-outline btn-sm" to="/platform/activation">
+                  <span className="btn-label">Activation keys</span>
+                </Link>
+              }
+            />
+
+            <ul className="list">
+              <li className="list-item">
+                <div>
+                  <p className="list-item-title">Confirmed gateway payment</p>
+                  <p className="list-item-subtitle">
+                    The Paystack or OPay webhook calls activate_subscription, which upserts organization_products with
+                    source=payment, status active, and prices taken from the plan matched to the paid legacy plan.
+                  </p>
+                </div>
+              </li>
+              <li className="list-item">
+                <div>
+                  <p className="list-item-title">Approved manual verification</p>
+                  <p className="list-item-subtitle">
+                    An operator issues an activation key for the offline or bank-transfer payment, and the business owner
+                    redeems it. That writes the entitlement with source=activation_key and the plan prices captured at
+                    issuance.
+                  </p>
+                </div>
+              </li>
+              <li className="list-item">
+                <div>
+                  <p className="list-item-title">Operator-recorded activation</p>
+                  <p className="list-item-subtitle">
+                    A manual_activation adjustment grants access with source=manual. It is the only route available when
+                    the money arrived outside a gateway and no key was issued.
+                  </p>
+                </div>
+              </li>
+            </ul>
+
+            <p className="form-hint">
+              organization_products is what grants access; the seat-limit trigger reads it. A confirmed payment that
+              never reaches activate_subscription leaves the business with no entitlement — which is what the
+              &ldquo;pending&rdquo; and &ldquo;past their expiry date&rdquo; rows on the Overview are for.
+            </p>
+          </section>
+
+          <section className="card" aria-labelledby="billing-activation-lifecycle">
+            <SectionHead
+              id="billing-activation-lifecycle"
+              title="The activation-key lifecycle"
+              sub="Read from issue_activation_key, redeem_activation_key and revoke_activation_key."
+            />
+
+            <ul className="list">
+              <li className="list-item">
+                <div>
+                  <p className="list-item-title">
+                    Issued <Badge tone="info">issued</Badge>
+                  </p>
+                  <p className="list-item-subtitle">
+                    Issue stamps valid_from = now() and valid_until = now() + the validity given in days (1–3650). The key
+                    is redeemable immediately; nothing reviews or approves it, and the seat limit and prices it will grant
+                    are captured at this moment, not at redemption from today's catalogue.
+                  </p>
+                </div>
+              </li>
+              <li className="list-item">
+                <div>
+                  <p className="list-item-title">
+                    Redeemed <Badge tone="success">redeemed</Badge>
+                  </p>
+                  <p className="list-item-subtitle">
+                    Only the business owner may redeem, and only for exactly one business. The key row is locked with
+                    SELECT … FOR UPDATE, so two simultaneous redemptions cannot both succeed; the second is refused with
+                    &ldquo;That activation key has already been used&rdquo;. The key's expiry becomes the entitlement's
+                    expiry and an unbound key is bound to the redeeming business.
+                  </p>
+                </div>
+              </li>
+              <li className="list-item">
+                <div>
+                  <p className="list-item-title">
+                    Expired <Badge tone="warning">passed its window</Badge>
+                  </p>
+                  <p className="list-item-subtitle">
+                    A key expires when valid_until passes. Nothing sweeps it, so it still reads Issued in the key list;
+                    redemption is refused with &ldquo;That activation key has expired&rdquo;. Extending access means an
+                    extend_expiry adjustment on the entitlement — the key cannot be edited.
+                  </p>
+                </div>
+              </li>
+              <li className="list-item">
+                <div>
+                  <p className="list-item-title">
+                    Revoked <Badge tone="danger">revoked</Badge>
+                  </p>
+                  <p className="list-item-subtitle">
+                    revoke_activation_key stamps revoked_at and refuses any later redemption. A reason is required only
+                    for a key that was already redeemed; this console asks for one every time. Access already granted is
+                    untouched, so a refunded customer keeps their plan until an adjustment changes it.
+                  </p>
+                </div>
+              </li>
+              <li className="list-item">
+                <div>
+                  <p className="list-item-title">Replaced</p>
+                  <p className="list-item-subtitle">
+                    There is no replace or reissue function: revoke the key and issue another. A code is never shown
+                    twice — the key list masks it to its last four characters — so a lost code is replaced rather than
+                    recovered.
+                  </p>
+                </div>
+              </li>
+            </ul>
+
+            <p className="form-hint">
+              Duplicate activation is prevented by that one-shot redemption lock and by the unique (org_id, product_id)
+              entitlement key, not by anything on this screen: redeeming a second key for the same product overwrites the
+              deal instead of stacking a second entitlement.
+            </p>
+
+            <div className="btn-row">
+              <Link className="btn btn-outline btn-sm" to="/platform/activation">
+                <span className="btn-label">Issue, list and revoke keys</span>
+              </Link>
+              <Link className="btn btn-ghost btn-sm" to="/platform/audit?action=ACTIVATION_KEY">
+                <span className="btn-label">Key audit rows</span>
+              </Link>
+            </div>
+          </section>
+        </>
+      ) : section === 'settings' ? (
+        <section className="card" aria-labelledby="billing-settings">
+          <SectionHead
+            id="billing-settings"
+            title="Billing settings"
+            sub={`Reporting from ${environment.label.toLowerCase()}.`}
+            actions={
+              <Link className="btn btn-outline btn-sm" to="/platform/settings">
+                <span className="btn-label">Platform settings</span>
+              </Link>
+            }
+          />
+
+          <div className="callout callout-warning">
+            <div>
+              <p className="callout-title">There is no gateway configuration surface</p>
+              <p className="callout-text">
+                Paystack and OPay are hard-wired to Edge Function environment variables — PAYSTACK_SECRET_KEY and
+                OPAY_SECRET_KEY — which are set per deployment, not stored in the database. Nothing here can read, test,
+                rotate or switch them, and set_platform_setting actively refuses any key or value matching
+                secret|password|token|api_key|private_key|service_role, so a credential cannot be parked in
+                platform_settings either.
+              </p>
+            </div>
+          </div>
+
+          <p className="form-hint">
+            Test and live are separated by deployment and by row, not by a switch: sandbox records carry is_sandbox, they
+            are excluded from every revenue figure, and issuing a sandbox activation key needs an active developer
+            grant. The environment marker names the deployment; it is not derived from the gateway credentials, so a live
+            key set on the wrong deployment is not detectable from here.
+          </p>
+
+          <p className="plat-section-sub">Billing settings that exist</p>
+          {settings.length === 0 ? (
+            <StateBlock
+              variant="unavailable"
+              title="No settings could be read"
+              body="list_platform_settings is gated on platform:view. Three billing keys are seeded by migration 068, so an empty list here means the read did not happen rather than that nothing is configured."
+            />
+          ) : (
+            <DataTable
+              columns={[
+                {
+                  key: 'key',
+                  header: 'Setting',
+                  label: '',
+                  render: (row) => (
+                    <div>
+                      <span className="data-table-primary mono">{row.key}</span>
+                      <p className="data-table-secondary">{row.description ?? 'No description recorded'}</p>
+                    </div>
+                  ),
+                },
+                {
+                  key: 'value',
+                  header: 'Value',
+                  render: (row) => <span className="mono">{JSON.stringify(row.value)}</span>,
+                },
+                {
+                  key: 'effect',
+                  header: 'Effect',
+                  render: (row) => {
+                    const note = INERT_SETTINGS.find((entry) => entry.key === row.key);
+                    if (!note) {
+                      return (
+                        <div>
+                          <Badge tone="neutral">unverified</Badge>
+                          <p className="data-table-secondary">
+                            This screen has no record of what reads this setting.
+                          </p>
+                        </div>
+                      );
+                    }
+                    return (
+                      <div>
+                        <Badge tone="warning">no reader</Badge>
+                        <p className="data-table-secondary">{note.note}</p>
+                      </div>
+                    );
+                  },
+                },
+              ]}
+              rows={settings.filter((setting) => setting.category === 'payments')}
+              rowKey={(row) => row.key}
+              stacked
+              caption="Billing settings and what reads them"
+              empty={
+                <StateBlock
+                  variant="empty"
+                  title="No setting in the payments category"
+                  body="Every billing setting seeded by a migration has been removed from the database."
+                />
+              }
+            />
+          )}
+
+          <p className="plat-section-sub">Renewal, grace period and invoices</p>
+          <DefList
+            rows={[
+              {
+                term: 'Renewal',
+                value:
+                  'Nothing renews an entitlement. A renewal is a manual extend_expiry adjustment, and no schedule triggers one.',
+              },
+              {
+                term: 'Grace period',
+                value:
+                  'None. There is no grace window, no retry schedule and no failure-to-cancel path, so a failed payment changes nothing until an operator acts.',
+              },
+              {
+                term: 'Expiry',
+                value:
+                  'Nothing sweeps a lapsed entitlement: it keeps working past expires_at until an adjustment changes it.',
+              },
+              {
+                term: 'Invoice information',
+                value:
+                  'No invoice, receipt or billing-address record exists. An organisation carries a billing_email, which is shown on the business detail, and nothing else.',
+                muted: true,
+              },
+              {
+                term: 'Billing currency',
+                value: 'Carried on the plan and on the entitlement, not read from billing.currency.',
+              },
+              {
+                term: 'Billing communications',
+                value:
+                  'Notification templates exist and are edited in Platform settings, but no template is seeded and no application code reads one to send a message. The only email the product triggers is the authentication service resending its own verification message.',
+                muted: true,
+              },
+            ]}
+          />
+        </section>
+      ) : (
+        <section className="card" aria-labelledby="billing-audit">
+          <SectionHead
+            id="billing-audit"
+            title="Audit trail"
+            sub="Price, subscription, activation-key and setting changes, newest first."
+            actions={
+              <Link className="btn btn-outline btn-sm" to="/platform/audit">
+                <span className="btn-label">All audit logs</span>
+              </Link>
+            }
+          />
+
+          <p className="form-hint">
+            Prices, subscription changes, activation keys and settings all write audit rows since migration 089.
+            Permission denials do not: require_platform_permission raises and writes nothing, so a refused attempt leaves
+            no record. Reads are not recorded either — this is a change log, not an access log.
+          </p>
+
+          {audit.error !== null && audit.entries.length > 0 && (
+            <p className="form-hint">
+              One of the four reads failed, so this list is partial: {audit.error}
+            </p>
+          )}
+
+          <SectionState
+            loading={audit.loading}
+            error={audit.entries.length === 0 ? audit.error : null}
+            empty={!audit.loading && audit.error === null && auditEntries.length === 0}
+            emptyTitle="No billing changes recorded"
+            emptyBody="A plan, subscription, key or setting change appears here as soon as it is written."
+            onRetry={audit.reload}
+          >
+            <Timeline items={auditEntries} />
+          </SectionState>
+
+          <Disclosure summary="Which actions this reads, and how">
+            <ul className="list">
+              {AUDIT_ACTIONS.map((entry) => (
+                <li className="list-item" key={entry.action}>
+                  <div>
+                    <p className="list-item-title mono">{entry.action}</p>
+                    <p className="list-item-subtitle">{entry.means}</p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+            <p className="form-hint">
+              p_action is a case-insensitive substring match, so no single filter covers all four families: this panel
+              merges {AUDIT_ACTION_FILTERS.join(', ')} and reads up to {formatNumber(AUDIT_LIMIT)} rows from each.
+              Business-scoped reads on one business are not included.
+            </p>
+          </Disclosure>
+
+          <div className="btn-row">
+            <Link className="btn btn-outline btn-sm" to="/platform/audit?action=PLAN">
+              <span className="btn-label">Plan changes only</span>
+            </Link>
+            <Link className="btn btn-ghost btn-sm" to="/platform/audit?action=SUBSCRIPTION">
+              <span className="btn-label">Subscription changes only</span>
+            </Link>
+          </div>
+        </section>
+      )}
 
       <PlanEditDialog
         plan={editingPlan}
@@ -2207,6 +3620,15 @@ export default function BillingArea() {
         onClose={() => setEditingPlan(null)}
         onSaved={() => {
           if (editingPlan) setSelectedPlanId(editingPlan.id);
+          refreshAll();
+        }}
+      />
+
+      <PublishPlanDialog
+        plan={publishingPlan}
+        onClose={() => setPublishingPlan(null)}
+        onPublished={() => {
+          if (publishingPlan) setSelectedPlanId(publishingPlan.id);
           refreshAll();
         }}
       />
