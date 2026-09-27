@@ -159,8 +159,17 @@ export default function BillingPage() {
      * unlimited and NULL for a bespoke deal, and in both cases drawing a bar
      * would imply a limit that does not exist — worse, filling it to 100% would
      * read as "at capacity". With no ceiling the row shows the count alone.
+     *
+     * The two limits read differently when unset: a NULL user limit is a
+     * negotiated seat count, whereas no plan defines a store limit at all, so
+     * calling that "agreed per deal" would imply a bargain that was never struck.
      */
-    function usageItem(label: string, used: number, limit: number | null): MeterItem {
+    function usageItem(
+      label: string,
+      used: number,
+      limit: number | null,
+      unsetLabel: string,
+    ): MeterItem {
       const ceiling = limit !== null && limit > 0 ? limit : null;
       return {
         label,
@@ -169,7 +178,7 @@ export default function BillingPage() {
           ? `${formatNumber(used)} of ${formatNumber(ceiling)}`
           : limit === -1
             ? `${formatNumber(used)} · unlimited`
-            : `${formatNumber(used)} · agreed per deal`,
+            : `${formatNumber(used)} · ${unsetLabel}`,
         max: ceiling ?? 0,
         warnAt: 0.8,
         dangerAt: 1,
@@ -178,8 +187,8 @@ export default function BillingPage() {
     }
 
     return [
-      usageItem('Users', entitlement.seatsUsed, entitlement.agreedUserLimit),
-      usageItem('Stores', entitlement.storesUsed, entitlement.agreedStoreLimit),
+      usageItem('Users', entitlement.seatsUsed, entitlement.agreedUserLimit, 'agreed per deal'),
+      usageItem('Stores', entitlement.storesUsed, entitlement.agreedStoreLimit, 'no plan limit'),
     ];
   }, [entitlement]);
 
@@ -380,10 +389,15 @@ export default function BillingPage() {
                     </p>
                   )}
 
-                  {plan.setupFee !== null && plan.setupFee > 0 && (
-                    <p className="plan-card-note">Plus {formatMoney(plan.setupFee)} one-off implementation.</p>
-                  )}
-                  {plan.trialDays > 0 && <p className="plan-card-note">{plan.trialDays}-day trial.</p>}
+                  {/*
+                    setup_fee and trial_days are stored on the plan and editable in
+                    the console, but nothing applies either: `start_plan_checkout`
+                    charges the plan price alone, and `activate_subscription`
+                    leaves `trial_ends_at` NULL. Advertising them here would
+                    promise a customer something checkout does not do, so they are
+                    deliberately not shown until the backend honours them. Every
+                    plan currently holds 0 and NULL, so nothing visible changes.
+                  */}
 
                   {isCurrent ? (
                     <Button variant="outline" disabled>

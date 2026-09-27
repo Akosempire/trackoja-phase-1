@@ -379,7 +379,7 @@ function findListPlan(plans: ProductPlan[], row: ProductBusiness): ProductPlan |
 function isCustomerVisible(plan: ProductPlan, now = Date.now()): boolean {
   if (plan.status !== 'active' || !plan.isPublic) return false;
   if (plan.publishedAt === undefined) return true;
-  if (plan.publishedAt === null || plan.effectiveFrom === null) return false;
+  if (plan.publishedAt === null || !plan.effectiveFrom) return false;
   const effective = new Date(plan.effectiveFrom).getTime();
   return !Number.isNaN(effective) && effective <= now;
 }
@@ -1312,7 +1312,7 @@ function PublishPlanDialog({ plan, onClose, onPublished }: PublishPlanDialogProp
         open={stage === 'form'}
         onClose={onClose}
         title={`Publish ${storedPlan.name}`}
-        description={`${storedPlan.productName} · plan key ${storedPlan.key}. Editing wrote the draft; this is what puts it in front of customers.`}
+        description={`${storedPlan.productName} · plan key ${storedPlan.key}. Editing never publishes: this is the only write that puts a plan in front of customers.`}
         footer={
           <>
             <Button variant="outline" onClick={onClose} disabled={busy}>
@@ -1357,6 +1357,13 @@ function PublishPlanDialog({ plan, onClose, onPublished }: PublishPlanDialogProp
           Blank publishes with immediate effect; the server refuses a date in the past. Nothing schedules a future
           date — the plan is simply not buyable until it arrives.
         </p>
+
+        {!storedPlan.isPublic && (
+          <p className="form-hint">
+            This plan is not publicly offered, and publishing does not change that: it forces the status to active and
+            leaves is_public alone, so the plan stays invisible to customers until it is made public.
+          </p>
+        )}
 
         {storedPlan.publishedAt ? (
           <p className="form-hint">
@@ -2420,7 +2427,7 @@ export default function BillingArea() {
       id: 'past-due',
       tone: 'danger',
       title: `${formatNumber(pastDueCount)} subscription${pastDueCount === 1 ? '' : 's'} past due`,
-      meta: 'Access continues until the seat check next runs.',
+      meta: 'Existing access continues; the seat check refuses new staff while it is not active.',
       action: (
         <Button
           variant="outline"
@@ -2821,6 +2828,24 @@ export default function BillingArea() {
                       })(),
                     },
                     { term: 'Seat limit', value: formatSeatLimit(visiblePlan.userLimit) },
+                    {
+                      term: 'Store limit',
+                      value: storeLimitLabel(visiblePlan.storeLimit),
+                    },
+                    {
+                      term: 'Setup fee',
+                      value:
+                        visiblePlan.setupFee === null
+                          ? 'None'
+                          : formatMoney(visiblePlan.setupFee, visiblePlan.currency),
+                    },
+                    {
+                      term: 'Trial',
+                      value:
+                        visiblePlan.trialDays === null
+                          ? 'Not returned by list_product_plans'
+                          : trialDaysLabel(visiblePlan.trialDays),
+                    },
                     { term: 'Billing cycle', value: humaniseToken(visiblePlan.billingCycle) },
                     { term: 'Status', value: <StatusBadge status={visiblePlan.status} /> },
                     { term: 'Published', ...publicationLabel(visiblePlan) },
@@ -2867,6 +2892,12 @@ export default function BillingArea() {
                   ]}
                 />
 
+                <p className="form-hint">
+                  Setup fee and trial length are plan attributes the customer Billing page shows as notes. Nothing
+                  applies either one yet: a checkout's transaction amount is the plan's own monthly or annual price, and
+                  activation leaves the entitlement's trial_ends_at NULL, so no trial is granted from this value.
+                </p>
+
                 <div className="btn-row">
                   {mayManagePlans ? (
                     <>
@@ -2880,8 +2911,8 @@ export default function BillingArea() {
                   )}
                 </div>
                 <p className="form-hint">
-                  Editing saves the row and journals a revision; it does not publish. Publishing stamps published_at and
-                  the effective date, and is the only way a price becomes customer-visible.
+                  Editing saves the row and journals a revision; it never publishes. Publishing stamps the dates and
+                  forces the status to active, so a plan also has to be publicly offered before customers see it.
                 </p>
 
                 <p className="plat-section-sub">Who a published change affects</p>
@@ -2889,7 +2920,10 @@ export default function BillingArea() {
                   rows={[
                     {
                       term: 'New customers',
-                      value: 'Pay the published monthly and annual prices from the effective date.',
+                      value: `Pay ${priceLabel(visiblePlan.monthlyPrice, visiblePlan.currency)}/month or ${priceLabel(
+                        visiblePlan.annualPrice,
+                        visiblePlan.currency,
+                      )}/year, ${formatSeatLimit(visiblePlan.userLimit)} seats, from the effective date.`,
                     },
                     {
                       term: 'Existing subscribers',
@@ -3210,8 +3244,9 @@ export default function BillingArea() {
 
               <Disclosure summary="How the revenue figures are grouped">
                 <p>
-                  Sandbox transactions are excluded. Grouping is by the legacy subscription_plans table, not the plan
-                  ladder above, so a name can differ and a payment with no legacy plan appears in no bar.
+                  Sandbox transactions are excluded. Grouping is by the legacy subscription_plans table, not by the plan
+                  catalogue in Plans &amp; pricing, so a name can differ and a payment with no legacy plan appears in no
+                  bar.
                 </p>
               </Disclosure>
 
@@ -3221,9 +3256,12 @@ export default function BillingArea() {
                     <div>
                       <p className="list-item-title">Gateway transactions</p>
                       <p className="list-item-subtitle">
-                        initiate_subscription_checkout writes the row, the paystack-initialize and
-                        opay-initiate-payment Edge Functions start the payment, and the webhook maps the terminal status.
-                        Both gateways write this one table; the provider payload lands in paystack_data.
+                        start_plan_checkout writes the row from a published product plan id — the path the customer
+                        Billing page uses — and initiate_subscription_checkout still writes it from a legacy plan id. The
+                        paystack-initialize Edge Function starts the payment and paystack-webhook maps the terminal
+                        status to activate_subscription. Paystack is the only gateway on this path: opay-initiate-payment
+                        and opay-webhook drive device_transactions for the OPay terminal flow, which is a merchant
+                        payment, not a subscription, so no OPay call writes this table.
                       </p>
                     </div>
                   </li>
@@ -3307,8 +3345,8 @@ export default function BillingArea() {
                   <p className="list-item-title">Approved manual verification</p>
                   <p className="list-item-subtitle">
                     An operator issues an activation key for the offline or bank-transfer payment, and the business owner
-                    redeems it. That writes the entitlement with source=activation_key and the plan prices captured at
-                    issuance.
+                    redeems it. That writes the entitlement with source=activation_key, the key's seat limit and expiry,
+                    and the plan's prices as they stand at redemption.
                   </p>
                 </div>
               </li>
@@ -3345,8 +3383,9 @@ export default function BillingArea() {
                   </p>
                   <p className="list-item-subtitle">
                     Issue stamps valid_from = now() and valid_until = now() + the validity given in days (1–3650). The key
-                    is redeemable immediately; nothing reviews or approves it, and the seat limit and prices it will grant
-                    are captured at this moment, not at redemption from today's catalogue.
+                    is redeemable immediately; nothing reviews or approves it, and the seat limit it will grant is
+                    captured on the key at this moment. The prices are not: activation_keys has no price columns, so
+                    redemption reads them from the plan as it stands then.
                   </p>
                 </div>
               </li>
@@ -3436,7 +3475,8 @@ export default function BillingArea() {
                 OPAY_SECRET_KEY — which are set per deployment, not stored in the database. Nothing here can read, test,
                 rotate or switch them, and set_platform_setting actively refuses any key or value matching
                 secret|password|token|api_key|private_key|service_role, so a credential cannot be parked in
-                platform_settings either.
+                platform_settings either. Paystack is the gateway on the subscription path; the OPay credentials drive
+                the terminal payment flow, which is merchant money rather than billing.
               </p>
             </div>
           </div>
@@ -3506,7 +3546,7 @@ export default function BillingArea() {
                 <StateBlock
                   variant="empty"
                   title="No setting in the payments category"
-                  body="Every billing setting seeded by a migration has been removed from the database."
+                  body="Migration 068 seeds billing.trial_days, billing.annual_months_free and billing.currency, so this category is empty only if a later migration removed or recategorised them."
                 />
               }
             />
@@ -3533,7 +3573,7 @@ export default function BillingArea() {
               {
                 term: 'Invoice information',
                 value:
-                  'No invoice, receipt or billing-address record exists. An organisation carries a billing_email, which is shown on the business detail, and nothing else.',
+                  'No invoice, receipt or billing-address record exists. organisations carries a billing_email column, and get_platform_business does not return it, so nothing in this console displays it either.',
                 muted: true,
               },
               {
