@@ -390,8 +390,14 @@ BEGIN
 
   INSERT INTO zz_results VALUES (14, 'the guard refuses a tenant write during an active impersonation session',
     v_block_error = 'Impersonation is read-only', v_block_error);
-  INSERT INTO zz_results VALUES (15, 'KNOWN LIMITATION: an impersonating platform admin is exempted by the predicate',
-    v_admin_exempt_error LIKE 'not blocked%', v_admin_exempt_error);
+  -- This check originally recorded a KNOWN LIMITATION: at 089 the predicate still
+  -- carried `AND NOT is_platform_admin(auth.uid())`, which exempted the only
+  -- caller who can own an impersonation session, so an impersonating platform
+  -- admin was NOT blocked. Migration 090 removed that exemption. The check now
+  -- asserts the corrected behaviour, so a healthy database reports success here
+  -- rather than a failure that documents a defect which no longer exists.
+  INSERT INTO zz_results VALUES (15, 'an impersonating platform admin is blocked (a 089 limitation, closed by 090)',
+    v_admin_exempt_error = 'Impersonation is read-only', v_admin_exempt_error);
 
   -- ============================================================
   -- 5. NEW PERMISSION KEYS AND CATEGORIES (defects 5 and 6)
