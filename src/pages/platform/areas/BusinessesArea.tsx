@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { PlatformAdminService, type ProductBusiness, type PlatformProduct } from '../../../services/platformAdmin.service';
 import { usePlatform } from '../../../components/platform/PlatformContext';
 import { AreaCoverage, PermissionDenied, PlatformPageHead, RefreshButton } from '../../../components/platform/PlatformPageHead';
+import { PlatformRolesSection } from '../../../components/platform/PlatformRolesSection';
 import { DataTable, type DataTableColumn } from '../../../components/ui/DataTable';
 import { Pagination } from '../../../components/ui/Pagination';
 import { SectionHead } from '../../../components/ui/SectionHead';
@@ -388,6 +389,11 @@ export default function BusinessesArea() {
           </>
         )}
       </section>
+
+      {/* Platform accounts live in this area because it is the one named for
+          users; the ten-area structure deliberately does not gain an eleventh.
+          The component renders nothing unless the operator can manage users. */}
+      <PlatformRolesSection />
     </>
   );
 }

@@ -262,6 +262,52 @@ export interface PlatformAuditPage {
   total: number;
 }
 
+/** A platform admin account as the roster screen needs it. */
+export interface PlatformAdminAccountV2 {
+  userId: string;
+  email: string;
+  fullName: string | null;
+  level: string;
+  status: string;
+  /** The keys this account effectively holds. A level is a label; these are the capability. */
+  permissions: string[];
+  permissionCount: number;
+  developerMode: boolean;
+  grantedByEmail: string | null;
+  grantedAt: string;
+  revokedAt: string | null;
+  note: string | null;
+}
+
+/** The five platform levels, and what each one starts with. */
+export const PLATFORM_LEVELS = [
+  {
+    level: 'super_admin',
+    label: 'Platform owner',
+    summary: 'Holds every permission implicitly. The only level that can appoint admins, change levels, revoke access or grant developer mode.',
+  },
+  {
+    level: 'admin',
+    label: 'Platform admin',
+    summary: 'Starts with the platform overview, businesses and support. Everything else must be granted key by key.',
+  },
+  {
+    level: 'support',
+    label: 'Support agent',
+    summary: 'Starts with the platform overview and support, so customer records and notes are reachable but nothing commercial is.',
+  },
+  {
+    level: 'finance_operator',
+    label: 'Finance operator',
+    summary: 'Starts with the platform overview plus payment visibility and subscription changes.',
+  },
+  {
+    level: 'developer',
+    label: 'Developer / technical operator',
+    summary: 'Starts with the platform overview and developer mode. The level itself grants nothing else.',
+  },
+] as const;
+
 export class PlatformAdminService {
   // ------------------------------------------------------- my access
 
@@ -1098,6 +1144,89 @@ export class PlatformAdminService {
       };
     } catch (error) {
       console.error('List platform audit logs error:', error);
+      throw error;
+    }
+  }
+
+  // ------------------------------------------------- platform admin roster
+
+  /**
+   * The platform admin roster.
+   *
+   * Unlike the older `list_platform_admin_accounts`, this reports the effective
+   * permission count — which for a non-owner is exactly the keys granted to them,
+   * since a level is a label and the grants are the capability.
+   */
+  static async listPlatformAdminAccountsV2(): Promise<PlatformAdminAccountV2[]> {
+    try {
+      const { data, error } = await supabase.rpc('list_platform_admin_accounts_v2');
+      if (error) throw error;
+      return (data ?? []).map((row: any) => ({
+        userId: row.user_id,
+        email: row.email,
+        fullName: row.full_name,
+        level: row.level,
+        status: row.status,
+        permissions: row.permissions ?? [],
+        permissionCount: Number(row.permission_count ?? 0),
+        developerMode: Boolean(row.developer_mode),
+        grantedByEmail: row.granted_by_email,
+        grantedAt: row.granted_at,
+        revokedAt: row.revoked_at,
+        note: row.note,
+      }));
+    } catch (error) {
+      console.error('List platform admin roster error:', error);
+      throw error;
+    }
+  }
+
+  /** Appoints a platform admin. The server seeds the level's baseline permissions. */
+  static async grantPlatformAdmin(userId: string, level: string, note?: string): Promise<void> {
+    try {
+      const { error } = await supabase.rpc('grant_platform_admin', {
+        p_user_id: userId,
+        p_level: level,
+        p_note: note ?? null,
+      });
+      if (error) throw error;
+    } catch (error) {
+      console.error('Grant platform admin error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Changes a platform admin's level. Permissions are reseeded for the new level
+   * — cleared when moving to owner, since that level implies every key.
+   */
+  static async setPlatformAdminLevel(userId: string, level: string, note?: string): Promise<void> {
+    try {
+      const { error } = await supabase.rpc('set_platform_admin_level', {
+        p_user_id: userId,
+        p_level: level,
+        p_note: note ?? null,
+      });
+      if (error) throw error;
+    } catch (error) {
+      console.error('Set platform admin level error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Revokes platform access: permissions, developer mode, active developer
+   * sessions and both legacy platform flags. A reason is required.
+   */
+  static async revokePlatformAdmin(userId: string, reason: string): Promise<void> {
+    try {
+      const { error } = await supabase.rpc('revoke_platform_admin', {
+        p_user_id: userId,
+        p_reason: reason,
+      });
+      if (error) throw error;
+    } catch (error) {
+      console.error('Revoke platform admin error:', error);
       throw error;
     }
   }

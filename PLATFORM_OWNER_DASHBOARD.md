@@ -462,4 +462,60 @@ production: `auth.users` 13 → 10, `platform_admins` 4 → 1, with zero rows le
 `public.users`, `platform_admin_permissions` or `audit_logs`. The only platform
 admin remaining is the platform owner.
 
+## 9. Platform roles, and how they are administered
+
+The rewrite of this console dropped platform user and role administration
+entirely: the previous screen could list admin accounts and toggle their
+permission keys, and `listAdminAccounts`/`setAdminPermission` became unused. More
+seriously, `platform_admins` had **no INSERT, UPDATE or DELETE path at all** — a
+platform admin could only be appointed by running SQL by hand, so the five product
+roles existed as a CHECK constraint and nothing else.
+
+Migration 091 (`platform_admin_management`) closes that:
+
+| Function | What it does |
+| --- | --- |
+| `grant_platform_admin(user, level, note)` | Appoints an admin, seeds the level's baseline permissions, and sets the legacy platform flags |
+| `set_platform_admin_level(user, level, note)` | Changes the level, reseeding permissions — cleared when moving to owner, because that level implies every key |
+| `revoke_platform_admin(user, reason)` | Clears permissions, revokes developer access, ends open developer sessions, clears both legacy flags |
+| `list_platform_admin_accounts_v2()` | The roster with effective permission counts, developer state and who granted each account |
+
+All three mutations are restricted to a platform owner, all three audit their
+change with before/after values, and all three carry guards that keep the console
+from locking itself out: the last platform owner cannot be demoted or revoked, and
+self-revocation is refused.
+
+**The levels, and what they actually mean.** For every level except platform
+owner, an account's abilities are *exactly* the permission keys granted to it — so
+Platform Admin, Support Agent and Developer differ only by which keys they hold,
+and the level decides only which keys are seeded at appointment:
+
+| Level | Seeded with |
+| --- | --- |
+| Platform owner | nothing — it holds all eighteen keys implicitly |
+| Platform admin | `platform:view`, `platform:manage_businesses`, `platform:support` |
+| Support agent | `platform:view`, `platform:support` |
+| Finance operator | `platform:view`, `platform:view_payments`, `platform:manage_subscriptions` |
+| Developer | `platform:view`, `developer:access` |
+
+Two details were easy to get wrong and are worth recording. Seeding permissions is
+not optional: a level granted with no keys produces an account that can do nothing
+at all, which looks like a broken grant rather than a strict one. And
+`users.is_platform_admin` must be kept in step, because every RLS SELECT policy on
+the platform tables still keys on that legacy column — without it a new admin
+passes the RPC gates and can read no table.
+
+**The screen** is a "Platform users and roles" section in the Businesses & Users
+area — that area is the one named for users, and the ten-area structure does not
+gain an eleventh. It renders only for an operator holding `platform:manage_users`,
+lists the roster, explains each level, and offers appoint, change level and revoke
+with a required reason. Verified in a browser at 1440 and 390: the roster renders,
+all five levels are explained, and there is no horizontal overflow.
+
+Verified by `supabase/verification/platform_admin_management_verification.sql`
+(**20/20 checks**), which is re-runnable and self-cleaning — it exercises all four
+seeded baselines, every guard listed above, the audit trail, and the privilege
+surface, then restores its fixture and asserts that nothing was left behind.
+
+
 
