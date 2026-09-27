@@ -15,6 +15,7 @@ import ProductFormPage from './pages/inventory/ProductFormPage';
 import BulkImportPage from './pages/inventory/BulkImportPage';
 import CategoriesPage from './pages/inventory/CategoriesPage';
 import StockAdjustmentPage from './pages/inventory/StockAdjustmentPage';
+import StockLotsPage from './pages/inventory/StockLotsPage';
 import CheckoutPage from './pages/sales/CheckoutPage';
 import ReceiptPage from './pages/sales/ReceiptPage';
 import SalesHubPage from './pages/sales/SalesHubPage';
@@ -100,6 +101,7 @@ export default function App() {
           <Route path="/inventory/products/:productId" element={<ProductFormPage />} />
           <Route path="/inventory/categories" element={<CategoriesPage />} />
           <Route path="/inventory/stock" element={<StockAdjustmentPage />} />
+          <Route path="/inventory/lots" element={<StockLotsPage />} />
           <Route path="/sales" element={<SalesHubPage />} />
           <Route path="/sales/history" element={<SalesHistoryPage />} />
           <Route path="/sales/checkout" element={<CheckoutPage />} />
