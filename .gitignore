@@ -1,5 +1,8 @@
 node_modules/
-dist/
+# dist/ is committed on purpose: trackoja.cv is a static build served by Caddy on
+# a VPS, so the server updates by pulling this directory rather than deploying
+# through Vercel. Run `npm run build` and commit the result after any source change.
+# dist/
 .env.local
 *.tsbuildinfo
 .DS_Store
