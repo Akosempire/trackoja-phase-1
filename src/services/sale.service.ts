@@ -52,6 +52,24 @@ export class SaleService {
       if (error) throw error;
       if (!data) throw new Error('Failed to create sale');
 
+      // Consume identified stock (fabric rolls, pharmacy batches, serialized units)
+      // and stamp the lot identity and unit of measure onto each sale line. A
+      // product with no lots is untouched, so ordinary retail is unaffected.
+      //
+      // Best effort on purpose: create_sale has already committed, so throwing here
+      // would report a failed checkout for a sale that exists and invite a
+      // duplicate retry. A failure is logged loudly instead - if allocation did not
+      // run, the lot quantities are stale and must be reconciled.
+      const { error: allocationError } = await supabase.rpc('allocate_lots_for_sale', {
+        p_sale_id: data.id,
+      });
+      if (allocationError) {
+        console.error(
+          `Stock allocation failed for sale ${data.id}; lot stock was not consumed and needs reconciling:`,
+          allocationError
+        );
+      }
+
       return this.getSale(data.id);
     } catch (error) {
       console.error('Create sale error:', error);
