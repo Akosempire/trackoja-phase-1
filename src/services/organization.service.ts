@@ -27,8 +27,10 @@ export class OrganizationService {
           name: organizationName,
           slug: `${slug}-${Date.now()}`,
           owner_id: userId,
-          billing_status: 'trial',
-          trial_ends_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+          // Creating a tenant never grants product access. Commercial policy is
+          // resolved later from an immutable plan version.
+          billing_status: 'suspended',
+          trial_ends_at: null,
           timezone,
           business_category: businessCategory,
         })
@@ -66,6 +68,35 @@ export class OrganizationService {
   }
 
   /**
+   * Atomically creates or resumes the business and first store used by the
+   * commercial onboarding flow. The database owns idempotency and deliberately
+   * grants no trial or product access here.
+   */
+  static async createOnboardingBusiness(input: {
+    businessName: string;
+    storeName: string;
+    businessCategory: string;
+    billingEmail?: string;
+    timezone?: string;
+  }): Promise<{ orgId: string; storeId: string; state: string; resumed: boolean }> {
+    const { data, error } = await supabase.rpc('create_onboarding_business', {
+      p_business_name: input.businessName,
+      p_store_name: input.storeName,
+      p_business_category: input.businessCategory,
+      p_billing_email: input.billingEmail?.trim() || null,
+      p_timezone: input.timezone ?? 'Africa/Lagos',
+      p_product_key: 'trackoja',
+    });
+    if (error) throw error;
+    return {
+      orgId: data.org_id,
+      storeId: data.store_id,
+      state: data.state,
+      resumed: Boolean(data.resumed),
+    };
+  }
+
+  /**
    * Get organization details
    */
   static async getOrganization(orgId: string): Promise<Organization> {
@@ -84,8 +115,12 @@ export class OrganizationService {
         name: data.name,
         slug: data.slug,
         ownerId: data.owner_id,
+        billingEmail: data.billing_email ?? undefined,
         billingStatus: data.billing_status,
+        trialEndsAt: data.trial_ends_at ?? undefined,
+        subscriptionPlanId: data.subscription_plan_id ?? undefined,
         timezone: data.timezone,
+        businessCategory: data.business_category ?? undefined,
         createdAt: data.created_at,
         updatedAt: data.updated_at,
       };
@@ -136,13 +171,13 @@ export class OrganizationService {
    */
   static async updateOrganization(orgId: string, updates: Partial<Organization>) {
     try {
+      const payload: Record<string, string> = {};
+      if (updates.name !== undefined) payload.name = updates.name;
+      if (updates.timezone !== undefined) payload.timezone = updates.timezone;
+      if (updates.billingEmail !== undefined) payload.billing_email = updates.billingEmail;
       const { data, error } = await supabase
         .from('organizations')
-        .update({
-          name: updates.name,
-          timezone: updates.timezone,
-          billing_email: updates.billingEmail,
-        })
+        .update(payload)
         .eq('id', orgId)
         .select()
         .single();

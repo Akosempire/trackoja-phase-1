@@ -10,6 +10,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { BusinessProvider } from '../contexts/BusinessContext';
 import { useEffect, useRef, useState } from 'react';
 import { containDialogFocus } from '../utils/dialog-focus';
+import { MenuIcon } from './icons';
+import { MerchantCommandSearch } from './MerchantCommandSearch';
 
 /**
  * The merchant workspace shell.
@@ -48,6 +50,7 @@ export function AppLayout() {
   };
 
   return (
+    <BusinessProvider>
     <div className="app-shell">
       <a className="skip-link" href="#main-content">Skip to content</a>
 
@@ -60,12 +63,11 @@ export function AppLayout() {
           aria-controls="mobile-navigation"
           onClick={() => setMenuOpen(true)}
         >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true">
-            <path d="M4 6h16M4 12h16M4 18h16" />
-          </svg>
+          <MenuIcon width={18} height={18} />
         </button>
         <span className="app-header-logo">TrackOja</span>
         <div className="app-header-actions">
+          <MerchantCommandSearch />
           <StoreSwitcher />
           {profile?.isPlatformAdmin && (
             <NavLink to="/platform" className={({ isActive }) => `app-nav-link${isActive ? ' active' : ''}`}>
@@ -78,7 +80,6 @@ export function AppLayout() {
         </div>
       </header>
 
-      <BusinessProvider>
         <SideNav onLogout={handleLogout} />
         <dialog
           ref={drawer}
@@ -102,7 +103,7 @@ export function AppLayout() {
           </main>
           <BottomNav />
         </div>
-      </BusinessProvider>
     </div>
+    </BusinessProvider>
   );
 }

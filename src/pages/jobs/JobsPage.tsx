@@ -12,6 +12,7 @@ import {
 import { Button } from '../../components/ui/Button';
 import { FormField } from '../../components/ui/FormField';
 import { PageLoader } from '../../components/ui/PageLoader';
+import { useToast } from '../../components/ui/Toast';
 
 function formatMoney(value: number): string {
   return `₦${value
@@ -33,6 +34,7 @@ const STATUS_BADGE: Record<JobStatus, string> = {
 const MEASUREMENT_FIELDS = ['chest', 'waist', 'hip', 'length'] as const;
 
 export default function JobsPage() {
+  const toast = useToast();
   const { profile } = useAuth();
   const { hasPermission, loading: permsLoading } = usePermissions();
   const storeId = profile?.currentStoreId;
@@ -44,7 +46,6 @@ export default function JobsPage() {
   const [summary, setSummary] = useState<JobSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [payingId, setPayingId] = useState<string | null>(null);
@@ -87,7 +88,7 @@ export default function JobsPage() {
     if (!storeId) return;
     setSaving(true);
     setError(null);
-    setNotice(null);
+    const toastId = toast.loading('Creating job…', { dedupeKey: 'job-create' });
     try {
       const filled = Object.fromEntries(
         Object.entries(measurements).filter(([, v]) => v.trim() !== '')
@@ -105,7 +106,7 @@ export default function JobsPage() {
         designNotes: form.designNotes || null,
         measurements: Object.keys(filled).length > 0 ? filled : null,
       });
-      setNotice(`Job created for ${form.garmentType}`);
+      toast.update(toastId, { variant: 'success', message: `Job created for ${form.garmentType}` });
       setForm({
         garmentType: '',
         customerName: '',
@@ -121,7 +122,9 @@ export default function JobsPage() {
       setShowForm(false);
       load();
     } catch (err) {
-      setError((err as Error)?.message ?? 'Could not create the job');
+      const message = (err as Error)?.message ?? 'Could not create the job';
+      setError(message);
+      toast.update(toastId, { variant: 'error', message: 'Job was not created', description: message });
     } finally {
       setSaving(false);
     }
@@ -130,16 +133,18 @@ export default function JobsPage() {
   const advance = async (job: TailoringJob, status: JobStatus, why?: string) => {
     setSaving(true);
     setError(null);
-    setNotice(null);
+    const toastId = toast.loading(`Updating job #${job.jobNumber}…`, { dedupeKey: `job-${job.id}` });
     try {
       await JobService.setStatus(job.id, status, why);
-      setNotice(`Job #${job.jobNumber} moved to ${JOB_STATUS_LABEL[status].toLowerCase()}`);
+      toast.update(toastId, { variant: 'success', message: `Job #${job.jobNumber} moved to ${JOB_STATUS_LABEL[status].toLowerCase()}` });
       setReasonFor(null);
       setReason('');
       load();
     } catch (err) {
       // The database refuses illegal and unexplained moves; show its message.
-      setError((err as Error)?.message ?? 'Could not update the job');
+      const message = (err as Error)?.message ?? 'Could not update the job';
+      setError(message);
+      toast.update(toastId, { variant: 'error', message: 'Job was not updated', description: message });
     } finally {
       setSaving(false);
     }
@@ -148,15 +153,17 @@ export default function JobsPage() {
   const pay = async (job: TailoringJob) => {
     setSaving(true);
     setError(null);
-    setNotice(null);
+    const toastId = toast.loading(`Recording payment for job #${job.jobNumber}…`, { dedupeKey: `job-payment-${job.id}` });
     try {
       await JobService.recordPayment(job.id, Number(payAmount));
-      setNotice(`Payment recorded for job #${job.jobNumber}`);
+      toast.update(toastId, { variant: 'success', message: `Payment recorded for job #${job.jobNumber}` });
       setPayingId(null);
       setPayAmount('');
       load();
     } catch (err) {
-      setError((err as Error)?.message ?? 'Could not record the payment');
+      const message = (err as Error)?.message ?? 'Could not record the payment';
+      setError(message);
+      toast.update(toastId, { variant: 'error', message: 'Payment was not recorded', description: message });
     } finally {
       setSaving(false);
     }
@@ -186,7 +193,6 @@ export default function JobsPage() {
       </div>
 
       {error && <div className="alert alert-error">{error}</div>}
-      {notice && <div className="alert alert-success">{notice}</div>}
 
       {summary && (
         <div className="stats-grid">

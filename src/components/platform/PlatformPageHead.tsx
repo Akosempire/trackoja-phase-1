@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import type { PlatformArea } from '../../config/platformAreas';
 import { Button } from '../ui/Button';
 import { Disclosure } from '../ui/Disclosure';
+import { LockIcon } from '../icons';
 
 interface PlatformPageHeadProps {
   area: PlatformArea;
@@ -69,10 +70,7 @@ export function PermissionDenied({ what, permission }: { what: string; permissio
   return (
     <div className="state-block state-denied">
       <span className="state-icon" aria-hidden="true">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true">
-          <rect x="4" y="10" width="16" height="11" rx="2" />
-          <path d="M8 10V7a4 4 0 0 1 8 0v3" />
-        </svg>
+        <LockIcon width={18} height={18} />
       </span>
       <p className="state-title">You do not have access to {what}</p>
       <p className="state-body">

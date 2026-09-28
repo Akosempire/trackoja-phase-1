@@ -11,6 +11,7 @@ import {
 import { usePlatform } from './PlatformContext';
 import { EnvironmentMarker } from './EnvironmentBadge';
 import { ContractIcon } from './icons';
+import { HomeIcon, SidebarIcon } from '../icons';
 
 interface PlatformSideNavProps {
   mobile?: boolean;
@@ -111,10 +112,7 @@ export function PlatformSideNav({ mobile = false, onClose }: PlatformSideNavProp
             }
           }}
         >
-          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
-            <rect x="3" y="4" width="18" height="16" rx="2" />
-            <path d="M9 4v16" />
-          </svg>
+          <SidebarIcon width={17} height={17} />
           <span className="nav-label">Collapse sidebar</span>
         </button>
       )}
@@ -144,10 +142,7 @@ export function PlatformSideNav({ mobile = false, onClose }: PlatformSideNavProp
 
       <div className="side-nav-footer">
         <Link to="/dashboard" className="side-nav-link" onClick={onClose}>
-          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true">
-            <path d="M3 11.5 12 4l9 7.5" />
-            <path d="M5 10v9a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1v-9" />
-          </svg>
+          <HomeIcon width={17} height={17} />
           <span className="nav-label">Customer workspace</span>
         </Link>
       </div>

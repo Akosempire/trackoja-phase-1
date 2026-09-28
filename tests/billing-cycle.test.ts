@@ -129,7 +129,8 @@ describe('the verification measures the defect rather than describing it', () =>
 
 describe('the customer page offers the cycle it can now bill', () => {
   it('passes the chosen cycle to the checkout', () => {
-    expect(billingPage).toMatch(/SubscriptionService\.startPlanCheckout\(\s*\n\s*plan\.id,\s*\n\s*cycle,/);
+    expect(billingPage).toMatch(/cycle === 'monthly' \? plan\.monthlyVersionId : plan\.annualVersionId/);
+    expect(billingPage).toMatch(/SubscriptionService\.startPlanCheckout\(\s*\n\s*checkoutPreview\.planVersionId,/);
   });
 
   it('does not disable annual with an apology instead of charging it', () => {
@@ -146,7 +147,7 @@ describe('the customer page offers the cycle it can now bill', () => {
   });
 
   it('sends the cycle the user chose to the RPC that records it', () => {
-    expect(service).toMatch(/supabase\.rpc\('start_plan_checkout'/);
-    expect(service).toMatch(/p_billing_cycle: billingCycle/);
+    expect(service).toMatch(/supabase\.rpc\('start_plan_version_checkout'/);
+    expect(service).toMatch(/p_plan_version_id: planVersionId/);
   });
 });

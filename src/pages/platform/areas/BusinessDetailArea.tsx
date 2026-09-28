@@ -38,6 +38,33 @@ function bool(row: Record<string, unknown> | null | undefined, key: string): boo
   return row?.[key] === true;
 }
 
+/**
+ * The Billing email row, in the three states the database can answer with, because the
+ * old `str(organization, 'billing_email') ?? 'Not set'` printed one sentence for all
+ * three. "Not set" claims the business has no billing email recorded; when the query
+ * did not return the field that claim is false, and the operator has no way to tell
+ * that nothing was asked. `undefined` is the absent key, `null` and a blank string are
+ * an empty field - NULL and whitespace are different rows in the table but the same
+ * fact to a reader, so they share a wording.
+ */
+function billingEmailRow(billingEmail: string | null | undefined): DefRow {
+  if (billingEmail === undefined) {
+    return {
+      term: 'Billing email',
+      value: 'Not returned by this query, so its value is unknown rather than empty',
+      muted: true,
+    };
+  }
+  if (billingEmail === null || billingEmail.trim() === '') {
+    return {
+      term: 'Billing email',
+      value: 'Not set: no billing email is recorded for this business',
+      muted: true,
+    };
+  }
+  return { term: 'Billing email', value: billingEmail };
+}
+
 function categoryLabel(category: string | null): string {
   if (!category) return '—';
   const config = CATEGORY_CONFIGS[category as keyof typeof CATEGORY_CONFIGS];
@@ -194,7 +221,7 @@ export default function BusinessDetailArea() {
     { term: 'Slug', value: <span className="mono">{str(organization, 'slug') ?? '—'}</span> },
     { term: 'Business type', value: categoryLabel(str(organization, 'business_category')) },
     { term: 'Owner', value: str(organization, 'owner_email') ?? 'Not recorded' },
-    { term: 'Billing email', value: str(organization, 'billing_email') ?? 'Not set' },
+    billingEmailRow(detail?.billingEmail),
     { term: 'Billing status', value: <StatusBadge status={str(organization, 'billing_status')} /> },
     { term: 'Timezone', value: str(organization, 'timezone') ?? 'Not set' },
     { term: 'Created', value: `${formatDate(str(organization, 'created_at'))} (${formatRelative(str(organization, 'created_at'))})` },

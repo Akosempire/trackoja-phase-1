@@ -1,10 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
+import { useSearchParams } from 'react-router-dom';
 import { OrganizationService } from '../../services/organization.service';
 import {
   SubscriptionService,
   type MyEntitlement,
   type PublishedPlan,
+  type CheckoutPreview,
+  type BillingDocument,
 } from '../../services/subscription.service';
 import { Button } from '../../components/ui/Button';
 import { PageLoader } from '../../components/ui/PageLoader';
@@ -15,6 +18,8 @@ import { MeterList, type MeterItem } from '../../components/ui/MeterList';
 import { SectionHead } from '../../components/ui/SectionHead';
 import { StateBlock } from '../../components/ui/StateBlock';
 import { useToast } from '../../components/ui/Toast';
+import { Dialog } from '../../components/ui/Dialog';
+import { FormField } from '../../components/ui/FormField';
 import { formatDate, formatMoney, formatNumber, formatRelative, formatSeatLimit } from '../../utils/format';
 import type { SubscriptionTransaction } from '../../types';
 
@@ -36,17 +41,22 @@ type BillingCycle = 'monthly' | 'annual';
 export default function BillingPage() {
   const { user, profile } = useAuth();
   const toast = useToast();
+  const [searchParams, setSearchParams] = useSearchParams();
   const orgId = profile?.currentOrgId;
   const compareRef = useRef<HTMLElement>(null);
 
   const [entitlement, setEntitlement] = useState<MyEntitlement | null>(null);
   const [organizationOwnerId, setOrganizationOwnerId] = useState<string | null>(null);
+  const [billingEmail, setBillingEmail] = useState('');
+  const [savingBillingEmail, setSavingBillingEmail] = useState(false);
   const [plans, setPlans] = useState<PublishedPlan[]>([]);
   const [transactions, setTransactions] = useState<SubscriptionTransaction[]>([]);
   const [cycle, setCycle] = useState<BillingCycle>('monthly');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [checkoutPlanId, setCheckoutPlanId] = useState<string | null>(null);
+  const [checkoutPreview, setCheckoutPreview] = useState<CheckoutPreview | null>(null);
+  const [documents, setDocuments] = useState<BillingDocument[]>([]);
   const [catalogueProblem, setCatalogueProblem] = useState<string | null>(null);
 
   // Checkout is owner-only server-side; this only decides whether to offer it.
@@ -58,17 +68,21 @@ export default function BillingPage() {
 
     // The catalogue is not permission-bound the way the entitlement is: if the
     // business has no plan yet, the page must still be able to offer one.
-    const [ent, org, catalogue, txns] = await Promise.allSettled([
+    const [ent, org, catalogue, txns, docs] = await Promise.allSettled([
       SubscriptionService.getMyEntitlement(),
       orgId ? OrganizationService.getOrganization(orgId) : Promise.resolve(null),
       SubscriptionService.getPublishedPlans(),
       orgId ? SubscriptionService.getTransactions(orgId) : Promise.resolve([]),
+      orgId ? SubscriptionService.getBillingDocuments() : Promise.resolve([]),
     ]);
 
     if (ent.status === 'fulfilled') setEntitlement(ent.value);
     else setError(ent.reason instanceof Error ? ent.reason.message : 'Could not load your subscription.');
 
-    if (org.status === 'fulfilled' && org.value) setOrganizationOwnerId(org.value.ownerId);
+    if (org.status === 'fulfilled' && org.value) {
+      setOrganizationOwnerId(org.value.ownerId);
+      setBillingEmail(org.value.billingEmail ?? '');
+    }
 
     if (catalogue.status === 'fulfilled') {
       setPlans(catalogue.value);
@@ -80,12 +94,27 @@ export default function BillingPage() {
     }
 
     if (txns.status === 'fulfilled') setTransactions(txns.value);
+    if (docs.status === 'fulfilled') setDocuments(docs.value);
     setLoading(false);
   }, [orgId]);
 
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    const reference = searchParams.get('reference') ?? searchParams.get('trxref');
+    if (!reference) return;
+    const toastId = toast.loading('Verifying payment…', { dedupeKey: 'billing-verification' });
+    SubscriptionService.verifyPayment(reference)
+      .then((result) => {
+        if (!result.settled) throw new Error(result.detail ?? 'Payment has not been confirmed.');
+        toast.update(toastId, { variant: 'success', message: result.testData ? 'Test payment verified' : 'Payment verified' });
+        setSearchParams({}, { replace: true });
+        void load();
+      })
+      .catch((cause) => toast.update(toastId, { variant: 'error', message: 'Payment not verified', description: cause instanceof Error ? cause.message : 'Try again later.' }));
+  }, [searchParams, setSearchParams, load, toast]);
 
   const state = useMemo(() => {
     if (!entitlement) {
@@ -121,12 +150,12 @@ export default function BillingPage() {
 
     if (status === 'pending') {
       return {
-        headline: 'On trial',
-        detail: entitlement.planName ? `${entitlement.planName} trial` : 'Trial period',
+        headline: 'Payment pending',
+        detail: entitlement.planName ? `${entitlement.planName} is awaiting verified payment.` : 'Awaiting verified payment.',
         tone: 'warning' as const,
         action: 'Choose a plan',
         nextDate: date,
-        nextDateLabel: date ? 'Trial ends' : null,
+        nextDateLabel: null,
       };
     }
 
@@ -205,12 +234,9 @@ export default function BillingPage() {
     setCheckoutPlanId(plan.id);
     try {
       if (!isOwner) throw new Error('Only the business owner can change the subscription.');
-      const { authorizationUrl } = await SubscriptionService.startPlanCheckout(
-        plan.id,
-        cycle,
-        `${window.location.origin}/billing`,
-      );
-      window.location.href = authorizationUrl;
+      const versionId = cycle === 'monthly' ? plan.monthlyVersionId : plan.annualVersionId;
+      if (!versionId) throw new Error(`No published ${cycle} version exists for this plan.`);
+      setCheckoutPreview(await SubscriptionService.getCheckoutPreview(versionId));
     } catch (cause) {
       const message = cause && typeof cause === 'object' && 'message' in cause
         ? String((cause as { message: unknown }).message)
@@ -220,8 +246,41 @@ export default function BillingPage() {
     }
   }
 
+  async function confirmCheckout() {
+    if (!checkoutPreview) return;
+    const planId = checkoutPreview.planId;
+    setCheckoutPlanId(planId);
+    const toastId = toast.loading('Opening secure checkout…', { dedupeKey: 'billing-checkout' });
+    try {
+      const { authorizationUrl } = await SubscriptionService.startPlanCheckout(
+        checkoutPreview.planVersionId,
+        `${window.location.origin}/billing`,
+      );
+      toast.dismiss(toastId);
+      window.location.assign(authorizationUrl);
+    } catch (cause) {
+      const message = cause instanceof Error ? cause.message : 'Could not start checkout.';
+      toast.update(toastId, { variant: 'error', message: 'Checkout unavailable', description: message });
+      setCheckoutPlanId(null);
+    }
+  }
+
   function scrollToPlans() {
     compareRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  async function saveBillingEmail() {
+    if (!orgId || !billingEmail.trim()) return;
+    setSavingBillingEmail(true);
+    const toastId = toast.loading('Saving billing email…');
+    try {
+      await OrganizationService.updateOrganization(orgId, { billingEmail: billingEmail.trim() });
+      toast.update(toastId, { variant: 'success', message: 'Billing email saved' });
+    } catch (cause) {
+      toast.update(toastId, { variant: 'error', message: 'Could not save billing email', description: cause instanceof Error ? cause.message : 'Try again.' });
+    } finally {
+      setSavingBillingEmail(false);
+    }
   }
 
   if (loading) return <PageLoader />;
@@ -235,6 +294,18 @@ export default function BillingPage() {
       </div>
 
       {error && <div className="alert alert-error" role="alert">{error}</div>}
+
+      <section className="card">
+        <SectionHead title="Billing contact" />
+        <div className="plat-form-row">
+          <FormField id="billing-email" label="Invoice and receipt email" type="email" value={billingEmail}
+            onChange={setBillingEmail} disabled={!isOwner || savingBillingEmail} />
+          <Button onClick={() => void saveBillingEmail()} disabled={!isOwner || savingBillingEmail || !billingEmail.trim()}>
+            {savingBillingEmail ? 'Saving…' : 'Save billing email'}
+          </Button>
+        </div>
+        {!isOwner && <p className="form-hint">Only the business owner can change billing details.</p>}
+      </section>
 
       {/* ── Status and the one action that matters ───────────────── */}
       <section className="card">
@@ -389,15 +460,11 @@ export default function BillingPage() {
                     </p>
                   )}
 
-                  {/*
-                    setup_fee and trial_days are stored on the plan and editable in
-                    the console, but nothing applies either: `start_plan_checkout`
-                    charges the plan price alone, and `activate_subscription`
-                    leaves `trial_ends_at` NULL. Advertising them here would
-                    promise a customer something checkout does not do, so they are
-                    deliberately not shown until the backend honours them. Every
-                    plan currently holds 0 and NULL, so nothing visible changes.
-                  */}
+                  <p className="plan-card-note">
+                    Setup fee: {((cycle === 'monthly' ? plan.monthlySetupFee : plan.annualSetupFee) || 0) > 0
+                      ? formatMoney(cycle === 'monthly' ? plan.monthlySetupFee : plan.annualSetupFee, plan.currency)
+                      : 'none'} · no trial
+                  </p>
 
                   {isCurrent ? (
                     <Button variant="outline" disabled>
@@ -448,6 +515,47 @@ export default function BillingPage() {
           </div>
         )}
       </section>
+
+      <section className="card">
+        <SectionHead title="Invoices and receipts" />
+        {documents.length === 0 ? <p className="section-sub">No commercial documents issued yet.</p> : (
+          <div className="payment-list">
+            {documents.map((document) => (
+              <div className="payment-row" key={document.invoiceId}>
+                <div className="payment-row-main">
+                  <span className="payment-amount">{document.invoiceNumber}</span>
+                  <StatusBadge status={document.status} />
+                  {document.isTestData && <Badge tone="warning">Test payment</Badge>}
+                </div>
+                <p className="attention-meta">
+                  {document.planName} · {document.billingCycle} · {formatMoney(document.totalMinor / 100, document.currency)}
+                  {document.receiptNumber ? ` · receipt ${document.receiptNumber}` : ''}
+                </p>
+                <p className="attention-meta">Issued {formatDate(document.issuedAt)} · {document.billingEmail ?? 'No billing email recorded'}</p>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <Dialog
+        open={checkoutPreview !== null}
+        onClose={() => { setCheckoutPreview(null); setCheckoutPlanId(null); }}
+        title="Review billing"
+        description={checkoutPreview ? `${checkoutPreview.planName} · version ${checkoutPreview.version} · ${checkoutPreview.billingCycle}` : undefined}
+        footer={checkoutPreview && <><Button variant="outline" onClick={() => setCheckoutPreview(null)}>Back</Button><Button onClick={confirmCheckout} loading={checkoutPlanId !== null}>Continue to payment</Button></>}
+      >
+        {checkoutPreview && (
+          <dl className="billing-preview-lines">
+            <div><dt>Subscription</dt><dd>{formatMoney(checkoutPreview.recurringAmountMinor / 100, checkoutPreview.currency)}</dd></div>
+            <div><dt>Setup fee</dt><dd>{checkoutPreview.setupFeeMinor ? formatMoney(checkoutPreview.setupFeeMinor / 100, checkoutPreview.currency) : 'None'}</dd></div>
+            <div><dt>Trial</dt><dd>Not offered</dd></div>
+            <div className="billing-preview-total"><dt>Total due now</dt><dd>{formatMoney(checkoutPreview.amountDueMinor / 100, checkoutPreview.currency)}</dd></div>
+            <div><dt>Billing email</dt><dd>{checkoutPreview.billingEmail ?? 'Not set'}</dd></div>
+            <div><dt>Next billing date</dt><dd>{checkoutPreview.nextBillingDate ? formatDate(checkoutPreview.nextBillingDate) : 'Not scheduled'}</dd></div>
+          </dl>
+        )}
+      </Dialog>
     </div>
   );
 }

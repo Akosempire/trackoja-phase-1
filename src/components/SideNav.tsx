@@ -3,7 +3,7 @@ import { NavLink } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useAppNav } from '../hooks/useAppNav';
 import { StoreSwitcher } from './StoreSwitcher';
-import { ScanIcon, SettingsIcon } from './icons';
+import { LogoutIcon, ScanIcon, SettingsIcon, SidebarIcon } from './icons';
 import { ThemeSelect } from './ThemeSelect';
 
 interface SideNavProps { onLogout: () => void; mobile?: boolean; onClose?: () => void; }
@@ -33,7 +33,7 @@ export function SideNav({ onLogout, mobile = false, onClose }: SideNavProps) {
       {!mobile && <button className="sidebar-toggle" aria-label={compact ? 'Expand navigation' : 'Collapse navigation'} aria-expanded={!compact} onClick={() => {
         setCollapsed(!collapsed);
         try { localStorage.setItem('trackoja-sidebar-collapsed', String(!collapsed)); } catch { /* Session-only is fine. */ }
-      }}><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/></svg><span className="nav-label">Collapse sidebar</span></button>}
+      }}><SidebarIcon width={17} height={17} /><span className="nav-label">Collapse sidebar</span></button>}
       <div className="side-nav-store nav-label"><StoreSwitcher /></div>
       <nav className="side-nav-items" aria-label="Main navigation">
         {allItems.map((item) => (
@@ -54,7 +54,7 @@ export function SideNav({ onLogout, mobile = false, onClose }: SideNavProps) {
         <div className="side-nav-profile">
           <div className="side-nav-avatar" title={displayName}>{initials}</div>
           <div className="side-nav-profile-info nav-label"><span className="side-nav-profile-name">{displayName}</span><span className="side-nav-profile-email">{profile?.email}</span></div>
-          <button type="button" className="side-nav-profile-logout" onClick={onLogout} aria-label="Log out" title="Log out"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><path d="M9 4H4v16h5m5-12 4 4-4 4m-6-4h10"/></svg></button>
+          <button type="button" className="side-nav-profile-logout" onClick={onLogout} aria-label="Log out" title="Log out"><LogoutIcon width={17} height={17} /></button>
         </div>
       </div>
     </aside>

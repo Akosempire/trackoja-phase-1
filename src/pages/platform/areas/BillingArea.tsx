@@ -25,6 +25,7 @@ import {
   type ProductBusiness,
   type ProductPlan,
   type SubscriptionAdjustment,
+  type CommercialTransaction,
 } from '../../../services/platformAdmin.service';
 import { PlatformService } from '../../../services/platform.service';
 import { usePlatform } from '../../../components/platform/PlatformContext';
@@ -793,6 +794,7 @@ interface PlanDraft {
   description: string;
   monthlyPrice: string;
   annualPrice: string;
+  setupFee: string;
   userLimit: string;
   status: ProductPlan['status'];
   isDefault: boolean;
@@ -808,6 +810,7 @@ function draftFromPlan(plan: ProductPlan): PlanDraft {
     description: plan.description ?? '',
     monthlyPrice: plan.monthlyPrice === null ? '' : String(plan.monthlyPrice),
     annualPrice: plan.annualPrice === null ? '' : String(plan.annualPrice),
+    setupFee: plan.setupFee === null ? '' : String(plan.setupFee),
     userLimit: plan.userLimit === null ? '' : String(plan.userLimit),
     status: plan.status,
     isDefault: plan.isDefault,
@@ -842,6 +845,10 @@ function validateDraft(draft: PlanDraft): string | null {
   if (draft.annualPrice.trim() !== '' && (annual === null || annual < 0)) {
     return 'Annual price cannot be negative. Blank means custom pricing.';
   }
+  const setupFee = parseNumberField(draft.setupFee);
+  if (draft.setupFee.trim() !== '' && (setupFee === null || setupFee < 0)) {
+    return 'Setup fee cannot be negative. Blank means no setup fee.';
+  }
   const seats = parseNumberField(draft.userLimit);
   if (draft.userLimit.trim() !== '' && seats !== null && seats !== -1 && seats < 1) {
     return 'User limit must be positive, -1 for unlimited, or NULL for custom';
@@ -869,6 +876,10 @@ function describePlanChanges(plan: ProductPlan, draft: PlanDraft, statusAfterSav
   const annual = parseNumberField(draft.annualPrice);
   if (annual !== plan.annualPrice) {
     changes.push(`Annual price ${priceLabel(plan.annualPrice, plan.currency)} → ${priceLabel(annual, plan.currency)}`);
+  }
+  const setupFee = parseNumberField(draft.setupFee);
+  if (setupFee !== plan.setupFee) {
+    changes.push(`Setup fee ${priceLabel(plan.setupFee, plan.currency)} → ${priceLabel(setupFee, plan.currency)}`);
   }
   const seats = parseNumberField(draft.userLimit);
   if (seats !== plan.userLimit) {
@@ -973,6 +984,7 @@ function PlanEditDialog({ plan, siblingPlans, onClose, onSaved }: PlanEditDialog
         description: nullIfBlank(activeDraft.description),
         monthlyPrice: parseNumberField(activeDraft.monthlyPrice),
         annualPrice: parseNumberField(activeDraft.annualPrice),
+        setupFee: parseNumberField(activeDraft.setupFee),
         userLimit: parseNumberField(activeDraft.userLimit),
         features: JSON.parse(activeDraft.featuresJson) as { key: string; label: string; upcoming?: boolean }[],
         onboardingNote: nullIfBlank(activeDraft.onboardingNote),
@@ -1008,7 +1020,7 @@ function PlanEditDialog({ plan, siblingPlans, onClose, onSaved }: PlanEditDialog
     storedPlan.publishedAt
       ? 'This plan is already published and an edit never changes that, so it stays on sale with the new values.'
       : 'This plan is not published. Saving does not publish it: it stays invisible to customers until it is published.',
-    'The stored billing cycle, setup fee, trial length and store cap are read back and sent unchanged, because upsert_product_plan would otherwise reset each of them to its default.',
+    'The setup fee is charged once in the authoritative checkout total. Trials are currently unsupported, so customers are never promised an unimplemented trial.',
   ]
     .filter(Boolean)
     .join(' ');
@@ -1078,6 +1090,17 @@ function PlanEditDialog({ plan, siblingPlans, onClose, onSaved }: PlanEditDialog
           />
         </div>
         <p className="form-hint">Blank means custom pricing (stored as NULL), not zero.</p>
+
+        <FormField
+          id="plan-setup-fee"
+          label="One-off setup fee (NGN)"
+          type="number"
+          value={draft.setupFee}
+          onChange={(value) => setDraft({ ...draft, setupFee: value })}
+          placeholder="Blank = none"
+          disabled={busy}
+        />
+        <p className="form-hint">Included in the first checkout only and preserved in the purchased plan version.</p>
 
         <div className="plat-form-row">
           <FormField
@@ -1756,6 +1779,43 @@ interface CompareState {
   row: ProductBusiness;
   loading: boolean;
   error: string | null;
+}
+
+function CommercialTransactionsPanel({ permitted, refreshToken }: { permitted: boolean; refreshToken: number }) {
+  const [rows, setRows] = useState<CommercialTransaction[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    if (!permitted) return;
+    setLoading(true);
+    setError(null);
+    PlatformAdminService.listCommercialTransactions()
+      .then(setRows)
+      .catch((cause) => setError(messageOf(cause)))
+      .finally(() => setLoading(false));
+  }, [permitted, refreshToken]);
+  if (!permitted) return null;
+  if (loading) return <div className="skeleton-inline" role="status" aria-label="Loading transactions"><span className="skeleton skeleton-text" /><span className="skeleton skeleton-text" /></div>;
+  if (error) return <StateBlock variant="error" title="Transactions unavailable" body={error} />;
+  if (rows.length === 0) return <StateBlock variant="empty" title="No transactions yet" body="Checkout attempts appear here as soon as they are created." />;
+  return (
+    <div className="list" aria-label="Commercial transactions">
+      {rows.map((row) => (
+        <div className="list-item" key={row.reference}>
+          <div>
+            <p className="list-item-title">{row.businessName} · {row.planName ?? 'Unknown plan'} {row.planVersion ? `v${row.planVersion}` : ''}</p>
+            <p className="list-item-subtitle">{row.reference} · {formatDateTime(row.createdAt)} · {row.invoiceNumber ?? 'No invoice'} · {row.receiptNumber ?? 'No receipt'}</p>
+            {row.failureReason && <p className="form-error">{row.failureReason}</p>}
+          </div>
+          <div className="toolbar-group">
+            {row.isTestData && <Badge tone="warning">TEST</Badge>}
+            <StatusBadge status={row.status} />
+            <strong>{row.amountMinor === null ? '—' : formatMoney(row.amountMinor / 100, row.currency)}</strong>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 // ------------------------------------------------------------------- screen
@@ -3172,11 +3232,7 @@ export default function BillingArea() {
             actions={periodChips}
           />
 
-          <p className="form-hint">
-            subscription_transactions is the only payment table, and there is no platform-facing transaction list: the
-            only per-transaction view is the last 20 on one business, under Subscriptions. No invoice or receipt table
-            exists.
-          </p>
+          <p className="form-hint">Each attempt is shown with its immutable plan version, exact minor-unit amount, environment, and generated invoice or receipt. Test records are visibly marked and excluded from production revenue.</p>
 
           {!mayView ? (
             <StateBlock
@@ -3223,6 +3279,9 @@ export default function BillingArea() {
                   foot="From the bars below"
                 />
               </KpiGrid>
+
+              <SectionHead title="Recent transactions" sub="Newest 100 payment attempts across the platform." />
+              <CommercialTransactionsPanel permitted={mayManagePayments} refreshToken={refreshToken} />
 
               <div className="section-head">
                 <div className="section-head-text">

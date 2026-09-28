@@ -15,6 +15,8 @@
 }
 
 .toast {
+  position: relative;
+  overflow: hidden;
   pointer-events: auto;
   display: flex;
   align-items: flex-start;
@@ -75,6 +77,35 @@
   font-size: var(--text-caption);
   color: var(--color-text-secondary);
 }
+
+.toast-action {
+  margin-top: var(--space-8);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-accent);
+  font: 600 var(--text-caption)/var(--leading-ui) var(--font-body);
+  cursor: pointer;
+}
+
+.toast-action:hover { color: var(--color-accent-hover); text-decoration: underline; }
+
+.toast-progress {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  background: currentColor;
+  opacity: .3;
+  transform-origin: left;
+  animation: toast-progress var(--toast-duration) linear forwards;
+}
+
+.toast:hover .toast-progress,
+.toast:focus-within .toast-progress { animation-play-state: paused; }
+
+@keyframes toast-progress { to { transform: scaleX(0); } }
 
 .toast-dismiss {
   flex-shrink: 0;

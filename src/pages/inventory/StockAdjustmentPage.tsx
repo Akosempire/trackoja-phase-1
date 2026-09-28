@@ -7,6 +7,7 @@ import { Button } from '../../components/ui/Button';
 import { FormField } from '../../components/ui/FormField';
 import { PageLoader } from '../../components/ui/PageLoader';
 import type { InventoryMovement, Product } from '../../types';
+import { useToast } from '../../components/ui/Toast';
 
 type AdjustmentMovementType = 'replenishment' | 'transfer_in' | 'transfer_out' | 'adjustment';
 
@@ -18,6 +19,7 @@ const MOVEMENT_LABELS: Record<AdjustmentMovementType, string> = {
 };
 
 export default function StockAdjustmentPage() {
+  const toast = useToast();
   const { profile } = useAuth();
   const [searchParams] = useSearchParams();
   const storeId = profile?.currentStoreId;
@@ -27,7 +29,6 @@ export default function StockAdjustmentPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
 
   const [productId, setProductId] = useState(searchParams.get('productId') ?? '');
   const [movementType, setMovementType] = useState<AdjustmentMovementType>('replenishment');
@@ -87,7 +88,7 @@ export default function StockAdjustmentPage() {
 
     setSaving(true);
     setError(null);
-    setSuccess(null);
+    const toastId = toast.loading('Recording stock movement…', { dedupeKey: 'stock-adjustment' });
     try {
       await InventoryService.adjustStock(storeId, {
         productId,
@@ -95,14 +96,16 @@ export default function StockAdjustmentPage() {
         quantity: signedQuantity,
         reason: reason || undefined,
       });
-      setSuccess('Stock updated');
+      toast.update(toastId, { variant: 'success', message: 'Stock updated', description: `${selectedProduct?.name ?? 'Product'} inventory was adjusted.` });
       setQuantity('');
       setReason('');
       const updated = await ProductService.getProduct(productId);
       setProducts((prev) => prev.map((p) => (p.id === productId ? updated : p)));
       loadMovements(productId);
     } catch (err: any) {
-      setError(err.message ?? 'Failed to record stock movement');
+      const message = err.message ?? 'Failed to record stock movement';
+      setError(message);
+      toast.update(toastId, { variant: 'error', message: 'Stock was not updated', description: message });
     } finally {
       setSaving(false);
     }
@@ -120,7 +123,6 @@ export default function StockAdjustmentPage() {
       </div>
 
       {error && <div className="alert alert-error">{error}</div>}
-      {success && <div className="alert alert-success">{success}</div>}
 
       {products.length === 0 ? (
         <div className="empty-state">No inventory-tracked products yet.</div>

@@ -10,8 +10,10 @@ import { PageLoader } from '../components/ui/PageLoader';
 import { BUSINESS_CATEGORIES, type BusinessCategory } from '../config/businessModules';
 import type { Store } from '../types';
 import { ThemeSelect } from '../components/ThemeSelect';
+import { useToast } from '../components/ui/Toast';
 
 export default function SettingsPage() {
+  const toast = useToast();
   const { profile } = useAuth();
   const { hasPermission, loading: permsLoading } = usePermissions();
   const { category: currentCategory, config, refresh: refreshBusiness } = useBusinessContext();
@@ -22,7 +24,6 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [saved, setSaved] = useState(false);
 
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
@@ -65,7 +66,7 @@ export default function SettingsPage() {
 
     setSaving(true);
     setError(null);
-    setSaved(false);
+    const toastId = toast.loading('Saving store settings…', { dedupeKey: 'store-settings' });
     try {
       const updated = await StoreService.updateStore(storeId, {
         name,
@@ -76,9 +77,11 @@ export default function SettingsPage() {
         state: state || undefined,
       });
       setStore(updated);
-      setSaved(true);
+      toast.update(toastId, { variant: 'success', message: 'Settings saved', description: 'Your store details are up to date.' });
     } catch (err: any) {
-      setError(err.message ?? 'Failed to save settings');
+      const message = err.message ?? 'Failed to save settings';
+      setError(message);
+      toast.update(toastId, { variant: 'error', message: 'Settings were not saved', description: message });
     } finally {
       setSaving(false);
     }
@@ -91,13 +94,16 @@ export default function SettingsPage() {
     }
     setSavingCategory(true);
     setError(null);
+    const toastId = toast.loading('Updating business type…', { dedupeKey: 'business-type' });
     try {
       await OrganizationService.updateBusinessCategory(orgId, pendingCategory);
       await refreshBusiness();
       setShowCategoryPicker(false);
-      setSaved(true);
+      toast.update(toastId, { variant: 'success', message: 'Business type updated' });
     } catch (err: any) {
-      setError(err.message ?? 'Failed to update business type');
+      const message = err.message ?? 'Failed to update business type';
+      setError(message);
+      toast.update(toastId, { variant: 'error', message: 'Business type was not updated', description: message });
     } finally {
       setSavingCategory(false);
     }
@@ -116,7 +122,6 @@ export default function SettingsPage() {
 
       <section className="appearance-section" aria-label="Appearance"><ThemeSelect /></section>
       {error && <div className="alert alert-error">{error}</div>}
-      {saved && <div className="alert alert-success">Settings saved.</div>}
 
       {canUpdate && (
         <div className="card" style={{ marginBottom: 16 }}>

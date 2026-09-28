@@ -8,6 +8,9 @@ import { containDialogFocus } from '../../utils/dialog-focus';
 import { PlatformSideNav } from './PlatformSideNav';
 import { EnvironmentBadge } from './EnvironmentBadge';
 import { usePlatform } from './PlatformContext';
+import { CommandSearch } from '../CommandSearch';
+import { MenuIcon } from '../icons';
+import { PLATFORM_AREAS, canSeeArea, platformAreaPath } from '../../config/platformAreas';
 
 /**
  * Shell for the Platform Owner dashboard.
@@ -19,9 +22,16 @@ import { usePlatform } from './PlatformContext';
  */
 export function PlatformLayout() {
   const navigate = useNavigate();
-  const { environment } = usePlatform();
+  const { access, environment } = usePlatform();
   const drawer = useRef<HTMLDialogElement>(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const searchItems = access ? PLATFORM_AREAS.filter((area) => canSeeArea(area, access)).map((area) => ({
+    id: `platform-${area.id}`,
+    label: area.label,
+    description: area.description,
+    group: area.group ? 'Platform' : 'Overview',
+    to: platformAreaPath(area),
+  })) : [];
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -60,12 +70,11 @@ export function PlatformLayout() {
           aria-controls="platform-navigation"
           onClick={() => setMenuOpen(true)}
         >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true">
-            <path d="M4 6h16M4 12h16M4 18h16" />
-          </svg>
+          <MenuIcon width={18} height={18} />
         </button>
         <span className="app-header-logo">TrackOja Platform</span>
         <div className="app-header-actions">
+          <CommandSearch items={searchItems} label="Search platform" />
           <EnvironmentBadge environment={environment} />
           <Button variant="ghost" className="btn-sm" onClick={handleLogout}>
             Log out

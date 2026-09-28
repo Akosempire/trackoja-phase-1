@@ -9,6 +9,7 @@ import { FormField } from '../../components/ui/FormField';
 import { PageLoader } from '../../components/ui/PageLoader';
 import { getBusinessExperience } from '../../config/businessExperience';
 import type { Product } from '../../types';
+import { useToast } from '../../components/ui/Toast';
 
 /**
  * How the receive form behaves for a business type's stock model. The database
@@ -82,6 +83,7 @@ function daysUntil(dateish: string | null): number | null {
 }
 
 export default function StockLotsPage() {
+  const toast = useToast();
   const { profile } = useAuth();
   const { category } = useBusinessContext();
   const { hasPermission, loading: permsLoading } = usePermissions();
@@ -96,7 +98,6 @@ export default function StockLotsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [notice, setNotice] = useState<string | null>(null);
   const [writingOff, setWritingOff] = useState<string | null>(null);
   const [writeOffReason, setWriteOffReason] = useState('');
 
@@ -135,7 +136,7 @@ export default function StockLotsPage() {
     if (!storeId || !form.productId) return;
     setSaving(true);
     setError(null);
-    setNotice(null);
+    const toastId = toast.loading('Receiving stock…', { dedupeKey: 'stock-lot-receive' });
     try {
       const lot = await StockLotService.receiveLot({
         storeId,
@@ -149,13 +150,17 @@ export default function StockLotsPage() {
         expiryDate: form.expiryDate || null,
         costPerUnit: form.costPerUnit.trim() ? Number(form.costPerUnit) : null,
       });
-      setNotice(
-        `Received ${lot.qtyReceived} ${lot.unitOfMeasure}${lot.identifier ? ` · ${lot.identifier}` : ''}`
-      );
+      toast.update(toastId, {
+        variant: 'success',
+        message: `Received ${lot.qtyReceived} ${lot.unitOfMeasure}`,
+        description: lot.identifier ?? undefined,
+      });
       setForm({ productId: '', quantity: '1', identifier: '', expiryDate: '', costPerUnit: '' });
       load();
     } catch (err) {
-      setError((err as Error)?.message ?? 'Could not receive stock');
+      const message = (err as Error)?.message ?? 'Could not receive stock';
+      setError(message);
+      toast.update(toastId, { variant: 'error', message: 'Stock was not received', description: message });
     } finally {
       setSaving(false);
     }
@@ -164,15 +169,17 @@ export default function StockLotsPage() {
   const applyStatus = async (lot: StockLot, status: StockLotStatus, reason: string) => {
     setSaving(true);
     setError(null);
-    setNotice(null);
+    const toastId = toast.loading('Updating stock status…', { dedupeKey: `stock-lot-${lot.id}` });
     try {
       await StockLotService.adjustLot(lot.id, status, reason);
-      setNotice(`${lot.identifier ?? 'Stock'} marked ${status.replace('_', ' ')}`);
+      toast.update(toastId, { variant: 'success', message: `${lot.identifier ?? 'Stock'} marked ${status.replace('_', ' ')}` });
       setWritingOff(null);
       setWriteOffReason('');
       load();
     } catch (err) {
-      setError((err as Error)?.message ?? 'Could not update stock');
+      const message = (err as Error)?.message ?? 'Could not update stock';
+      setError(message);
+      toast.update(toastId, { variant: 'error', message: 'Stock was not updated', description: message });
     } finally {
       setSaving(false);
     }
@@ -192,7 +199,6 @@ export default function StockLotsPage() {
       </div>
 
       {error && <div className="alert alert-error">{error}</div>}
-      {notice && <div className="alert alert-success">{notice}</div>}
 
       {canAdjust ? (
         <form

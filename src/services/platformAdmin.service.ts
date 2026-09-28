@@ -96,6 +96,25 @@ export interface PlatformOverviewV2 {
   sandboxBusinesses: number;
 }
 
+export interface CommercialTransaction {
+  reference: string;
+  businessName: string;
+  productName: string | null;
+  planName: string | null;
+  planVersion: number | null;
+  amountMinor: number | null;
+  currency: string;
+  status: string;
+  paymentMode: string | null;
+  environment: string | null;
+  isTestData: boolean;
+  failureReason: string | null;
+  createdAt: string;
+  paidAt: string | null;
+  invoiceNumber: string | null;
+  receiptNumber: string | null;
+}
+
 export interface ProductBusiness {
   orgId: string;
   name: string;
@@ -257,6 +276,36 @@ export interface BusinessDetail {
   supportNotes: Record<string, unknown>[];
   adjustments: Record<string, unknown>[];
   seatUsed: number;
+  /**
+   * `organizations.billing_email` as `get_platform_business` reported it, kept in
+   * three states because they are three different facts:
+   *
+   *   undefined  the response did not carry the key at all, so the query did not ask
+   *   null       the key is there and the column is NULL: no address is recorded
+   *   string     as stored, which may still be blank
+   *
+   * Returning it since migration 095, before which the key was absent and the console
+   * printed "Not set" for every business. A `?? null` here would merge the first two
+   * into the second and re-create the defect one layer down.
+   */
+  billingEmail: string | null | undefined;
+}
+
+/**
+ * Reads a nullable text field out of the JSONB detail blob. `row[key] ?? null` is the
+ * usual shorthand and it is exactly wrong for a field whose absence has to stay
+ * visible: it cannot tell a missing key from a NULL one. Text is returned as it is,
+ * including whitespace, because trimming here would hide "present but empty" from the
+ * screen that has to say so.
+ */
+function nullableText(row: Record<string, unknown> | null | undefined, key: string): string | null | undefined {
+  if (!row || !Object.prototype.hasOwnProperty.call(row, key)) return undefined;
+  const value = row[key];
+  if (value === null) return null;
+  // A non-text value where TEXT is expected is reported as nothing recorded rather
+  // than as not-returned: the query did answer, it answered with something this row
+  // cannot print, and claiming the field was never asked for would be false.
+  return typeof value === 'string' ? value : null;
 }
 
 // ------------------------------------------------------------- the service
@@ -374,6 +423,29 @@ export class PlatformAdminService {
       console.error('Get platform overview error:', error);
       throw error;
     }
+  }
+
+  static async listCommercialTransactions(limit = 100): Promise<CommercialTransaction[]> {
+    const { data, error } = await supabase.rpc('list_platform_commercial_transactions', { p_limit: limit });
+    if (error) throw error;
+    return (data ?? []).map((row: any) => ({
+      reference: row.reference,
+      businessName: row.business_name,
+      productName: row.product_name,
+      planName: row.plan_name,
+      planVersion: row.plan_version === null ? null : Number(row.plan_version),
+      amountMinor: row.amount_minor === null ? null : Number(row.amount_minor),
+      currency: row.currency,
+      status: row.status,
+      paymentMode: row.payment_mode,
+      environment: row.environment,
+      isTestData: Boolean(row.is_test_data),
+      failureReason: row.failure_reason,
+      createdAt: row.created_at,
+      paidAt: row.paid_at,
+      invoiceNumber: row.invoice_number,
+      receiptNumber: row.receipt_number,
+    }));
   }
 
   // ---------------------------------------------------------- products
@@ -663,6 +735,9 @@ export class PlatformAdminService {
         supportNotes: row.support_notes ?? [],
         adjustments: row.adjustments ?? [],
         seatUsed: Number(row.seat_used ?? 0),
+        // Read off the organization blob, not defaulted, so an older database whose
+        // function does not return the key says so instead of reporting an empty field.
+        billingEmail: nullableText(row.organization ?? null, 'billing_email'),
       };
     } catch (error) {
       console.error('Get platform business error:', error);

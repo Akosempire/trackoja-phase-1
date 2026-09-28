@@ -9,8 +9,10 @@ import { Button } from '../../components/ui/Button';
 import { PageLoader } from '../../components/ui/PageLoader';
 import type { BulkImportRow } from '../../services/bulk-import.service';
 import type { CreateProductRequest, ProductCategory } from '../../types';
+import { useToast } from '../../components/ui/Toast';
 
 export default function BulkImportPage() {
+  const toast = useToast();
   const { user, profile } = useAuth();
   const { hasPermission, loading: permsLoading } = usePermissions();
   const storeId = profile?.currentStoreId;
@@ -27,7 +29,6 @@ export default function BulkImportPage() {
   const [parsing, setParsing] = useState(false);
   const [importing, setImporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<{ created: number; failed: number } | null>(null);
 
   useEffect(() => {
     if (!storeId) return;
@@ -56,7 +57,6 @@ export default function BulkImportPage() {
     if (!file) return;
 
     setFileName(file.name);
-    setResult(null);
     setError(null);
     setParsing(true);
     try {
@@ -93,6 +93,7 @@ export default function BulkImportPage() {
 
     setImporting(true);
     setError(null);
+    const toastId = toast.loading(`Importing ${validRows.length} products…`, { dedupeKey: 'bulk-import' });
     try {
       // Create any new categories referenced by the file, then resolve names -> ids
       const resolvedCategories = new Map(categoryByName);
@@ -117,12 +118,18 @@ export default function BulkImportPage() {
       }));
 
       const created = await ProductService.bulkCreateProducts(storeId, user.id, requests);
-      setResult({ created: created.length, failed: invalidRows.length });
+      toast.update(toastId, {
+        variant: invalidRows.length ? 'warning' : 'success',
+        message: `Imported ${created.length} product${created.length === 1 ? '' : 's'}`,
+        description: invalidRows.length ? `${invalidRows.length} invalid row${invalidRows.length === 1 ? ' was' : 's were'} skipped.` : undefined,
+      });
       setRows([]);
       setFileName('');
       if (fileInputRef.current) fileInputRef.current.value = '';
     } catch (err: any) {
-      setError(err.message ?? 'Failed to import products');
+      const message = err.message ?? 'Failed to import products';
+      setError(message);
+      toast.update(toastId, { variant: 'error', message: 'Products were not imported', description: message });
     } finally {
       setImporting(false);
     }
@@ -138,12 +145,6 @@ export default function BulkImportPage() {
       </div>
 
       {error && <div className="alert alert-error">{error}</div>}
-      {result && (
-        <div className="alert alert-success">
-          Imported {result.created} product{result.created === 1 ? '' : 's'} successfully.
-          {result.failed > 0 && ` ${result.failed} row${result.failed === 1 ? '' : 's'} were skipped due to errors.`}
-        </div>
-      )}
 
       <div className="card">
         <p className="list-item-title" style={{ marginBottom: 8 }}>

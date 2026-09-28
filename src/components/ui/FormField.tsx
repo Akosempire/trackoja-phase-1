@@ -1,4 +1,6 @@
 import { useRef, useState } from 'react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { ViewIcon, ViewOffSlashIcon } from '@hugeicons/core-free-icons';
 
 interface FormFieldProps {
   id: string;
@@ -80,7 +82,7 @@ export function FormField({
             aria-controls={id}
             title={revealed ? 'Hide password' : 'Show password'}
           >
-            {revealed ? <EyeOffIcon /> : <EyeIcon />}
+            <HugeiconsIcon icon={revealed ? ViewOffSlashIcon : ViewIcon} size={18} strokeWidth={1.7} aria-hidden />
           </button>
         )}
       </div>
@@ -91,33 +93,3 @@ export function FormField({
   );
 }
 
-const ICON_PROPS = {
-  width: 18,
-  height: 18,
-  viewBox: '0 0 24 24',
-  fill: 'none',
-  stroke: 'currentColor',
-  strokeWidth: 1.7,
-  strokeLinecap: 'round' as const,
-  strokeLinejoin: 'round' as const,
-  'aria-hidden': true,
-};
-
-function EyeIcon() {
-  return (
-    <svg {...ICON_PROPS}>
-      <path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z" />
-      <circle cx="12" cy="12" r="3.2" />
-    </svg>
-  );
-}
-
-function EyeOffIcon() {
-  return (
-    <svg {...ICON_PROPS}>
-      <path d="M2.5 12S6 5.5 12 5.5c1.6 0 3 .4 4.2 1M21.5 12s-1.2 2.2-3.4 3.9" />
-      <path d="M9.9 9.9a3.2 3.2 0 0 0 4.4 4.4" />
-      <path d="M4 4l16 16" />
-    </svg>
-  );
-}

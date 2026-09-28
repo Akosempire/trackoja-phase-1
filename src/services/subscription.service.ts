@@ -9,6 +9,59 @@ export interface CheckoutResult {
   reference: string;
 }
 
+export interface CheckoutPreview {
+  orgId: string;
+  planVersionId: string;
+  planId: string;
+  version: number;
+  planName: string;
+  billingCycle: 'monthly' | 'annual';
+  recurringAmountMinor: number;
+  setupFeeMinor: number;
+  amountDueMinor: number;
+  currency: string;
+  trialSupported: false;
+  trialDays: 0;
+  nextBillingDate: string | null;
+  billingEmail: string | null;
+  isFirstPurchase: boolean;
+}
+
+export interface OnboardingProgress {
+  id: string;
+  orgId: string | null;
+  storeId: string | null;
+  selectedPlanVersionId: string | null;
+  state: string;
+  businessCategory: string | null;
+  checkoutReference: string | null;
+}
+
+export interface CommercialAccess {
+  orgId: string | null;
+  onboardingState: string;
+  entitlementStatus: string | null;
+  hasAccess: boolean;
+  isTestData: boolean;
+}
+
+export interface BillingDocument {
+  invoiceId: string;
+  invoiceNumber: string;
+  receiptId: string | null;
+  receiptNumber: string | null;
+  planName: string;
+  billingCycle: string;
+  totalMinor: number;
+  currency: string;
+  status: string;
+  isTestData: boolean;
+  issuedAt: string;
+  paidAt: string | null;
+  reference: string;
+  billingEmail: string | null;
+}
+
 /** A plan as the customer sees it: the published catalogue, not an admin view. */
 export interface PublishedPlan {
   id: string;
@@ -31,6 +84,12 @@ export interface PublishedPlan {
   sortOrder: number;
   publishedAt: string | null;
   effectiveFrom: string | null;
+  monthlyVersionId: string | null;
+  annualVersionId: string | null;
+  monthlyVersion: number | null;
+  annualVersion: number | null;
+  monthlySetupFee: number;
+  annualSetupFee: number;
 }
 
 /** The business's own entitlement, with real usage. */
@@ -68,30 +127,55 @@ export class SubscriptionService {
    */
   static async getPublishedPlans(productKey = 'trackoja'): Promise<PublishedPlan[]> {
     try {
-      const { data, error } = await supabase.rpc('list_published_plans', { p_product_key: productKey });
+      const { data, error } = await supabase.rpc('list_published_plan_versions', { p_product_key: productKey });
       if (error) throw error;
-      return (data ?? []).map((row: any) => ({
-        id: row.id,
+      const grouped = new Map<string, PublishedPlan>();
+      for (const row of data ?? []) {
+        const current = grouped.get(row.plan_id) ?? {
+        id: row.plan_id,
         productKey: row.product_key,
         productName: row.product_name,
-        key: row.key,
-        name: row.name,
+        key: row.plan_key,
+        name: row.display_name,
         description: row.description,
-        monthlyPrice: row.monthly_price === null ? null : Number(row.monthly_price),
-        annualPrice: row.annual_price === null ? null : Number(row.annual_price),
+        monthlyPrice: null,
+        annualPrice: null,
         currency: row.currency,
-        billingCycle: row.billing_cycle ?? 'monthly',
-        userLimit: row.user_limit === null ? null : Number(row.user_limit),
-        storeLimit: row.store_limit === null ? null : Number(row.store_limit),
+        billingCycle: 'monthly' as const,
+        userLimit: row.limits?.users == null ? null : Number(row.limits.users),
+        storeLimit: row.limits?.stores == null ? null : Number(row.limits.stores),
         features: row.features ?? [],
-        onboardingNote: row.onboarding_note,
-        setupFee: row.setup_fee === null ? null : Number(row.setup_fee),
-        trialDays: Number(row.trial_days ?? 0),
+        onboardingNote: null,
+        setupFee: 0,
+        trialDays: 0,
         isDefault: Boolean(row.is_default),
         sortOrder: Number(row.sort_order ?? 0),
-        publishedAt: row.published_at,
+        publishedAt: row.effective_from,
         effectiveFrom: row.effective_from,
-      }));
+        monthlyVersionId: null,
+        annualVersionId: null,
+        monthlyVersion: null,
+        annualVersion: null,
+        monthlySetupFee: 0,
+        annualSetupFee: 0,
+        } satisfies PublishedPlan;
+        const amount = Number(row.amount_minor) / 100;
+        const setup = Number(row.setup_fee_minor) / 100;
+        if (row.billing_cycle === 'annual') {
+          current.annualPrice = amount;
+          current.annualVersionId = row.plan_version_id;
+          current.annualVersion = Number(row.version);
+          current.annualSetupFee = setup;
+        } else {
+          current.monthlyPrice = amount;
+          current.monthlyVersionId = row.plan_version_id;
+          current.monthlyVersion = Number(row.version);
+          current.monthlySetupFee = setup;
+        }
+        current.setupFee = Math.max(current.monthlySetupFee, current.annualSetupFee);
+        grouped.set(row.plan_id, current);
+      }
+      return [...grouped.values()].sort((a, b) => a.sortOrder - b.sortOrder);
     } catch (error) {
       console.error('Get published plans error:', error);
       throw error;
@@ -150,14 +234,12 @@ export class SubscriptionService {
    * row in step for the readers that still depend on it.
    */
   static async startPlanCheckout(
-    planId: string,
-    billingCycle: 'monthly' | 'annual',
+    planVersionId: string,
     callbackUrl: string,
   ): Promise<CheckoutResult> {
     try {
-      const { data: txn, error } = await supabase.rpc('start_plan_checkout', {
-        p_plan_id: planId,
-        p_billing_cycle: billingCycle,
+      const { data: txn, error } = await supabase.rpc('start_plan_version_checkout', {
+        p_plan_version_id: planVersionId,
       });
       if (error) throw error;
 
@@ -172,6 +254,82 @@ export class SubscriptionService {
       console.error('Start plan checkout error:', error);
       throw error;
     }
+  }
+
+  static async getCheckoutPreview(planVersionId: string): Promise<CheckoutPreview> {
+    const { data, error } = await supabase.rpc('get_checkout_preview', { p_plan_version_id: planVersionId });
+    if (error) throw error;
+    return {
+      orgId: data.org_id,
+      planVersionId: data.plan_version_id,
+      planId: data.plan_id,
+      version: Number(data.version),
+      planName: data.plan_name,
+      billingCycle: data.billing_cycle,
+      recurringAmountMinor: Number(data.recurring_amount_minor),
+      setupFeeMinor: Number(data.setup_fee_minor),
+      amountDueMinor: Number(data.amount_due_minor),
+      currency: data.currency,
+      trialSupported: false,
+      trialDays: 0,
+      nextBillingDate: data.next_billing_date,
+      billingEmail: data.billing_email,
+      isFirstPurchase: Boolean(data.is_first_purchase),
+    };
+  }
+
+  static async getOnboarding(): Promise<OnboardingProgress> {
+    const { data, error } = await supabase.rpc('get_my_onboarding', { p_product_key: 'trackoja' });
+    if (error) throw error;
+    return {
+      id: data.id,
+      orgId: data.org_id,
+      storeId: data.store_id,
+      selectedPlanVersionId: data.selected_plan_version_id,
+      state: data.state,
+      businessCategory: data.business_category,
+      checkoutReference: data.checkout_reference,
+    };
+  }
+
+  static async getCommercialAccess(): Promise<CommercialAccess> {
+    const { data, error } = await supabase.rpc('get_my_commercial_access', { p_product_key: 'trackoja' });
+    if (error) throw error;
+    return {
+      orgId: data.org_id,
+      onboardingState: data.onboarding_state,
+      entitlementStatus: data.entitlement_status,
+      hasAccess: Boolean(data.has_access),
+      isTestData: Boolean(data.is_test_data),
+    };
+  }
+
+  static async verifyPayment(reference: string) {
+    const { data, error } = await supabase.functions.invoke('paystack-verify', { body: { reference } });
+    if (error) throw error;
+    if (data?.error) throw new Error(data.error);
+    return data as { settled: boolean; status: string; testData?: boolean; detail?: string };
+  }
+
+  static async getBillingDocuments(): Promise<BillingDocument[]> {
+    const { data, error } = await supabase.rpc('list_my_billing_documents', { p_limit: 50 });
+    if (error) throw error;
+    return (data ?? []).map((row: any) => ({
+      invoiceId: row.invoice_id,
+      invoiceNumber: row.invoice_number,
+      receiptId: row.receipt_id,
+      receiptNumber: row.receipt_number,
+      planName: row.plan_name,
+      billingCycle: row.billing_cycle,
+      totalMinor: Number(row.total_minor),
+      currency: row.currency,
+      status: row.status,
+      isTestData: Boolean(row.is_test_data),
+      issuedAt: row.issued_at,
+      paidAt: row.paid_at,
+      reference: row.reference,
+      billingEmail: row.billing_email,
+    }));
   }
 
   /**

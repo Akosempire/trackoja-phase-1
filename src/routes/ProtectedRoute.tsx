@@ -1,10 +1,12 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { PageLoader } from '../components/ui/PageLoader';
+import { useCommercialAccess } from '../hooks/useCommercialAccess';
 
 export function ProtectedRoute() {
   const { user, profile, loading } = useAuth();
   const location = useLocation();
+  const commercial = useCommercialAccess();
 
   if (loading) return <PageLoader />;
   if (!user) return <Navigate to="/login" replace />;
@@ -16,6 +18,10 @@ export function ProtectedRoute() {
       return <Navigate to="/platform" replace />;
     }
     return <Navigate to="/onboarding" replace />;
+  }
+  if (!profile.isPlatformAdmin && commercial.loading) return <PageLoader />;
+  if (!profile.isPlatformAdmin && (!commercial.access?.hasAccess || commercial.error)) {
+    return <Navigate to="/onboarding" replace state={{ from: location.pathname }} />;
   }
 
   return <Outlet />;
@@ -32,11 +38,13 @@ export function GuestRoute() {
 
 export function OnboardingRoute() {
   const { user, profile, loading } = useAuth();
+  const commercial = useCommercialAccess();
 
   if (loading) return <PageLoader />;
   if (!user) return <Navigate to="/login" replace />;
-  if (profile?.currentOrgId) return <Navigate to="/dashboard" replace />;
   if (profile?.isPlatformAdmin) return <Navigate to="/platform" replace />;
+  if (commercial.loading) return <PageLoader />;
+  if (commercial.access?.hasAccess) return <Navigate to="/dashboard" replace />;
 
   return <Outlet />;
 }

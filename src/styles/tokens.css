@@ -1,4 +1,4 @@
-/* WAYA foundation. Brand/font overrides belong here; components use semantic aliases. */
+/* TrackOja product foundation. Brand/font overrides belong here; components use semantic aliases. */
 :root {
   color-scheme: light;
   --color-page: #fff;
@@ -15,8 +15,8 @@
   --color-text-soft: #898989;
   --color-border: #f0f0f0;
   --color-border-control: #e3e3e3;
-  --color-accent: #6d3bf5;
-  --color-accent-hover: #5f31dc;
+  --color-accent: #086dd9;
+  --color-accent-hover: #075fbe;
   --color-danger: #ba3a35;
   --color-success: #00a94f;
   --color-warning: #d89600;
@@ -27,8 +27,8 @@
   --color-on-accent: #fff;
   --color-success-text: #08783d;
   --color-warning-text: #865d00;
-  --font-body: 'Geist Variable', Geist, 'DM Sans', Arial, sans-serif;
-  --font-display: Ashcroft, 'Playfair Display', Georgia, serif;
+  --font-body: 'Inter Variable', Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-display: Forum, Georgia, serif;
   --text-2xs: 9px; --text-xs: 10px; --text-sm: 11px;
   --text-caption: 12px; --text-label: 13px; --text-body-sm: 14px;
   --text-body: 15px; --text-body-lg: 16px; --text-title-sm: 18px; --text-title: 20px;
