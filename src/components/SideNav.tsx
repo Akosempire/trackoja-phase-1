@@ -3,7 +3,7 @@ import { NavLink } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useAppNav } from '../hooks/useAppNav';
 import { StoreSwitcher } from './StoreSwitcher';
-import { LogoutIcon, ScanIcon, SettingsIcon, SidebarIcon } from './icons';
+import { ArrowLeftIcon, LogoutIcon, ScanIcon, SettingsIcon, SidebarIcon } from './icons';
 import { ThemeSelect } from './ThemeSelect';
 
 interface SideNavProps { onLogout: () => void; mobile?: boolean; onClose?: () => void; }
@@ -28,7 +28,7 @@ export function SideNav({ onLogout, mobile = false, onClose }: SideNavProps) {
       <div className="side-nav-brand">
         <span className="workspace-mark" aria-label="TrackOja">T</span>
         <span className="side-nav-logo nav-label">TrackOja</span>
-        {mobile && <button className="icon-button" onClick={onClose} aria-label="Close navigation">×</button>}
+        {mobile && <button type="button" className="icon-button" onClick={onClose} aria-label="Back to current page"><ArrowLeftIcon width={18} height={18} /></button>}
       </div>
       {!mobile && <button className="sidebar-toggle" aria-label={compact ? 'Expand navigation' : 'Collapse navigation'} aria-expanded={!compact} onClick={() => {
         setCollapsed(!collapsed);

@@ -1,7 +1,7 @@
 import type { SVGProps } from 'react';
 import { HugeiconsIcon, type IconSvgElement } from '@hugeicons/react';
 import {
-  Alert02Icon, ArrowRight01Icon, Building03Icon, Calendar03Icon,
+  Alert02Icon, ArrowLeft01Icon, ArrowRight01Icon, Building03Icon, Calendar03Icon,
   ChartHistogramIcon, CodeIcon as HugeCodeIcon, ComputerIcon, CreditCardIcon,
   CustomerSupportIcon, Home01Icon, Invoice03Icon, Key01Icon, KitchenUtensilsIcon,
   LockIcon as HugeLockIcon, MoreHorizontalIcon, PackageIcon, Plug01Icon,
@@ -43,6 +43,7 @@ export const SettingsIcon = icon(Settings01Icon);
 export const SubscriptionIcon = icon(Invoice03Icon);
 export const SupportIcon = icon(CustomerSupportIcon);
 export const ChevronRightIcon = icon(ArrowRight01Icon);
+export const ArrowLeftIcon = icon(ArrowLeft01Icon);
 export const AlertIcon = icon(Alert02Icon);
 export const KitchenIcon = icon(KitchenUtensilsIcon);
 export const ExpiryIcon = icon(Calendar03Icon);

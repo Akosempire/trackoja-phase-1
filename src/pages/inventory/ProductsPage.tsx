@@ -98,8 +98,8 @@ export default function ProductsPage() {
         )}
       </div>
 
-      <div className="btn-row search-input">
-        <div style={{ flex: 1, minWidth: 0 }}>
+      <div className="control-row search-input-row">
+        <div>
           <input
             className="form-input"
             placeholder="Search by name, SKU, or barcode"
@@ -107,7 +107,7 @@ export default function ProductsPage() {
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-        <Button type="button" variant="primary" className="btn-sm" onClick={() => setScanning(true)}>
+        <Button type="button" variant="primary" onClick={() => setScanning(true)}>
           Scan
         </Button>
       </div>

@@ -53,6 +53,11 @@ label,
     min-height: 44px;
   }
 
+  .btn {
+    min-height: 44px;
+    height: 44px;
+  }
+
   /* A native date/number control keeps its own intrinsic height on some browsers. */
   input[type='date'],
   input[type='number'] {

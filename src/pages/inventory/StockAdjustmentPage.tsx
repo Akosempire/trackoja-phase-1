@@ -114,7 +114,7 @@ export default function StockAdjustmentPage() {
   if (loading) return <PageLoader />;
 
   return (
-    <div className="page">
+    <div className="page page-form">
       <div className="page-header">
         <div>
           <h1 className="page-title">Adjust stock</h1>

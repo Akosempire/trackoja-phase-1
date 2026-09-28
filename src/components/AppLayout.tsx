@@ -12,6 +12,7 @@ import { useState } from 'react';
 import { MenuIcon } from './icons';
 import { MerchantCommandSearch } from './MerchantCommandSearch';
 import { Drawer } from './ui/Drawer';
+import { RouteBackBar } from './RouteBackBar';
 
 /**
  * The merchant workspace shell.
@@ -77,6 +78,7 @@ export function AppLayout() {
           <DeveloperModeBanner />
           <OfflineBanner />
           <main className="app-content" id="main-content" tabIndex={-1}>
+            <RouteBackBar />
             <Outlet />
           </main>
           <BottomNav />

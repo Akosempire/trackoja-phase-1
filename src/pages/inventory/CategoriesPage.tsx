@@ -97,7 +97,7 @@ export default function CategoriesPage() {
   if (loading || permsLoading) return <PageLoader />;
 
   return (
-    <div className="page">
+    <div className="page page-form">
       <div className="page-header">
         <div>
           <h1 className="page-title">Categories</h1>

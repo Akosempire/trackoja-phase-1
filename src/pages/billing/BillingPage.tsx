@@ -297,14 +297,16 @@ export default function BillingPage() {
 
       <section className="card">
         <SectionHead title="Billing contact" />
-        <div className="plat-form-row">
+        <form className="form-stack" onSubmit={(event) => { event.preventDefault(); void saveBillingEmail(); }}>
           <FormField id="billing-email" label="Invoice and receipt email" type="email" value={billingEmail}
-            onChange={setBillingEmail} disabled={!isOwner || savingBillingEmail} />
-          <Button onClick={() => void saveBillingEmail()} disabled={!isOwner || savingBillingEmail || !billingEmail.trim()}>
-            {savingBillingEmail ? 'Saving…' : 'Save billing email'}
-          </Button>
-        </div>
-        {!isOwner && <p className="form-hint">Only the business owner can change billing details.</p>}
+            onChange={setBillingEmail} disabled={!isOwner || savingBillingEmail} required
+            hint={isOwner ? 'Used for invoices, receipts, and billing notices.' : 'Only the business owner can change billing details.'} />
+          <div className="form-actions">
+            <Button type="submit" disabled={!isOwner || savingBillingEmail || !billingEmail.trim()} loading={savingBillingEmail}>
+              {savingBillingEmail ? 'Saving…' : 'Save billing email'}
+            </Button>
+          </div>
+        </form>
       </section>
 
       {/* ── Status and the one action that matters ───────────────── */}

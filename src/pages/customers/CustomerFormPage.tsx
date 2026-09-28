@@ -97,7 +97,7 @@ export default function CustomerFormPage() {
   const readOnly = !isNew && !canUpdate;
 
   return (
-    <div className="page">
+    <div className="page page-form">
       <div className="page-header">
         <div>
           <h1 className="page-title">{isNew ? 'Add customer' : 'Edit customer'}</h1>

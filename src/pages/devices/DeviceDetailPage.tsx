@@ -200,8 +200,8 @@ export default function DeviceDetailPage() {
             Send OPay payment request
           </p>
           {opayResult && <p className="page-subtitle">{opayResult}</p>}
-          <div className="btn-row" style={{ alignItems: 'flex-end' }}>
-            <div style={{ flex: 1 }}>
+          <div className="field-action-row">
+            <div>
               <FormField
                 id="opay-amount"
                 label="Amount (NGN)"
@@ -211,7 +211,7 @@ export default function DeviceDetailPage() {
                 placeholder="e.g. 1500"
               />
             </div>
-            <Button className="btn-sm" loading={opayLoading} onClick={handleInitiateOpayPayment}>
+            <Button loading={opayLoading} onClick={handleInitiateOpayPayment}>
               Send request
             </Button>
           </div>

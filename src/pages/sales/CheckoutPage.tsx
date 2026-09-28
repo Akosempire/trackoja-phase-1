@@ -285,8 +285,8 @@ export default function CheckoutPage() {
           {error && <div className="alert alert-error">{error}</div>}
           {scanError && <div className="alert alert-error">{scanError}</div>}
 
-          <div className="btn-row search-input" style={{ marginBottom: 12 }}>
-            <div style={{ flex: 1, minWidth: 0 }}>
+          <div className="control-row search-input-row">
+            <div>
               <input
                 className="form-input"
                 placeholder="Search by name, SKU, or barcode"
@@ -300,7 +300,6 @@ export default function CheckoutPage() {
             <Button
               type="button"
               variant="primary"
-              className="btn-sm"
               onClick={() => { setScanError(null); setScanning(true); }}
             >
               Scan
