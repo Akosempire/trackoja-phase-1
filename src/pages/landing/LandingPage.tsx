@@ -21,7 +21,7 @@ import {
   type PricingPlan,
 } from './landingContent';
 import { SubscriptionService } from '../../services/subscription.service';
-import { PhonePreview } from './PhonePreview';
+import heroPhoneHand from '../../assets/landing/trackoja-hero-phone-hand.png';
 import { InstallAppAction } from '../../components/InstallAppAction';
 import { useRevealOnScroll } from './useRevealOnScroll';
 import {
@@ -199,7 +199,15 @@ export default function LandingPage() {
               </div>
             </div>
 
-            <PhonePreview />
+            <div className="lp-hero-art" data-reveal>
+              <img
+                src={heroPhoneHand}
+                alt="TrackOja dashboard on a phone held in one hand"
+                width="1122"
+                height="1402"
+                fetchPriority="high"
+              />
+            </div>
           </div>
         </section>
 

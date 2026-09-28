@@ -118,16 +118,12 @@ export default function OnboardingPage() {
     }
   }
 
-  async function continueFromCategory() {
+  function continueFromCategory() {
     if (!selectedCategory) return;
-    setBusy(true);
     setError(null);
-    try {
-      await SubscriptionService.saveOnboardingCategory(selectedCategory);
-      setStep('business');
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Your selection could not be saved.');
-    } finally { setBusy(false); }
+    // The category is saved atomically by create_onboarding_business together
+    // with the business profile. No separate RPC is needed at this step.
+    setStep('business');
   }
 
   async function review(plan: PublishedPlan) {
@@ -207,7 +203,7 @@ export default function OnboardingPage() {
         <section className="onboarding-header">
           <span className="eyebrow">TrackOja</span>
           <h1 className="onboarding-title">Welcome to TrackOja</h1>
-          <p className="onboarding-subtitle">Set up your business, choose your plan, and start working. You can leave and continue later.</p>
+          <p className="onboarding-subtitle">Set up your business, choose your plan, and start working. Once your business is created, you can leave and continue later.</p>
           <div className="onboarding-footer"><Button onClick={() => setStep('category')}>Set up my business</Button></div>
         </section>
       )}
@@ -219,7 +215,7 @@ export default function OnboardingPage() {
             <p className="onboarding-subtitle">This shapes your TrackOja workspace. It does not choose or activate a paid plan.</p>
           </div>
           <BusinessCategoryPicker value={selectedCategory} onChange={setSelectedCategory} />
-          <div className="onboarding-footer"><Button onClick={() => void continueFromCategory()} disabled={!selectedCategory} loading={busy}>Continue</Button></div>
+          <div className="onboarding-footer"><Button onClick={continueFromCategory} disabled={!selectedCategory}>Continue</Button></div>
         </>
       )}
 

@@ -357,24 +357,6 @@ export const CAPABILITIES: Capability[] = [
 
 // ------------------------------------------------------- hero / team views
 
-export const HERO_STATS = {
-  salesToday: '₦184,500',
-  salesCount: 27,
-  averageSale: '₦6,833',
-  lowStockCount: 3,
-};
-
-export const HERO_TRANSACTIONS = [
-  { id: '#1042', amount: '₦12,400', method: 'Cash', time: '2m ago' },
-  { id: '#1041', amount: '₦7,800', method: 'Transfer', time: '14m ago' },
-  { id: '#1040', amount: '₦23,000', method: 'POS', time: '31m ago' },
-];
-
-export const HERO_LOW_STOCK = [
-  { name: 'Golden Penny Semovita 1kg', left: '3 left' },
-  { name: 'Indomie Chicken (carton)', left: '2 left' },
-];
-
 export const OWNER_VIEW_ROWS = [
   { label: 'Sales today', value: '₦184,500' },
   { label: 'Transactions', value: '27' },

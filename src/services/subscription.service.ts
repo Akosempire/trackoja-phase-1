@@ -292,11 +292,6 @@ export class SubscriptionService {
     };
   }
 
-  static async saveOnboardingCategory(category: string): Promise<void> {
-    const { error } = await supabase.rpc('save_my_onboarding_category', { p_business_category: category });
-    if (error) throw error;
-  }
-
   static async getCommercialAccess(): Promise<CommercialAccess> {
     const { data, error } = await supabase.rpc('get_my_commercial_access', { p_product_key: 'trackoja' });
     if (error) throw error;

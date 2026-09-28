@@ -11,6 +11,8 @@ const adminWorkspaceSql = readFileSync(
 const routes = readFileSync(join(root, 'src/routes/ProtectedRoute.tsx'), 'utf8');
 const auth = readFileSync(join(root, 'src/contexts/AuthContext.tsx'), 'utf8');
 const onboarding = readFileSync(join(root, 'src/pages/onboarding/OnboardingPage.tsx'), 'utf8');
+const onboardingService = readFileSync(join(root, 'src/services/subscription.service.ts'), 'utf8');
+const businessSql = readFileSync(join(root, 'supabase/migrations/20260928000096_commercial_lifecycle.sql'), 'utf8');
 const login = readFileSync(join(root, 'src/pages/auth/LoginPage.tsx'), 'utf8');
 const callback = readFileSync(join(root, 'src/pages/auth/AuthCallbackPage.tsx'), 'utf8');
 const verify = readFileSync(join(root, 'src/pages/auth/VerifyEmailPage.tsx'), 'utf8');
@@ -56,8 +58,11 @@ describe('central post-authentication resolution', () => {
 });
 
 describe('resumable new-user onboarding', () => {
-  it('persists category and preserves a pending payment reference', () => {
-    expect(sql).toMatch(/save_my_onboarding_category/);
+  it('carries category into atomic business creation without requiring the missing early-save RPC', () => {
+    expect(onboarding).toMatch(/setStep\('business'\)/);
+    expect(onboarding).toMatch(/businessCategory: selectedCategory/);
+    expect(onboardingService).not.toMatch(/save_my_onboarding_category/);
+    expect(businessSql).toMatch(/business_category = p_business_category, state = 'business_profile_completed'/);
     expect(onboarding).toMatch(/progress\.state === 'payment_pending'/);
     expect(onboarding).toMatch(/Check payment status/);
   });
