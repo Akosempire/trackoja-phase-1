@@ -1254,11 +1254,10 @@ button.kpi-card:hover {
    change it, so the control stays visible and explained. */
 
 .is-locked {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-6);
   font-size: var(--text-caption);
   color: var(--color-text-muted);
+  line-height: var(--leading-body);
+  overflow-wrap: break-word;
 }
 
 @media (max-width: 1050px) {

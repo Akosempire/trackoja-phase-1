@@ -119,3 +119,24 @@ for (const viewport of [
     });
   }
 }
+
+for (const width of [730, 390]) {
+  test(`platform read-only explanations wrap as prose at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 800 });
+    await page.setContent(`<!doctype html><html data-theme="light"><body>
+      <main class="page plat-page"><section class="card">
+        <h2>Read-only</h2>
+        <p class="is-locked">Integration writes would require <span class="mono">platform:manage_integrations</span>. A platform owner can manage access in Users &amp; roles.</p>
+      </section></main>
+    </body></html>`);
+    for (const file of styles) await page.addStyleTag({ path: path.join(root, file) });
+
+    const paragraph = page.locator('p.is-locked');
+    const permission = paragraph.locator('.mono');
+    await expect(paragraph).toHaveCSS('display', 'block');
+    const permissionBox = await permission.boundingBox();
+    expect(permissionBox?.width).toBeGreaterThan(150);
+    expect(permissionBox?.height).toBeLessThan(40);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+  });
+}

@@ -162,9 +162,9 @@ export const PLATFORM_AREAS: PlatformArea[] = [
     group: 'operations',
     capability: 'specified',
     gaps: [
-      'No integration registry, connection test or credential store exists.',
-      'No webhook event log, so failed or unknown deliveries cannot be inspected.',
-      'Paystack and OPay secrets live only in Edge Function environment variables.',
+      'Paystack and OPay connection tests are not available in this dashboard.',
+      'Webhook delivery history is not available here; check provider and Edge Function logs.',
+      'Payment credentials are managed as server-side secrets, outside this dashboard.',
     ],
   },
   {
