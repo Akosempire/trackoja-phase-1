@@ -16,7 +16,7 @@ import {
 } from '../../services/subscription.service';
 import { formatDate, formatMoney, formatSeatLimit } from '../../utils/format';
 
-type Step = 'category' | 'business' | 'plan' | 'preview' | 'verifying';
+type Step = 'welcome' | 'category' | 'business' | 'plan' | 'preview' | 'payment' | 'verifying' | 'complete';
 type Cycle = 'monthly' | 'annual';
 
 function versionFor(plan: PublishedPlan, cycle: Cycle) {
@@ -28,10 +28,8 @@ export default function OnboardingPage() {
   const [searchParams] = useSearchParams();
   const { user, refreshProfile } = useAuth();
   const toast = useToast();
-  const prefilled = sessionStorage.getItem('tk_signup_category') as BusinessCategory | null;
-
-  const [step, setStep] = useState<Step>('category');
-  const [selectedCategory, setSelectedCategory] = useState<BusinessCategory | ''>(prefilled ?? '');
+  const [step, setStep] = useState<Step>('welcome');
+  const [selectedCategory, setSelectedCategory] = useState<BusinessCategory | ''>('');
   const [organizationName, setOrganizationName] = useState('');
   const [storeName, setStoreName] = useState('');
   const [billingEmail, setBillingEmail] = useState(user?.email ?? '');
@@ -42,6 +40,7 @@ export default function OnboardingPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [pendingReference, setPendingReference] = useState<string | null>(null);
 
   const callbackReference = searchParams.get('reference') ?? searchParams.get('trxref');
 
@@ -55,13 +54,16 @@ export default function OnboardingPage() {
           setSelectedCategory(progress.businessCategory as BusinessCategory);
         }
         if (callbackReference) setStep('verifying');
-        else if (progress.orgId) setStep('plan');
-        else if (prefilled) setStep('business');
+        else if (progress.state === 'payment_pending' && progress.checkoutReference) {
+          setPendingReference(progress.checkoutReference);
+          setStep('payment');
+        } else if (progress.orgId) setStep('plan');
+        else if (progress.businessCategory) setStep('business');
       })
       .catch((cause) => setError(cause instanceof Error ? cause.message : 'Onboarding could not be loaded.'))
       .finally(() => setLoading(false));
     return () => { alive = false; };
-  }, [callbackReference, prefilled]);
+  }, [callbackReference]);
 
   useEffect(() => {
     if (!callbackReference || step !== 'verifying') return;
@@ -74,13 +76,14 @@ export default function OnboardingPage() {
           message: result.testData ? 'Test payment verified' : 'Payment verified',
           description: 'TrackOja access is active for this business.',
         });
-        await refreshProfile();
-        navigate('/dashboard', { replace: true });
+        setPendingReference(callbackReference);
+        setStep('complete');
       })
       .catch((cause) => {
         const message = cause instanceof Error ? cause.message : 'Payment could not be verified.';
         setError(message);
-        setStep('plan');
+        setPendingReference(callbackReference);
+        setStep('payment');
         toast.update(toastId, { variant: 'error', message: 'Payment not verified', description: message });
       });
   }, [callbackReference, step, navigate, refreshProfile, toast]);
@@ -103,7 +106,6 @@ export default function OnboardingPage() {
         businessCategory: selectedCategory,
         billingEmail,
       });
-      sessionStorage.removeItem('tk_signup_category');
       await refreshProfile();
       toast.update(toastId, { variant: 'success', message: 'Business created', description: 'Now choose the commercial terms you want to purchase.' });
       setStep('plan');
@@ -114,6 +116,18 @@ export default function OnboardingPage() {
     } finally {
       setBusy(false);
     }
+  }
+
+  async function continueFromCategory() {
+    if (!selectedCategory) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await SubscriptionService.saveOnboardingCategory(selectedCategory);
+      setStep('business');
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Your selection could not be saved.');
+    } finally { setBusy(false); }
   }
 
   async function review(plan: PublishedPlan) {
@@ -154,17 +168,49 @@ export default function OnboardingPage() {
     }
   }
 
+  async function checkPendingPayment() {
+    if (!pendingReference) return;
+    setBusy(true);
+    setError(null);
+    const toastId = toast.loading('Checking payment…', { dedupeKey: 'onboarding-payment-check' });
+    try {
+      const result = await SubscriptionService.verifyPayment(pendingReference);
+      if (!result.settled) throw new Error(result.detail ?? 'Payment is still awaiting confirmation.');
+      toast.update(toastId, { variant: 'success', message: 'Payment verified' });
+      setStep('complete');
+    } catch (cause) {
+      const message = cause instanceof Error ? cause.message : 'Payment could not be verified.';
+      setError(message);
+      toast.update(toastId, { variant: 'error', message: 'Payment not verified', description: message });
+    } finally { setBusy(false); }
+  }
+
+  async function enterTrackOja() {
+    setBusy(true);
+    await refreshProfile();
+    navigate('/dashboard', { replace: true });
+  }
+
   if (loading || step === 'verifying') return <PageLoader />;
 
   return (
     <div className="onboarding-shell commercial-onboarding">
       <div className="onboarding-progress" aria-label="Onboarding progress">
         {['Business', 'Plan', 'Review', 'Activate'].map((label, index) => (
-          <span key={label} className={index <= ({ category: 0, business: 0, plan: 1, preview: 2, verifying: 3 }[step]) ? 'is-active' : ''}>{label}</span>
+          <span key={label} className={index <= ({ welcome: 0, category: 0, business: 0, plan: 1, preview: 2, payment: 3, verifying: 3, complete: 3 }[step]) ? 'is-active' : ''}>{label}</span>
         ))}
       </div>
 
       {error && <div className="alert alert-error" role="alert">{error}</div>}
+
+      {step === 'welcome' && (
+        <section className="onboarding-header">
+          <span className="eyebrow">TrackOja</span>
+          <h1 className="onboarding-title">Welcome to TrackOja</h1>
+          <p className="onboarding-subtitle">Set up your business, choose your plan, and start working. You can leave and continue later.</p>
+          <div className="onboarding-footer"><Button onClick={() => setStep('category')}>Set up my business</Button></div>
+        </section>
+      )}
 
       {step === 'category' && (
         <>
@@ -173,7 +219,7 @@ export default function OnboardingPage() {
             <p className="onboarding-subtitle">This shapes your TrackOja workspace. It does not choose or activate a paid plan.</p>
           </div>
           <BusinessCategoryPicker value={selectedCategory} onChange={setSelectedCategory} />
-          <div className="onboarding-footer"><Button onClick={() => setStep('business')} disabled={!selectedCategory}>Continue</Button></div>
+          <div className="onboarding-footer"><Button onClick={() => void continueFromCategory()} disabled={!selectedCategory} loading={busy}>Continue</Button></div>
         </>
       )}
 
@@ -243,6 +289,28 @@ export default function OnboardingPage() {
             <Button onClick={startCheckout} loading={busy}>Continue to secure payment</Button>
           </section>
         </>
+      )}
+
+      {step === 'payment' && (
+        <section className="card billing-preview-card">
+          <span className="eyebrow">Payment verification</span>
+          <h1 className="onboarding-title">Your setup is saved</h1>
+          <p className="onboarding-subtitle">Your business and plan progress are safe. Check the payment again, or return to the plan list to start another checkout.</p>
+          {pendingReference && <p className="page-subtitle">Reference: {pendingReference}</p>}
+          <div className="toolbar-group">
+            <Button onClick={() => void checkPendingPayment()} loading={busy}>Check payment status</Button>
+            <Button variant="outline" onClick={() => { setError(null); setStep('plan'); }}>Return to plans</Button>
+          </div>
+        </section>
+      )}
+
+      {step === 'complete' && (
+        <section className="card billing-preview-card">
+          <span className="eyebrow">Setup complete</span>
+          <h1 className="onboarding-title">You’re ready to use TrackOja</h1>
+          <p className="onboarding-subtitle">Your business is set up and your access is active.</p>
+          <Button onClick={() => void enterTrackOja()} loading={busy}>Enter TrackOja</Button>
+        </section>
       )}
     </div>
   );

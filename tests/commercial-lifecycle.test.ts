@@ -7,6 +7,8 @@ const migration = readFileSync(join(root, 'supabase/migrations/20260928000096_co
 const initialize = readFileSync(join(root, 'supabase/functions/paystack-initialize/index.ts'), 'utf8');
 const route = readFileSync(join(root, 'src/routes/ProtectedRoute.tsx'), 'utf8');
 const onboarding = readFileSync(join(root, 'src/pages/onboarding/OnboardingPage.tsx'), 'utf8');
+const entryMigration = readFileSync(join(root, 'supabase/migrations/20260928000098_onboarding_entry_resolution.sql'), 'utf8');
+const authContext = readFileSync(join(root, 'src/contexts/AuthContext.tsx'), 'utf8');
 
 describe('immutable commercial terms', () => {
   it('stores exact cycle versions in minor units and forbids mutation', () => {
@@ -35,8 +37,9 @@ describe('fail-closed fulfilment', () => {
   });
 
   it('keeps product access behind a server entitlement check', () => {
-    expect(route).toMatch(/useCommercialAccess/);
-    expect(route).toMatch(/commercial\.access\?\.hasAccess/);
+    expect(authContext).toMatch(/EntryService\.resolve/);
+    expect(route).toMatch(/entry\.hasAccess/);
+    expect(entryMigration).toMatch(/resolve_my_trackoja_entry/);
   });
 });
 

@@ -322,9 +322,9 @@ export default function BillingPage() {
               {entitlement?.billingCycle ? ` · billed ${entitlement.billingCycle}` : ''}
             </p>
           </div>
-          <Button variant={state.tone === 'danger' ? 'danger' : 'primary'} onClick={scrollToPlans}>
+          {isOwner && <Button variant={state.tone === 'danger' ? 'danger' : 'primary'} onClick={scrollToPlans}>
             {state.action}
-          </Button>
+          </Button>}
         </div>
       </section>
 
@@ -370,13 +370,13 @@ export default function BillingPage() {
           <StateBlock
             variant="empty"
             title="No plan on this business"
-            body="Choose a plan below to switch TrackOja on."
+            body={isOwner ? 'Choose a plan below to switch TrackOja on.' : 'The business owner needs to activate or restore the subscription.'}
           />
         )}
       </section>
 
       {/* ── Compare published plans ──────────────────────────────── */}
-      <section className="card" ref={compareRef}>
+      {isOwner ? <section className="card" ref={compareRef}>
         <SectionHead
           title="Plans"
           actions={
@@ -489,10 +489,9 @@ export default function BillingPage() {
           </div>
         )}
 
-        {!isOwner && (
-          <p className="section-sub">Only the business owner can change the subscription.</p>
-        )}
-      </section>
+      </section> : <section className="card"><StateBlock variant="unavailable"
+        title="The business owner manages billing"
+        body="Your membership is recognized. Ask the business owner to activate or restore TrackOja access; you do not need to create another business." /></section>}
 
       {/* ── Payments ─────────────────────────────────────────────── */}
       <section className="card">

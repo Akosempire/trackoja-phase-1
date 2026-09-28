@@ -1,5 +1,5 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
-import { ProtectedRoute, GuestRoute, OnboardingRoute, PlatformAdminRoute } from './routes/ProtectedRoute';
+import { ProtectedRoute, GuestRoute, OnboardingRoute, PlatformAdminRoute, WorkspaceRoute } from './routes/ProtectedRoute';
 import { AppLayout } from './components/AppLayout';
 import WelcomePage from './pages/WelcomePage';
 import LoginPage from './pages/auth/LoginPage';
@@ -51,6 +51,7 @@ import KitchenPage from './pages/restaurant/KitchenPage';
 import ExpiryAlertsPage from './pages/pharmacy/ExpiryAlertsPage';
 import LandingPage from './pages/landing/LandingPage';
 import LegalPlaceholderPage from './pages/landing/LegalPlaceholderPage';
+import WorkspaceSelectionPage from './pages/WorkspaceSelectionPage';
 
 /**
  * Public front door. The landing page replaced the old "/" -> /welcome redirect;
@@ -104,6 +105,10 @@ export default function App() {
 
       <Route element={<OnboardingRoute />}>
         <Route path="/onboarding" element={<OnboardingPage />} />
+      </Route>
+
+      <Route element={<WorkspaceRoute />}>
+        <Route path="/workspace" element={<WorkspaceSelectionPage />} />
       </Route>
 
       <Route element={<ProtectedRoute />}>

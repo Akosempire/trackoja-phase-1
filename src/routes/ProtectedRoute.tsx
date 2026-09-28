@@ -1,60 +1,66 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { PageLoader } from '../components/ui/PageLoader';
-import { useCommercialAccess } from '../hooks/useCommercialAccess';
+import { StateBlock } from '../components/ui/StateBlock';
+import { Button } from '../components/ui/Button';
 
+function ResolutionFailure() {
+  const { entryError, refreshEntry } = useAuth();
+  return <main className="auth-shell"><StateBlock variant="error" centred
+    title="We could not open your workspace"
+    body={entryError ?? 'Your account relationship could not be resolved.'}
+    actions={<Button onClick={() => void refreshEntry()}>Try again</Button>} /></main>;
+}
+
+/** The single authenticated routing decision, evaluated only after auth,
+ * invitations, memberships, workspace, onboarding and access have resolved. */
 export function ProtectedRoute() {
-  const { user, profile, loading } = useAuth();
+  const { user, profile, loading, entry, entryLoading, entryError } = useAuth();
   const location = useLocation();
-  const commercial = useCommercialAccess();
-
-  if (loading) return <PageLoader />;
+  if (loading || (user && entryLoading)) return <PageLoader />;
   if (!user) return <Navigate to="/login" replace />;
-  if (!profile?.currentOrgId) {
-    // Platform admins manage the whole platform and don't need a store of
-    // their own, so they're exempt from the "Set up your business" flow.
-    if (profile?.isPlatformAdmin) {
-      if (location.pathname.startsWith('/platform')) return <Outlet />;
-      return <Navigate to="/platform" replace />;
-    }
-    return <Navigate to="/onboarding" replace />;
+  if (entryError || !entry) return <ResolutionFailure />;
+  if (entry.kind === 'platform_admin' || profile?.isPlatformAdmin) {
+    return location.pathname.startsWith('/platform') ? <Outlet /> : <Navigate to="/platform" replace />;
   }
-  if (!profile.isPlatformAdmin && commercial.loading) return <PageLoader />;
-  if (!profile.isPlatformAdmin && (!commercial.access?.hasAccess || commercial.error)) {
+  if (entry.kind === 'workspace_selection_required') return <Navigate to="/workspace" replace />;
+  if (entry.kind === 'new_user' || entry.kind === 'onboarding_in_progress') {
     return <Navigate to="/onboarding" replace state={{ from: location.pathname }} />;
   }
-
+  if (!entry.hasAccess && location.pathname !== '/billing') return <Navigate to="/billing" replace />;
   return <Outlet />;
 }
 
 export function GuestRoute() {
-  const { user, loading } = useAuth();
-
-  if (loading) return <PageLoader />;
-  if (user) return <Navigate to="/dashboard" replace />;
-
+  const { user, loading, entry, entryLoading, entryError } = useAuth();
+  if (loading || (user && entryLoading)) return <PageLoader />;
+  if (user && entryError) return <ResolutionFailure />;
+  if (user && entry) return <Navigate to={entry.destination} replace />;
   return <Outlet />;
 }
 
 export function OnboardingRoute() {
-  const { user, profile, loading } = useAuth();
-  const commercial = useCommercialAccess();
-
-  if (loading) return <PageLoader />;
+  const { user, loading, entry, entryLoading, entryError } = useAuth();
+  if (loading || (user && entryLoading)) return <PageLoader />;
   if (!user) return <Navigate to="/login" replace />;
-  if (profile?.isPlatformAdmin) return <Navigate to="/platform" replace />;
-  if (commercial.loading) return <PageLoader />;
-  if (commercial.access?.hasAccess) return <Navigate to="/dashboard" replace />;
+  if (entryError || !entry) return <ResolutionFailure />;
+  if (entry.kind === 'new_user' || entry.kind === 'onboarding_in_progress') return <Outlet />;
+  return <Navigate to={entry.destination} replace />;
+}
 
-  return <Outlet />;
+export function WorkspaceRoute() {
+  const { user, loading, entry, entryLoading, entryError } = useAuth();
+  if (loading || (user && entryLoading)) return <PageLoader />;
+  if (!user) return <Navigate to="/login" replace />;
+  if (entryError || !entry) return <ResolutionFailure />;
+  if (entry.kind === 'workspace_selection_required') return <Outlet />;
+  return <Navigate to={entry.destination} replace />;
 }
 
 export function PlatformAdminRoute() {
-  const { user, profile, loading } = useAuth();
-
-  if (loading) return <PageLoader />;
+  const { user, profile, loading, entryLoading } = useAuth();
+  if (loading || entryLoading) return <PageLoader />;
   if (!user) return <Navigate to="/login" replace />;
   if (!profile?.isPlatformAdmin) return <Navigate to="/dashboard" replace />;
-
   return <Outlet />;
 }

@@ -1,20 +1,12 @@
-import { BusinessCategoryIllustration } from '../../components/BusinessCategoryIllustration';
-import { BusinessCategoryPicker } from '../../components/BusinessCategoryPicker';
-import { useState } from 'react';
-import type { FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AuthLayout } from '../../components/AuthLayout';
 import { FormField } from '../../components/ui/FormField';
 import { Button } from '../../components/ui/Button';
 import { AuthService } from '../../services/auth.service';
-import { BUSINESS_CATEGORIES, type BusinessCategory } from '../../config/businessModules';
 
 export default function SignUpPage() {
   const navigate = useNavigate();
-
-  const [step, setStep] = useState<1 | 2>(1);
-  const [selectedCategory, setSelectedCategory] = useState<BusinessCategory | ''>('');
-
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
@@ -23,103 +15,36 @@ export default function SignUpPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const handleCategoryContinue = () => {
-    if (!selectedCategory) return;
-    sessionStorage.setItem('tk_signup_category', selectedCategory);
-    setStep(2);
-  };
-
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault();
+  async function handleSubmit(event: FormEvent) {
+    event.preventDefault();
     setError(null);
-
-    if (password !== confirmPassword) {
-      setError('Passwords do not match.');
-      return;
-    }
-    if (password.length < 8) {
-      setError('Password must be at least 8 characters.');
-      return;
-    }
-
+    if (password !== confirmPassword) { setError('Passwords do not match.'); return; }
+    if (password.length < 8) { setError('Password must be at least 8 characters.'); return; }
     setLoading(true);
     try {
       const { session } = await AuthService.signup({ email, password, firstName, lastName });
-
-      if (session) {
-        navigate('/dashboard', { replace: true });
-      } else {
+      if (session) navigate('/onboarding', { replace: true });
+      else {
         sessionStorage.setItem('tk_verify_email', email);
         navigate(`/verify-email?email=${encodeURIComponent(email)}`, { replace: true });
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  if (step === 1) {
-    return (
-      <div className="onboarding-shell" style={{ minHeight: '100dvh' }}>
-        <div className="onboarding-header">
-          <div style={{ fontSize: 20, fontWeight: 700, marginBottom: 4 }}>TrackOja</div>
-          <h1 className="onboarding-title">What type of business do you run?</h1>
-          <p className="onboarding-subtitle">We'll tailor TrackOja to fit your industry.</p>
-        </div>
-
-        <BusinessCategoryPicker value={selectedCategory} onChange={setSelectedCategory} />
-
-        <div className="onboarding-footer">
-          <Button onClick={handleCategoryContinue} disabled={!selectedCategory}>
-            Continue →
-          </Button>
-          <div style={{ textAlign: 'center', marginTop: 12 }}>
-            <Link to="/login" style={{ fontSize: 13, color: 'var(--t2)' }}>
-              Already have an account? Sign in
-            </Link>
-          </div>
-        </div>
-      </div>
-    );
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Something went wrong. Please try again.');
+    } finally { setLoading(false); }
   }
 
-  const chosen = BUSINESS_CATEGORIES.find((c) => c.value === selectedCategory);
-
-  return (
-    <AuthLayout
-      title="Create your account"
-      subtitle="Start managing your store with TrackOja"
-      footer={<span>Already have an account? <Link to="/login">Sign in</Link></span>}
-    >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20 }}>
-        <button
-          type="button"
-          aria-label="Back to business categories"
-          onClick={() => setStep(1)}
-          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, color: 'var(--t2)', padding: 0 }}
-        >
-          ←
-        </button>
-        {chosen && (
-          <span className="onboarding-chosen-badge" style={{ margin: 0 }}>
-            <BusinessCategoryIllustration category={chosen.value} compact />
-            <span>{chosen.label}</span>
-          </span>
-        )}
+  return <AuthLayout title="Create your account" subtitle="Start managing your business with TrackOja"
+    footer={<span>Already have an account? <Link to="/login">Sign in</Link></span>}>
+    {error && <div className="alert alert-error" role="alert">{error}</div>}
+    <form onSubmit={handleSubmit}>
+      <div className="auth-form-row">
+        <FormField id="firstName" label="First name" value={firstName} onChange={setFirstName} autoComplete="given-name" required />
+        <FormField id="lastName" label="Last name" value={lastName} onChange={setLastName} autoComplete="family-name" required />
       </div>
-
-      {error && <div className="alert alert-error">{error}</div>}
-      <form onSubmit={handleSubmit}>
-        <div className="auth-form-row">
-          <FormField id="firstName" label="First name" value={firstName} onChange={setFirstName} autoComplete="given-name" required />
-          <FormField id="lastName" label="Last name" value={lastName} onChange={setLastName} autoComplete="family-name" required />
-        </div>
-        <FormField id="email" label="Email address" type="email" value={email} onChange={setEmail} placeholder="you@example.com" autoComplete="email" required />
-        <FormField id="password" label="Password" type="password" value={password} onChange={setPassword} placeholder="At least 8 characters" autoComplete="new-password" required />
-        <FormField id="confirmPassword" label="Confirm password" type="password" value={confirmPassword} onChange={setConfirmPassword} autoComplete="new-password" required />
-        <Button type="submit" loading={loading}>Create account</Button>
-      </form>
-    </AuthLayout>
-  );
+      <FormField id="email" label="Email address" type="email" value={email} onChange={setEmail} autoComplete="email" required />
+      <FormField id="password" label="Password" type="password" value={password} onChange={setPassword} autoComplete="new-password" required hint="At least 8 characters." />
+      <FormField id="confirmPassword" label="Confirm password" type="password" value={confirmPassword} onChange={setConfirmPassword} autoComplete="new-password" required />
+      <Button type="submit" loading={loading}>Create account</Button>
+    </form>
+  </AuthLayout>;
 }
