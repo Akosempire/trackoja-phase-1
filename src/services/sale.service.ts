@@ -138,6 +138,12 @@ export class SaleService {
     }
   }
 
+  static async getCashierName(saleId: string): Promise<string> {
+    const { data, error } = await supabase.rpc('sale_cashier_name', { p_sale_id: saleId });
+    if (error) throw error;
+    return data ?? 'Staff member';
+  }
+
   /**
    * Void a completed sale. The database function void_sale reverses stock via
    * 'return' movements and marks the sale as voided, enforcing sales:void.
@@ -372,6 +378,8 @@ export class SaleService {
       method: data.method,
       amount: Number(data.amount),
       reference: data.reference,
+      provider: data.provider ?? undefined,
+      merchantAttemptId: data.merchant_attempt_id ?? undefined,
       verificationStatus: (data.verification_status ?? 'verified') as VerificationStatus,
       verifiedBy: data.verified_by,
       verifiedAt: data.verified_at,

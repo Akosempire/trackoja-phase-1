@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { usePlatform } from '../../../components/platform/PlatformContext';
 import { AreaCoverage, PlatformPageHead } from '../../../components/platform/PlatformPageHead';
 import { AttentionList } from '../../../components/ui/AttentionList';
@@ -11,22 +11,22 @@ import { StateBlock } from '../../../components/ui/StateBlock';
 import { StatusBadge } from '../../../components/ui/StatusBadge';
 import { PLATFORM_AREAS } from '../../../config/platformAreas';
 import { formatDateTime } from '../../../utils/format';
+import { supabase } from '../../../config/supabase';
+import { Button } from '../../../components/ui/Button';
 
 const AREA = PLATFORM_AREAS.find((area) => area.id === 'integrations')!;
 
 /**
- * The shape a registry will have. `status` offers two values only: there is no
- * `connected` or `healthy` because no connection test endpoint exists, so the
- * field can only report whether the code and its server-side secret are in
- * place. `environment` is null for all three entries, like `lastCheckedAt`,
- * because nothing records either.
+ * The legacy static catalogue cannot read Edge secrets or test a connection.
+ * `unknown` is therefore deliberate; merchant Moniepoint diagnostics below
+ * come from a separate permission-controlled database function.
  */
 interface IntegrationEntry {
   key: string;
   name: string;
   category: string;
   purpose: string;
-  status: 'configured' | 'not_configured';
+  status: 'unknown' | 'not_configured';
   environment: 'test' | 'live' | null;
   /** Always null: no connection test exists, so nothing is ever checked. */
   lastCheckedAt: string | null;
@@ -41,8 +41,8 @@ interface IntegrationEntry {
 
 /**
  * The three integrations that exist. Declared on the page because there is no
- * `integration_registry` table and no listing RPC; every `configured` below
- * means "the code and its server-side secret exist", never "it works".
+ * `integration_registry` table and no listing RPC; secret availability is
+ * unknown from the browser even when the corresponding code exists.
  */
 const INTEGRATIONS: IntegrationEntry[] = [
   {
@@ -50,7 +50,7 @@ const INTEGRATIONS: IntegrationEntry[] = [
     name: 'Paystack',
     category: 'Payments',
     purpose: 'Card and transfer payment for platform subscription plans.',
-    status: 'configured',
+    status: 'unknown',
     environment: null,
     lastCheckedAt: null,
     lastError: null,
@@ -59,7 +59,7 @@ const INTEGRATIONS: IntegrationEntry[] = [
     notes: [
       'HMAC-SHA512 over the raw body, compared with the x-paystack-signature header (paystack-webhook/index.ts, lines 20-53).',
       'Drives initiate_subscription_checkout, activate_subscription and mark_subscription_transaction_failed (20260614000031_subscriptions_functions.sql; activate_subscription re-issued by 20260927000089_platform_owner_hardening.sql, lines 117-255).',
-      'Mock mode when the secret is unset: the transaction is activated immediately and a MOCK- access code is returned (paystack-initialize/index.ts, lines 71-91).',
+      'A missing or misclassified Paystack secret now leaves checkout unavailable; no paid entitlement is granted by a mock fallback.',
     ],
   },
   {
@@ -67,7 +67,7 @@ const INTEGRATIONS: IntegrationEntry[] = [
     name: 'OPay',
     category: 'Payments',
     purpose: 'Device payment requests raised by a store, confirmed by the OPay merchant webhook.',
-    status: 'configured',
+    status: 'unknown',
     environment: null,
     lastCheckedAt: null,
     lastError: null,
@@ -75,8 +75,8 @@ const INTEGRATIONS: IntegrationEntry[] = [
     codeRef: 'supabase/functions/opay-initiate-payment/index.ts, supabase/functions/opay-webhook/index.ts',
     notes: [
       'handle_opay_webhook resolves a device_transactions row by external_ref and is granted to service_role only (20260614000047_opay_webhook_functions.sql, lines 30-33 and 60). No platform RPC calls it, so this console cannot see, retry or reconcile a device payment.',
-      'When OPAY_SECRET_KEY is unset, signature verification is skipped with only a log warning (opay-webhook/index.ts, lines 56-69): an unsigned POST can move a transaction to success or failed, and nothing records that it happened.',
-      'The secret must be set on the Edge Function; the platform settings table refuses credential-shaped keys and values (20260927000089_platform_owner_hardening.sql, lines 1066-1084).',
+      'The legacy OPay endpoint targets a sandbox URL. Requests and webhook settlement are restricted to sandbox businesses; missing secrets and unsigned webhooks are refused.',
+      'The secret must be set on the Edge Function; the platform settings table refuses credential-shaped keys and values.',
     ],
   },
   {
@@ -143,6 +143,17 @@ CREATE INDEX idx_webhook_events_failed
 
 export default function IntegrationsArea() {
   const { environment, can } = usePlatform();
+  const [moniepointHealth, setMoniepointHealth] = useState<Record<string, number | string | null> | null>(null);
+  const [moniepointError, setMoniepointError] = useState<string | null>(null);
+  const [moniepointLoading, setMoniepointLoading] = useState(false);
+  const refreshMoniepoint = async () => {
+    setMoniepointLoading(true); setMoniepointError(null);
+    const { data, error } = await supabase.rpc('platform_moniepoint_health');
+    if (error) setMoniepointError(error.message);
+    else setMoniepointHealth(data as Record<string, number | string | null>);
+    setMoniepointLoading(false);
+  };
+  useEffect(() => { if (can('platform:manage_integrations')) void refreshMoniepoint(); }, []);
 
   // No fetch happens on this page and no refresh control is offered: a Refresh
   // button over three declared rows would imply a source that does not exist.
@@ -202,10 +213,39 @@ export default function IntegrationsArea() {
     <>
       <PlatformPageHead
         area={AREA}
-        description={`Payment gateways and email delivery in ${environment.label.toLowerCase()}. Configured means the code and its secret exist — not that it works.`}
+        description={`Payment gateways and email delivery in ${environment.label.toLowerCase()}. Server secret availability is unknown to this page unless a dedicated diagnostic reports it.`}
       />
 
       <AreaCoverage gaps={AREA.gaps} title="What this page cannot do yet" />
+
+      {can('platform:manage_integrations') && <section className="card" aria-labelledby="moniepoint-platform-title">
+        <SectionHead id="moniepoint-platform-title" title="Moniepoint merchant POS"
+          sub="Customer payments to businesses, separate from TrackOja subscription billing"
+          actions={<Button variant="outline" className="btn-sm" loading={moniepointLoading} onClick={refreshMoniepoint}>Refresh</Button>} />
+        {moniepointError ? <StateBlock variant="error" title="Moniepoint diagnostics unavailable" body={moniepointError}
+          actions={<Button variant="outline" onClick={refreshMoniepoint}>Try again</Button>} /> :
+          moniepointHealth ? <DefList rows={[
+            { term: 'Live merchant connections', value: moniepointHealth.liveConnections ?? 0 },
+            { term: 'Verified connections', value: moniepointHealth.verifiedConnections ?? 0 },
+            { term: 'Active terminals', value: moniepointHealth.activeTerminals ?? 0 },
+            { term: 'Live transactions today', value: moniepointHealth.liveTransactionsToday ?? 0 },
+            { term: 'Successful today', value: moniepointHealth.liveSuccessfulToday ?? 0 },
+            { term: 'Failed today', value: moniepointHealth.liveFailedToday ?? 0 },
+            { term: 'Live requests awaiting status', value: moniepointHealth.livePending ?? 0 },
+            { term: 'Live requests needing reconciliation', value: moniepointHealth.liveNeedsReconciliation ?? 0 },
+            { term: 'Sandbox connections', value: moniepointHealth.sandboxConnections ?? 0 },
+            { term: 'Sandbox requests awaiting status', value: moniepointHealth.sandboxPending ?? 0 },
+            { term: 'Provider unavailable calls (24h)', value: moniepointHealth.providerUnavailable24h ?? 0 },
+            { term: 'Provider rejected calls (24h)', value: moniepointHealth.providerRejected24h ?? 0 },
+            { term: 'Average provider latency (24h)', value: moniepointHealth.averageLatencyMs24h == null
+              ? 'No calls' : `${moniepointHealth.averageLatencyMs24h} ms`,
+              muted: moniepointHealth.averageLatencyMs24h == null },
+            { term: 'Last credential verification', value: moniepointHealth.lastVerifiedAt
+              ? formatDateTime(String(moniepointHealth.lastVerifiedAt)) : 'No verified connection',
+              muted: !moniepointHealth.lastVerifiedAt },
+          ]} /> : <p className="page-subtitle">Loading redacted merchant payment diagnostics…</p>}
+        <p className="form-hint">Credentials and individual customer amounts are not returned here. An API key is only marked configured until a real terminal transaction can verify it.</p>
+      </section>}
 
       {/* ── The catalogue ─────────────────────────────────────────── */}
       <section className="card" aria-labelledby="integrations-catalogue">
@@ -215,7 +255,7 @@ export default function IntegrationsArea() {
           rows={INTEGRATIONS}
           rowKey={(row) => row.key}
           stacked
-          caption="Platform integrations and their configured state"
+          caption="Platform integration code catalogue; secret state is unknown"
         />
 
         <AttentionList
@@ -437,8 +477,7 @@ export default function IntegrationsArea() {
                   point the Paystack dashboard webhook at the deployed{' '}
                   <span className="mono">paystack-webhook</span> URL and subscribe to{' '}
                   <span className="mono">charge.success</span> and{' '}
-                  <span className="mono">charge.failed</span>. Mock mode activates a subscription without any
-                  payment until that secret exists.
+                  <span className="mono">charge.failed</span>. A missing live secret makes checkout unavailable.
                 </p>
               </div>
             </li>
@@ -446,9 +485,8 @@ export default function IntegrationsArea() {
               <div>
                 <p className="list-item-title">OPay: set the secret before registering the webhook</p>
                 <p className="list-item-subtitle">
-                  Run <span className="mono">supabase secrets set OPAY_SECRET_KEY=...</span> first. Until it
-                  is set the webhook accepts unsigned posts, so registering the URL first opens a window in
-                  which anyone who knows the URL can change a device transaction status.
+                  Configure the secret in Supabase before testing. A missing secret causes the request and
+                  webhook to fail closed. The legacy endpoint uses a sandbox URL and is limited to sandbox businesses.
                 </p>
               </div>
             </li>

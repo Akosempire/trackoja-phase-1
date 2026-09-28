@@ -40,6 +40,9 @@ const CustomersListPage = lazyPage('./pages/customers/CustomersListPage');
 const CustomerFormPage = lazyPage('./pages/customers/CustomerFormPage');
 const CustomerDetailPage = lazyPage('./pages/customers/CustomerDetailPage');
 const PaymentsPage = lazyPage('./pages/payments/PaymentsPage');
+const MoniepointSettingsPage = lazyPage('./pages/payments/MoniepointSettingsPage');
+const MerchantTransactionPage = lazyPage('./pages/payments/MerchantTransactionPage');
+const ReconciliationPage = lazyPage('./pages/payments/ReconciliationPage');
 const ExpensesPage = lazyPage('./pages/expenses/ExpensesPage');
 const JobsPage = lazyPage('./pages/jobs/JobsPage');
 const DevicesPage = lazyPage('./pages/devices/DevicesPage');
@@ -145,6 +148,9 @@ export default function App() {
           <Route path="/customers/:customerId" element={<CustomerDetailPage />} />
           <Route path="/customers/:customerId/edit" element={<CustomerFormPage />} />
           <Route path="/payments" element={<PaymentsPage />} />
+          <Route path="/payments/transactions/:attemptId" element={<MerchantTransactionPage />} />
+          <Route path="/payments/reconciliation" element={<ReconciliationPage />} />
+          <Route path="/settings/payments/moniepoint" element={<MoniepointSettingsPage />} />
           <Route path="/expenses" element={<ExpensesPage />} />
           <Route path="/jobs" element={<JobsPage />} />
           <Route path="/devices" element={<DevicesPage />} />

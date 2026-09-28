@@ -66,6 +66,7 @@ export default function SalesHistoryPage() {
         <select className="select-input" value={status} onChange={(e) => setStatus(e.target.value as SaleStatus | '')}>
           <option value="">All sales</option>
           <option value="completed">Completed</option>
+          <option value="pending_payment">Awaiting payment</option>
           <option value="voided">Voided</option>
         </select>
       </div>
@@ -87,7 +88,9 @@ export default function SalesHistoryPage() {
                 <p className="list-item-subtitle">{formatDateTime(sale.createdAt)}</p>
               </div>
               <div className="list-item-meta">
-                <span className={`badge ${sale.status === 'voided' ? 'badge-danger' : 'badge-success'}`}>{sale.status}</span>
+                <span className={`badge ${sale.status === 'voided' ? 'badge-danger' : sale.status === 'pending_payment' ? 'badge-warning' : 'badge-success'}`}>
+                  {sale.status === 'pending_payment' ? 'Awaiting payment' : sale.status}
+                </span>
                 <span className="list-item-subtitle">{formatMoney(sale.total)}</span>
               </div>
             </Link>

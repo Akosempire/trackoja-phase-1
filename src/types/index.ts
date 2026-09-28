@@ -341,7 +341,7 @@ export interface AdjustStockRequest {
 // ============================================================
 // Sales (Phase 3)
 // ============================================================
-export type SaleStatus = 'completed' | 'voided';
+export type SaleStatus = 'pending_payment' | 'completed' | 'voided';
 export type PaymentMethod = 'cash' | 'card' | 'transfer' | 'other' | 'credit';
 export type OrderType = 'standard' | 'dine_in' | 'takeaway' | 'delivery';
 export type OrderStatus = 'new' | 'preparing' | 'ready' | 'served';
@@ -400,6 +400,8 @@ export interface SalePayment {
   method: PaymentMethod;
   amount: number;
   reference?: string;
+  provider?: string;
+  merchantAttemptId?: string;
   verificationStatus: VerificationStatus;
   verifiedBy?: string;
   verifiedAt?: string;

@@ -4,6 +4,7 @@ import { usePermissions } from '../../hooks/usePermissions';
 import { SaleService } from '../../services/sale.service';
 import { StoreService } from '../../services/store.service';
 import { CustomerService } from '../../services/customer.service';
+import { MerchantPaymentService } from '../../services/merchantPayment.service';
 import { Button } from '../../components/ui/Button';
 import { FormField } from '../../components/ui/FormField';
 import { PageLoader } from '../../components/ui/PageLoader';
@@ -31,6 +32,8 @@ export default function ReceiptPage() {
   const [sale, setSale] = useState<Sale | null>(null);
   const [store, setStore] = useState<Store | null>(null);
   const [customer, setCustomer] = useState<Customer | null>(null);
+  const [cashierName, setCashierName] = useState<string | null>(null);
+  const [posTerminalLastFour, setPosTerminalLastFour] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -43,16 +46,26 @@ export default function ReceiptPage() {
   const [refundReason, setRefundReason] = useState('');
   const [refunding, setRefunding] = useState(false);
 
-  const canRefund = hasPermission('sales:refund');
+  const isMoniepointSale = sale?.payments?.some((payment) => payment.provider === 'moniepoint') ?? false;
+  const canRefund = hasPermission('sales:refund') && !isMoniepointSale;
 
   const load = () => {
     if (!saleId) return;
     setLoading(true);
+    setCashierName(null);
+    setPosTerminalLastFour(null);
     SaleService.getSale(saleId)
       .then(async (s) => {
         setSale(s);
         const storeData = await StoreService.getStore(s.storeId);
         setStore(storeData);
+        SaleService.getCashierName(s.id).then(setCashierName).catch(() => setCashierName(null));
+        const posPayment = s.payments?.find((payment) => payment.provider === 'moniepoint' && payment.merchantAttemptId);
+        if (posPayment?.merchantAttemptId) {
+          MerchantPaymentService.getAttempt(posPayment.merchantAttemptId)
+            .then((attempt) => setPosTerminalLastFour(attempt.terminalLastFour))
+            .catch(() => setPosTerminalLastFour(null));
+        }
         if (s.customerId) {
           const customerData = await CustomerService.getCustomer(s.customerId);
           setCustomer(customerData);
@@ -114,6 +127,7 @@ export default function ReceiptPage() {
   if (!sale) return <div className="page">{error && <div className="alert alert-error">{error}</div>}</div>;
 
   const isVoided = sale.status === 'voided';
+  const isPending = sale.status === 'pending_payment';
   const remainingBalance = Math.max(sale.total - sale.refundedAmount, 0);
   const refundableItems = (sale.items ?? []).filter((item) => item.quantity - item.refundedQuantity > 0);
   const refundMethodOptions = REFUND_METHODS.filter((m) => m.value !== 'credit' || !!sale.customerId);
@@ -124,13 +138,13 @@ export default function ReceiptPage() {
       {error && <div className="alert alert-error no-print">{error}</div>}
 
       {/* Status banner */}
-      <div className={`rp-status-bar no-print ${isVoided ? 'rp-status-voided' : 'rp-status-done'}`}>
+      <div className={`rp-status-bar no-print ${isVoided || isPending ? 'rp-status-voided' : 'rp-status-done'}`}>
         <div className={`rp-status-icon ${isVoided ? 'rp-icon-voided' : 'rp-icon-done'}`}>
-          {isVoided ? '✕' : '✓'}
+          {isPending ? '…' : isVoided ? '✕' : '✓'}
         </div>
         <div className="rp-status-text">
           <p className="rp-status-title">
-            {isVoided ? 'Sale Voided' : 'Sale Complete'}
+            {isPending ? 'Awaiting verified payment' : isVoided ? 'Sale Voided' : 'Sale Complete'}
           </p>
           <p className="rp-status-sub">Receipt #{sale.saleNumber} · {new Date(sale.createdAt).toLocaleString()}</p>
         </div>
@@ -144,10 +158,10 @@ export default function ReceiptPage() {
         <Button variant="primary" style={{ flex: 1 }} onClick={() => navigate('/sales/checkout')}>
           + New sale
         </Button>
-        <Button variant="ghost" className="btn-outline" onClick={() => window.print()}>
+        <Button variant="ghost" className="btn-outline" disabled={isPending} onClick={() => window.print()}>
           Print
         </Button>
-        {canRefund && !isVoided && remainingBalance > 0 && (
+        {canRefund && !isVoided && !isPending && remainingBalance > 0 && (
           <Button variant="ghost" className="btn-outline" onClick={() => setShowRefund((v) => !v)}>
             {showRefund ? 'Cancel' : 'Refund'}
           </Button>
@@ -156,9 +170,15 @@ export default function ReceiptPage() {
           Sales
         </Button>
       </div>
+      {isPending && <div className="alert alert-warning no-print" role="status">
+        This sale has no verified payment. Do not issue a receipt or collect another payment until its POS status is checked.
+      </div>}
+      {isMoniepointSale && <div className="alert alert-warning no-print" role="status">
+        Moniepoint refunds are not available in TrackOja. Confirm any return with Moniepoint and contact support for reconciliation.
+      </div>}
 
       {/* ── Receipt card ── */}
-      <div className="rp-card">
+      {!isPending && <div className="rp-card">
         {/* Store header */}
         <div className="rp-store-header">
           <div className="rp-store-avatar">
@@ -181,6 +201,8 @@ export default function ReceiptPage() {
             <span>Date</span>
             <span>{new Date(sale.createdAt).toLocaleString()}</span>
           </div>
+          {cashierName && <div className="rp-meta-row"><span>Cashier</span><span>{cashierName}</span></div>}
+          {posTerminalLastFour && <div className="rp-meta-row"><span>POS terminal</span><span>••••{posTerminalLastFour}</span></div>}
           {(customer?.name ?? sale.customerName) && (
             <div className="rp-meta-row">
               <span>Customer</span>
@@ -249,11 +271,13 @@ export default function ReceiptPage() {
             <div key={payment.id} className="rp-payment-row">
               <div className="rp-payment-left">
                 <span className="rp-payment-method">{payment.method}</span>
+                {payment.provider && <span className="rp-payment-note"> · {payment.provider}</span>}
                 <span className={`badge ${VERIFY_CLASS[payment.verificationStatus] ?? 'badge-default'}`}>
                   {payment.verificationStatus}
                 </span>
               </div>
               <span className="rp-payment-amount">₦{payment.amount.toLocaleString()}</span>
+              {payment.provider && payment.reference && <span className="rp-payment-note">Ref: {payment.reference}</span>}
             </div>
           ))}
           {sale.changeDue > 0 && (
@@ -304,7 +328,7 @@ export default function ReceiptPage() {
           <p>Thank you for your business</p>
           <p className="rp-footer-brand">Powered by TrackOja</p>
         </div>
-      </div>
+      </div>}
 
       {/* Verify pending payments */}
       {canRefund && pendingPayments.length > 0 && (
@@ -328,7 +352,7 @@ export default function ReceiptPage() {
       )}
 
       {/* Refund form */}
-      {showRefund && canRefund && !isVoided && remainingBalance > 0 && (
+      {showRefund && canRefund && !isVoided && !isPending && remainingBalance > 0 && (
         <div className="card no-print" style={{ marginTop: 16 }}>
           <p className="list-item-title" style={{ marginBottom: 4 }}>Process refund</p>
           <p className="page-subtitle" style={{ marginBottom: 12 }}>₦{remainingBalance.toLocaleString()} available</p>

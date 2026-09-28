@@ -4,10 +4,8 @@
 // it records a `payment_request` device_transactions row (via
 // record_device_transaction) and returns the OPay reference to track.
 //
-// If the OPAY_SECRET_KEY Edge Function secret is set, this calls the real
-// OPay Cashier "create order" endpoint. Otherwise it falls back to a
-// deterministic mock reference/checkout URL so the request -> webhook loop
-// can be exercised before real credentials exist (see PHASE_10_OPAY.md).
+// A missing secret is a configuration error. Never return a mock checkout
+// from a merchant payment endpoint.
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { corsHeaders } from '../_shared/cors.ts';
@@ -55,12 +53,18 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+    if (!opaySecretKey) {
+      return new Response(JSON.stringify({ error: 'OPay payments are not configured' }), {
+        status: 503,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     const adminClient = createClient(supabaseUrl, serviceRoleKey);
 
     const { data: device, error: deviceError } = await adminClient
       .from('devices')
-      .select('id, provider, status')
+      .select('id, store_id, provider, status')
       .eq('id', deviceId)
       .single();
 
@@ -82,38 +86,43 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+    const access = await userClient.rpc('user_has_permission', {
+      p_user_id: userData.user.id, p_store_id: device.store_id, p_permission_name: 'devices:view',
+    });
+    if (access.error || !access.data) {
+      return new Response(JSON.stringify({ error: 'Device access denied' }), {
+        status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    const store = await adminClient.from('stores').select('org_id').eq('id', device.store_id).single();
+    const org = store.data ? await adminClient.from('organizations').select('is_sandbox').eq('id', store.data.org_id).single() : null;
+    if (!org?.data?.is_sandbox) {
+      return new Response(JSON.stringify({ error: 'The legacy OPay sandbox checkout is restricted to sandbox businesses' }), {
+        status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     const txnCurrency = typeof currency === 'string' && currency ? currency : 'NGN';
-    let reference: string;
-    let checkoutUrl: string | undefined;
-
-    if (opaySecretKey) {
-      reference = `OPAY-${crypto.randomUUID()}`;
-      const opayResponse = await fetch('https://sandboxapi.opaycheckout.com/api/v1/international/cashier/create', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${opaySecretKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          reference,
-          amount: { total: Math.round(amount * 100), currency: txnCurrency },
-        }),
+    const reference = `OPAY-${crypto.randomUUID()}`;
+    const opayResponse = await fetch('https://sandboxapi.opaycheckout.com/api/v1/international/cashier/create', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${opaySecretKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        reference,
+        amount: { total: Math.round(amount * 100), currency: txnCurrency },
+      }),
+    });
+    const opayResult = await opayResponse.json();
+    if (!opayResponse.ok) {
+      return new Response(JSON.stringify({ error: opayResult.message ?? 'OPay request failed' }), {
+        status: 502,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
-      const opayResult = await opayResponse.json();
-      if (!opayResponse.ok) {
-        return new Response(JSON.stringify({ error: opayResult.message ?? 'OPay request failed' }), {
-          status: 502,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
-      checkoutUrl = opayResult.data?.cashierUrl;
-    } else {
-      // Mock mode: no OPAY_SECRET_KEY configured yet.
-      reference = `MOCK-OPAY-${crypto.randomUUID()}`;
-      checkoutUrl = `https://mock.opaycheckout.test/checkout/${reference}`;
-      console.warn('opay-initiate-payment: OPAY_SECRET_KEY not set, returning mock reference', reference);
     }
+    const checkoutUrl: string | undefined = opayResult.data?.cashierUrl;
 
     const { data: transaction, error: rpcError } = await userClient.rpc('record_device_transaction', {
       p_device_id: deviceId,
@@ -125,7 +134,7 @@ Deno.serve(async (req) => {
       p_sale_payment_id: salePaymentId ?? null,
       p_refund_id: null,
       p_external_ref: reference,
-      p_metadata: { opay: { mock: !opaySecretKey } },
+      p_metadata: { opay: { mock: false } },
     });
 
     if (rpcError) {

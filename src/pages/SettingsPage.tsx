@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { usePermissions } from '../hooks/usePermissions';
 import { useBusinessContext } from '../contexts/BusinessContext';
@@ -122,6 +123,11 @@ export default function SettingsPage() {
       </div>
 
       <section className="appearance-section" aria-label="Appearance"><ThemeSelect /></section>
+      <div className="card" style={{ marginBottom: 16 }}>
+        <p className="list-item-title">Payment providers</p>
+        <p className="page-subtitle">Connect Moniepoint POS and manage terminals for customer payments.</p>
+        <Link className="btn btn-outline" to="/settings/payments/moniepoint">Moniepoint POS settings</Link>
+      </div>
       {error && <div className="alert alert-error">{error}</div>}
 
       {canUpdate && (

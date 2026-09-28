@@ -16,6 +16,7 @@ import { OfflineSalesService, isNetworkError } from '../../services/offlineSales
 import { setCartCount } from '../../utils/cart-count';
 import { usePermissions } from '../../hooks/usePermissions';
 import { useToast } from '../../components/ui/Toast';
+import { MerchantPaymentService, describeAttempt, type MerchantAttempt, type MoniepointConnection, type MoniepointTerminal } from '../../services/merchantPayment.service';
 import type { Customer, CreateSaleRequest, PaymentMethod, Product, ProductCategory, StoreSettings, OrderType } from '../../types';
 
 interface CartLine {
@@ -45,7 +46,7 @@ function round2(value: number): number {
 }
 
 export default function CheckoutPage() {
-  const { profile } = useAuth();
+  const { profile, user } = useAuth();
   const { category, config } = useBusinessContext();
   const { hasPermission } = usePermissions();
   const toast = useToast();
@@ -75,12 +76,20 @@ export default function CheckoutPage() {
   const [showCustomerSearch, setShowCustomerSearch] = useState(false);
   const [discountTotal, setDiscountTotal] = useState('0');
   const [showDiscount, setShowDiscount] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | 'moniepoint_pos'>('cash');
+  const [posConnection, setPosConnection] = useState<MoniepointConnection | null>(null);
+  const [posTerminals, setPosTerminals] = useState<MoniepointTerminal[]>([]);
+  const [posTerminalId, setPosTerminalId] = useState('');
+  const [posAttempt, setPosAttempt] = useState<MerchantAttempt | null>(null);
+  const [posChecking, setPosChecking] = useState(false);
+  const [checkoutKey, setCheckoutKey] = useState(() => crypto.randomUUID());
+  const [requestKey, setRequestKey] = useState(() => crypto.randomUUID());
   const [amountTendered, setAmountTendered] = useState('');
   const [reference, setReference] = useState('');
   const [pendingVerification, setPendingVerification] = useState(false);
   const [orderType, setOrderType] = useState<OrderType>('dine_in');
   const [tableNumber, setTableNumber] = useState('');
+  const posSaleLocked = posAttempt !== null && posAttempt.status !== 'successful';
 
   // Publish the cart size so the bottom navigation can badge Checkout while the
   // cashier is elsewhere in the app. Only the count travels, never the lines.
@@ -96,7 +105,57 @@ export default function CheckoutPage() {
     setCustomerSearch('');
     setSearch('');
     setCategoryId('');
+    setPosAttempt(null);
+    setCheckoutKey(crypto.randomUUID());
+    setRequestKey(crypto.randomUUID());
   }, [storeId]);
+
+  useEffect(() => {
+    if (!storeId) return;
+    let active = true;
+    Promise.all([
+      MerchantPaymentService.connection(storeId),
+      MerchantPaymentService.terminals(storeId),
+      user?.id ? MerchantPaymentService.activeAttempts(storeId, user.id) : Promise.resolve([]),
+    ]).then(([connection, terminals, attempts]) => {
+      if (!active) return;
+      setPosConnection(connection);
+      setPosTerminals(terminals);
+      setPosTerminalId(terminals.find((terminal) => terminal.isDefault && terminal.status === 'active')?.id
+        ?? terminals.find((terminal) => terminal.status === 'active')?.id ?? '');
+      const unresolved = attempts.find((attempt) => attempt.initiatedBy === user?.id
+        && ['created', 'sending', 'pending', 'unresolved', 'reconciliation_required'].includes(attempt.status));
+      if (unresolved) setPosAttempt(unresolved);
+    }).catch(() => { if (active) setPosConnection(null); });
+    return () => { active = false; };
+  }, [storeId, user?.id]);
+
+  useEffect(() => {
+    if (!posAttempt || !['sending', 'pending', 'unresolved'].includes(posAttempt.status)) return;
+    const resumeWhenOnline = () => setPosAttempt((current) => current ? { ...current } : current);
+    window.addEventListener('online', resumeWhenOnline);
+    const timeout = window.setTimeout(async () => {
+      if (!navigator.onLine) return;
+      setPosChecking(true);
+      try {
+        const result = await MerchantPaymentService.check(posAttempt.id);
+        setPosAttempt(result.attempt);
+        if (result.attempt.status === 'successful') {
+          toast.success('Moniepoint payment verified');
+          navigate(`/sales/${result.attempt.saleId}`);
+        }
+      } catch {
+        // A failed status lookup is not a failed payment. Keep the warning visible.
+      } finally { setPosChecking(false); }
+    }, 8000);
+    return () => { window.clearTimeout(timeout); window.removeEventListener('online', resumeWhenOnline); };
+  }, [posAttempt, navigate, toast]);
+
+  useEffect(() => {
+    if (posAttempt?.status === 'failed' || posAttempt?.status === 'cancelled') {
+      setRequestKey(crypto.randomUUID());
+    }
+  }, [posAttempt?.id, posAttempt?.status]);
 
   useEffect(() => {
     if (!storeId) {
@@ -158,6 +217,7 @@ export default function CheckoutPage() {
   }, [customers, customerSearch]);
 
   const addToCart = (product: Product) => {
+    if (posSaleLocked) return;
     setCart((prev) => {
       const existing = prev.find((line) => line.productId === product.id);
       if (existing) {
@@ -197,6 +257,7 @@ export default function CheckoutPage() {
   };
 
   const updateQuantity = (productId: string, delta: number) => {
+    if (posSaleLocked) return;
     setCart((prev) =>
       prev
         .map((line) => (line.productId === productId
@@ -207,6 +268,7 @@ export default function CheckoutPage() {
   };
 
   const removeLine = (productId: string) => {
+    if (posSaleLocked) return;
     setCart((prev) => prev.filter((line) => line.productId !== productId));
   };
 
@@ -230,16 +292,19 @@ export default function CheckoutPage() {
 
   const canSubmit =
     cart.length > 0 &&
+    !['created', 'sending', 'pending', 'unresolved', 'reconciliation_required'].includes(posAttempt?.status ?? '') &&
     (paymentMethod !== 'cash' || amountDue >= total) &&
     (!requireCustomer || !!selectedCustomer) &&
     (paymentMethod !== 'credit' || !!selectedCustomer);
 
   const selectCustomer = (customer: Customer) => {
+    if (posSaleLocked) return;
     setSelectedCustomer(customer);
     setCustomerSearch('');
   };
 
   const clearCustomer = () => {
+    if (posSaleLocked) return;
     setSelectedCustomer(null);
     if (paymentMethod === 'credit') setPaymentMethod('cash');
   };
@@ -247,11 +312,37 @@ export default function CheckoutPage() {
   const handleCompleteSale = async () => {
     if (!storeId || cart.length === 0) return;
 
+    if (paymentMethod === 'moniepoint_pos') {
+      if (!navigator.onLine) { setError('Connect to the internet before sending a POS payment request.'); return; }
+      if (!posTerminalId) { setError('Choose an active Moniepoint terminal in this branch.'); return; }
+      setSaving(true);
+      setError(null);
+      try {
+        const attempt = await MerchantPaymentService.initiate({
+          storeId, terminalId: posTerminalId, checkoutKey, requestKey,
+          items: cart.map((line) => ({ productId: line.productId, quantity: line.quantity })),
+          customerId: selectedCustomer?.id, discountTotal: discount,
+          orderType: isRestaurant ? orderType : 'standard',
+          tableNumber: isRestaurant && orderType === 'dine_in' ? tableNumber : undefined,
+        });
+        setPosAttempt(attempt);
+        if (attempt.status === 'failed' || attempt.status === 'cancelled') setRequestKey(crypto.randomUUID());
+        if (attempt.status === 'successful') navigate(`/sales/${attempt.saleId}`);
+        else if (attempt.status === 'unresolved') toast.warning('Payment status is unknown', { description: 'Do not collect another payment until the transaction is verified.' });
+        else toast.info('POS request sent', { description: 'Complete payment on the selected terminal.' });
+      } catch (cause) {
+        const message = cause instanceof Error ? cause.message : 'Could not send the POS request';
+        setError(message);
+        toast.error('POS request unavailable', { description: message });
+      } finally { setSaving(false); }
+      return;
+    }
+
     const request: CreateSaleRequest = {
       items: cart.map((line) => ({ productId: line.productId, quantity: line.quantity })),
       payments: [
         {
-          method: paymentMethod,
+          method: paymentMethod as PaymentMethod,
           amount: paymentMethod === 'cash' ? Math.max(amountDue, total) : total,
           reference: reference || undefined,
           pending: VERIFIABLE_METHODS.includes(paymentMethod) && pendingVerification,
@@ -311,6 +402,31 @@ export default function CheckoutPage() {
 
   return (
     <div className="checkout-page">
+      {posAttempt && <div className="card" role="status" style={{ marginBottom: 16 }}>
+        <h2 className="list-item-title">{posAttempt.status === 'successful' ? 'Payment verified' :
+          posAttempt.status === 'reconciliation_required' ? 'Payment needs review' :
+          posAttempt.status === 'failed' || posAttempt.status === 'cancelled' ? 'POS payment did not complete' :
+          'Waiting for Moniepoint payment'}</h2>
+        <p className="page-subtitle">₦{Number(posAttempt.expectedAmount).toLocaleString()} · Terminal ••••{posAttempt.terminalLastFour} · {posAttempt.merchantReference}</p>
+        <p className="page-subtitle">Status: {posAttempt.status.replaceAll('_', ' ')}{posChecking ? ' · Checking…' : ''}</p>
+        <p className="page-subtitle">{describeAttempt(posAttempt)}</p>
+        {['sending', 'pending', 'unresolved', 'reconciliation_required'].includes(posAttempt.status) &&
+          <p className="page-subtitle">Do not collect another payment until this transaction has been verified. A network error can mean the terminal received the request.</p>}
+        <div className="btn-row">
+          {posAttempt.status !== 'successful' && <Button variant="outline" loading={posChecking}
+            onClick={async () => {
+              setPosChecking(true);
+              try { const result = await MerchantPaymentService.check(posAttempt.id); setPosAttempt(result.attempt);
+                if (result.attempt.status === 'successful') navigate(`/sales/${result.attempt.saleId}`);
+              } catch (cause) { toast.error('Status check unavailable', { description: cause instanceof Error ? cause.message : undefined }); }
+              finally { setPosChecking(false); }
+            }}>Check payment status</Button>}
+          <Button variant="ghost" onClick={() => navigate('/payments')}>View transactions</Button>
+          {['failed', 'cancelled'].includes(posAttempt.status) && <Button variant="ghost" onClick={() => {
+            setPosAttempt(null); setCart([]); setCheckoutKey(crypto.randomUUID()); setRequestKey(crypto.randomUUID());
+          }}>Start a new sale</Button>}
+        </div>
+      </div>}
       {/* Mobile-only sticky jump bar */}
       {cart.length > 0 && (
         <button
@@ -533,21 +649,35 @@ export default function CheckoutPage() {
                   className="select-input"
                   value={paymentMethod}
                   onChange={(e) => { setPaymentMethod(e.target.value as PaymentMethod); setPendingVerification(false); }}
+                  disabled={posSaleLocked}
                 >
                   {PAYMENT_METHODS.map((m) => (
                     <option key={m.value} value={m.value} disabled={m.value === 'credit' && !selectedCustomer}>{m.label}</option>
                   ))}
+                  {posConnection && <option value="moniepoint_pos">Moniepoint POS</option>}
                 </select>
 
                 {paymentMethod === 'cash' ? (
                   <FormField id="amount-tendered" label="Amount tendered (₦)" type="number" value={amountTendered} onChange={setAmountTendered} placeholder={String(total)} />
                 ) : paymentMethod === 'credit' ? (
                   <p className="page-subtitle" style={{ marginTop: 8 }}>₦{total.toLocaleString()} added to {selectedCustomer?.name}'s balance.</p>
+                ) : paymentMethod === 'moniepoint_pos' ? (
+                  <div className="form-group">
+                    <label className="form-label" htmlFor="moniepoint-terminal">Terminal</label>
+                    <select id="moniepoint-terminal" className="select-input" value={posTerminalId}
+                      disabled={posSaleLocked} onChange={(event) => setPosTerminalId(event.target.value)}>
+                      <option value="">Choose a terminal</option>
+                      {posTerminals.filter((terminal) => terminal.status === 'active').map((terminal) =>
+                        <option key={terminal.id} value={terminal.id}>{terminal.name} · ••••{terminal.serialLastFour}</option>)}
+                    </select>
+                    {(!posConnection?.erpEnabled || !posConnection.amountUnitConfirmed || !posConnection.approvalCodesConfirmed) &&
+                      <p className="form-hint">Moniepoint must be connected with ERP integration, amount units, and approval codes confirmed before POS checkout is available.</p>}
+                  </div>
                 ) : (
                   <FormField id="payment-reference" label="Reference (optional)" value={reference} onChange={setReference} />
                 )}
 
-                {VERIFIABLE_METHODS.includes(paymentMethod) && (
+                {paymentMethod !== 'moniepoint_pos' && VERIFIABLE_METHODS.includes(paymentMethod) && (
                   <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
                     <input type="checkbox" checked={pendingVerification} onChange={(e) => setPendingVerification(e.target.checked)} />
                     Awaiting confirmation
@@ -562,8 +692,11 @@ export default function CheckoutPage() {
                 )}
               </div>
 
-              <Button onClick={handleCompleteSale} loading={saving} disabled={!canSubmit} style={{ width: '100%', marginTop: 8 }}>
-                Complete sale — ₦{total.toLocaleString()}
+              <Button onClick={handleCompleteSale} loading={saving}
+                disabled={!canSubmit || (paymentMethod === 'moniepoint_pos' && (!posTerminalId || !posConnection?.erpEnabled ||
+                  !['configured', 'connected'].includes(posConnection.status) || !posConnection.amountUnitConfirmed || !posConnection.approvalCodesConfirmed))}
+                style={{ width: '100%', marginTop: 8 }}>
+                {paymentMethod === 'moniepoint_pos' ? `Send ₦${total.toLocaleString()} to POS` : `Complete sale — ₦${total.toLocaleString()}`}
               </Button>
             </>
           )}

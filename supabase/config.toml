@@ -397,6 +397,11 @@ verify_jwt = false
 [functions.opay-webhook]
 verify_jwt = false
 
+# Called only by a trusted scheduler carrying MONIEPOINT_RECONCILE_TOKEN.
+# merchant-moniepoint keeps JWT verification enabled for signed-in users.
+[functions.merchant-pos-reconcile]
+verify_jwt = false
+
 [analytics]
 enabled = true
 port = 54327

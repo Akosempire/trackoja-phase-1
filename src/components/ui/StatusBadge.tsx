@@ -25,6 +25,10 @@ const STATUS: Record<string, { label: string; tone: BadgeTone }> = {
 
   // Attention
   pending: { label: 'Pending', tone: 'warning' },
+  pending_payment: { label: 'Awaiting payment', tone: 'warning' },
+  sending: { label: 'Sending to POS', tone: 'warning' },
+  unresolved: { label: 'Status unavailable', tone: 'warning' },
+  reconciliation_required: { label: 'Needs reconciliation', tone: 'danger' },
   pending_customer: { label: 'Waiting on customer', tone: 'warning' },
   past_due: { label: 'Past due', tone: 'warning' },
   degraded: { label: 'Degraded', tone: 'warning' },

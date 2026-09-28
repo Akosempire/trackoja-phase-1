@@ -5,11 +5,9 @@
 // vocabulary to device_transactions.status, and calls
 // handle_opay_webhook(reference, status, payload).
 //
-// If OPAY_SECRET_KEY is not set (no real credentials yet), signature
-// verification is skipped and a warning is logged - this lets the mocked
-// request/confirmation loop be exercised end-to-end (see PHASE_10_OPAY.md).
+// Without the secret, no event can be authenticated and no payment is settled.
 //
-// Always responds 200 once the body is parsed (providers retry on non-2xx).
+// Authentication and sandbox isolation failures are rejected before settlement.
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { corsHeaders } from '../_shared/cors.ts';
@@ -54,18 +52,20 @@ Deno.serve(async (req) => {
   }
 
   const opaySecretKey = Deno.env.get('OPAY_SECRET_KEY');
+  if (!opaySecretKey) {
+    return new Response(JSON.stringify({ error: 'OPay webhook verification is unavailable' }), {
+      status: 503,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
   const rawBody = await req.text();
 
-  if (opaySecretKey) {
-    const signature = req.headers.get('x-opay-signature');
-    if (!signature || !(await verifySignature(rawBody, signature, opaySecretKey))) {
-      return new Response(JSON.stringify({ error: 'Invalid signature' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-  } else {
-    console.warn('opay-webhook: OPAY_SECRET_KEY not set, skipping signature verification (mock mode)');
+  const signature = req.headers.get('x-opay-signature');
+  if (!signature || !(await verifySignature(rawBody, signature, opaySecretKey))) {
+    return new Response(JSON.stringify({ error: 'Invalid signature' }), {
+      status: 401,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   }
 
   let payload: { reference?: string; status?: string };
@@ -94,6 +94,22 @@ Deno.serve(async (req) => {
   const adminClient = createClient(supabaseUrl, serviceRoleKey);
 
   try {
+    const transaction = await adminClient.from('device_transactions').select('store_id')
+      .eq('external_ref', reference).maybeSingle();
+    if (transaction.error || !transaction.data) {
+      return new Response(JSON.stringify({ received: true }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    const store = await adminClient.from('stores').select('org_id')
+      .eq('id', transaction.data.store_id).single();
+    const org = store.data ? await adminClient.from('organizations').select('is_sandbox')
+      .eq('id', store.data.org_id).single() : null;
+    if (!org?.data?.is_sandbox) {
+      return new Response(JSON.stringify({ error: 'Legacy OPay sandbox events cannot settle live sales' }), {
+        status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
     const { error } = await adminClient.rpc('handle_opay_webhook', {
       p_external_ref: reference,
       p_status: mappedStatus,
@@ -104,12 +120,11 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ received: true }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
-  } catch (error) {
-    console.error('opay-webhook error', error);
-    // Still acknowledge with 200 so OPay doesn't endlessly retry an event
-    // whose underlying row may already be in a terminal state or not exist.
-    return new Response(JSON.stringify({ received: true, error: (error as Error).message }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  } catch {
+    // A database failure is not a verified payment. Return a retryable error
+    // without leaking SQL details or falsely acknowledging settlement.
+    return new Response(JSON.stringify({ error: 'Payment event could not be processed' }), {
+      status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
 });
