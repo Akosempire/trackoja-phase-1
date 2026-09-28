@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { PlatformAdminService, type PlatformAuditLog } from '../../../services/platformAdmin.service';
 import { PlatformService } from '../../../services/platform.service';
 import { usePlatform } from '../../../components/platform/PlatformContext';
-import { PlatformPageHead, RefreshButton } from '../../../components/platform/PlatformPageHead';
+import { AreaCoverage, PlatformPageHead, RefreshButton } from '../../../components/platform/PlatformPageHead';
 import { AttentionList, HealthyStrip, type AttentionItem } from '../../../components/ui/AttentionList';
-import { MetricStrip, type Metric } from '../../../components/ui/MetricStrip';
+import { OverviewMetricCard } from '../../../components/ui/OverviewMetricCard';
 import { SectionHead } from '../../../components/ui/SectionHead';
 import { Timeline, type TimelineEntry } from '../../../components/ui/Timeline';
 import { Button } from '../../../components/ui/Button';
@@ -15,6 +15,7 @@ import { daysUntil, formatMoneyCompact, formatNumber, formatRelative, humaniseTo
 import { getReportDateRange } from '../../../utils/report-date-ranges';
 import type { PlatformInventoryOverview, PlatformOrganization, PlatformOverview, PlatformRecentError, PlatformRevenueSummary } from '../../../types';
 import type { PlatformOverviewV2, ProductBusiness } from '../../../services/platformAdmin.service';
+import '../../../styles/platform-overview.css';
 
 const AREA = PLATFORM_AREAS.find((area) => area.id === 'overview')!;
 
@@ -240,84 +241,8 @@ export default function OverviewArea() {
       });
     }
 
-    // Support tickets, integrations and incidents are named in the brief as
-    // things to prioritise. None has a backend, so this states that once
-    // instead of inventing a queue that would read as "no problems".
-    items.push({
-      id: 'unmonitored',
-      tone: 'muted',
-      title: 'Tickets, integrations and incidents are not monitored',
-      meta: 'No backend for any of the three, so nothing here can report them.',
-      action: (
-        <Button variant="ghost" className="btn-sm" onClick={() => navigate('/platform/support')}>
-          Details
-        </Button>
-      ),
-    });
-
     return items;
   }, [counts, navigate]);
-
-  const metrics = useMemo<Metric[]>(
-    () => [
-      {
-        id: 'businesses',
-        label: 'Businesses',
-        value: formatNumber(counts.businesses),
-        foot: `${formatNumber(counts.new30d)} new in 30 days`,
-        onClick: () => navigate('/platform/businesses'),
-      },
-      {
-        id: 'paying',
-        label: 'Paying',
-        value: formatNumber(counts.paying),
-        onClick: () => navigate('/platform/businesses?billing=active'),
-      },
-      { id: 'trial', label: 'On trial', value: formatNumber(counts.trial), onClick: () => navigate('/platform/businesses?billing=trial') },
-      {
-        id: 'suspended',
-        label: 'Suspended',
-        value: formatNumber(counts.suspendedBusinesses),
-        tone: counts.suspendedBusinesses > 0 ? 'warning' : 'default',
-        onClick: () => navigate('/platform/businesses?billing=suspended'),
-      },
-      {
-        id: 'active-subs',
-        label: 'Active access',
-        value: formatNumber(counts.activeSubs),
-        onClick: () => navigate('/platform/billing?filter=active'),
-      },
-      {
-        id: 'trialing',
-        label: 'Trialing',
-        value: formatNumber(counts.trialingSubs),
-        onClick: () => navigate('/platform/billing?filter=trialing'),
-      },
-      {
-        id: 'revenue',
-        label: 'Revenue',
-        value: formatMoneyCompact(counts.revenue30d),
-        foot: 'Last 30 days',
-      },
-      {
-        id: 'failed',
-        label: 'Failed payments',
-        value: formatNumber(counts.failedPayments),
-        tone: counts.failedPayments > 0 ? 'danger' : 'default',
-        foot: 'Last 30 days',
-        onClick: () => navigate('/platform/billing?filter=failed'),
-      },
-      {
-        id: 'signals',
-        label: 'Failed events',
-        value: formatNumber(counts.failedEvents),
-        tone: counts.failedEvents > 0 ? 'warning' : 'default',
-        foot: 'Recent, not a 24h total',
-        onClick: () => navigate('/platform/health'),
-      },
-    ],
-    [counts, navigate],
-  );
 
   const activity = useMemo<TimelineEntry[]>(() => {
     if (data.audit && data.audit.length > 0) {
@@ -336,11 +261,21 @@ export default function OverviewArea() {
     }));
   }, [data.audit, data.recentErrors]);
 
-  const actionable = attention.filter((item) => item.tone !== 'muted');
-  const unmonitored = attention.filter((item) => item.tone === 'muted');
+  const productAccess = useMemo(() => {
+    const products = new Map<string, { name: string; active: number; trialing: number }>();
+    for (const row of entitlements) {
+      if (row.isSandbox) continue;
+      const product = products.get(row.productKey) ?? { name: row.productName, active: 0, trialing: 0 };
+      if (row.entitlementStatus === 'active') product.active += 1;
+      if (row.entitlementStatus === 'pending') product.trialing += 1;
+      products.set(row.productKey, product);
+    }
+    return [...products.entries()].map(([key, value]) => ({ key, ...value }));
+  }, [entitlements]);
+  const canAssertHealthy = Boolean(data.entitlements && data.organizations && (data.revenue || data.v2));
 
   return (
-    <>
+    <div className="platform-overview">
       <PlatformPageHead
         area={AREA}
         description={`Signed in as ${access?.isSuperAdmin ? 'platform owner' : 'platform admin'}.`}
@@ -355,49 +290,65 @@ export default function OverviewArea() {
         </div>
       )}
 
-      <section className="card" aria-labelledby="needs-attention">
+      <div className="overview-metrics" aria-label="Platform metrics">
+        <OverviewMetricCard label="Businesses" value={data.organizations && data.entitlements ? formatNumber(counts.businesses) : null} detail={`${formatNumber(counts.new30d)} new in 30 days`} to="/platform/businesses" loading={loading} />
+        <OverviewMetricCard label="Active access" value={data.entitlements ? formatNumber(counts.activeSubs) : null} detail="Current product subscriptions" to="/platform/billing?filter=active" loading={loading} />
+        <OverviewMetricCard label="Revenue" value={data.revenue ? formatMoneyCompact(counts.revenue30d) : null} detail="Last 30 days · sandbox excluded" loading={loading} />
+        <OverviewMetricCard label="Failed payments" value={data.revenue ? formatNumber(counts.failedPayments) : null} detail="Last 30 days" to="/platform/billing?filter=failed" tone={counts.failedPayments > 0 ? 'danger' : 'default'} loading={loading} />
+      </div>
+
+      <div className="overview-panels">
+      <section className="overview-panel" aria-labelledby="needs-attention">
         <SectionHead
           id="needs-attention"
           title="Needs attention"
-          actions={actionable.length > 0 ? <span className="badge badge-warning">{actionable.length}</span> : undefined}
+          actions={attention.length > 0 ? <span className="badge badge-warning">{attention.length}</span> : undefined}
         />
 
-        {actionable.length > 0 ? (
-          <AttentionList items={attention} />
-        ) : loading ? (
-          <div className="skeleton-inline" role="status" aria-label="Loading">
+        {loading ? (
+          <div className="skeleton-inline" role="status" aria-label="Loading attention items">
             <span className="skeleton skeleton-text" />
             <span className="skeleton skeleton-text is-short" />
           </div>
+        ) : attention.length > 0 ? (
+          <AttentionList items={attention} />
+        ) : !canAssertHealthy ? (
+          <StateBlock compact variant="error" title="Attention status unavailable" body="Some account, subscription, or payment records did not load." actions={<Button variant="outline" className="btn-sm" onClick={reload}>Try again</Button>} />
         ) : (
-          <>
-            <HealthyStrip>
-              Nothing needs attention. No failed payments, nothing past due, and no subscription expiring in the next
-              30 days.
-            </HealthyStrip>
-            <AttentionList items={unmonitored} />
-          </>
+          <HealthyStrip>No failed payments, overdue subscriptions, or access expiring within 30 days.</HealthyStrip>
         )}
+        <AreaCoverage title="Monitoring coverage" gaps={['Support tickets, integration incidents, and application incidents are not yet connected to the overview.']} />
       </section>
 
-      <section className="card" aria-labelledby="at-a-glance">
+      <section className="overview-panel" aria-labelledby="at-a-glance">
         <SectionHead
           id="at-a-glance"
-          title="At a glance"
+          title="Subscription state"
           actions={
             <Button variant="ghost" className="btn-sm" onClick={() => navigate('/platform/health')}>
               System health
             </Button>
           }
         />
-        <MetricStrip metrics={metrics} />
+        {loading ? (
+          <div className="skeleton-inline" role="status" aria-label="Loading subscriptions"><span className="skeleton skeleton-text" /><span className="skeleton skeleton-text" /><span className="skeleton skeleton-text is-short" /></div>
+        ) : (
+          <dl className="overview-status-list">
+            <div><dt>Paying businesses</dt><dd>{data.organizations && data.entitlements ? <Link to="/platform/businesses?billing=active">{formatNumber(counts.paying)}</Link> : '—'}</dd></div>
+            <div><dt>Businesses on trial</dt><dd>{data.organizations && data.entitlements ? <Link to="/platform/businesses?billing=trial">{formatNumber(counts.trial)}</Link> : '—'}</dd></div>
+            <div><dt>Trialing subscriptions</dt><dd>{data.entitlements ? <Link to="/platform/billing?filter=trialing">{formatNumber(counts.trialingSubs)}</Link> : '—'}</dd></div>
+            <div><dt>Expiring within 30 days</dt><dd>{data.entitlements ? <Link to="/platform/billing?filter=expiring">{formatNumber(counts.expiring)}</Link> : '—'}</dd></div>
+            <div><dt>Suspended businesses</dt><dd>{data.organizations && data.entitlements ? <Link to="/platform/businesses?billing=suspended">{formatNumber(counts.suspendedBusinesses)}</Link> : '—'}</dd></div>
+            <div><dt>Recent failed events</dt><dd>{data.recentErrors ? <Link to="/platform/health">{formatNumber(counts.failedEvents)}</Link> : '—'}</dd></div>
+          </dl>
+        )}
         <p className="section-sub">
           Revenue and failed payments cover the last 30 days. Sandbox businesses are excluded
           {counts.sandbox > 0 ? ` (${formatNumber(counts.sandbox)} excluded)` : ''}.
         </p>
       </section>
 
-      <section className="card" aria-labelledby="recent-activity">
+      <section className="overview-panel" aria-labelledby="recent-activity">
         <SectionHead
           id="recent-activity"
           title="Recent activity"
@@ -407,12 +358,34 @@ export default function OverviewArea() {
             </Button>
           }
         />
-        {activity.length > 0 ? (
+        {loading ? (
+          <div className="skeleton-inline" role="status" aria-label="Loading activity"><span className="skeleton skeleton-text" /><span className="skeleton skeleton-text is-short" /></div>
+        ) : activity.length > 0 ? (
           <Timeline items={activity} />
         ) : (
           <StateBlock variant="empty" title="Nothing recorded yet" body="Administrative actions appear here." />
         )}
       </section>
-    </>
+      <section className="overview-panel" aria-labelledby="product-access">
+        <SectionHead id="product-access" title="Product access" actions={<Link className="btn btn-ghost btn-sm" to="/platform/businesses">All businesses</Link>} />
+        {loading ? (
+          <div className="skeleton-inline" role="status" aria-label="Loading products"><span className="skeleton skeleton-text" /><span className="skeleton skeleton-text is-short" /></div>
+        ) : !data.entitlements ? (
+          <StateBlock compact variant="error" title="Product access unavailable" body="Subscriptions did not load." actions={<Button variant="outline" className="btn-sm" onClick={reload}>Try again</Button>} />
+        ) : productAccess.length === 0 ? (
+          <StateBlock compact title="No product subscriptions" body="Businesses will appear here after their product access is created." />
+        ) : (
+          <dl className="overview-status-list">
+            {productAccess.map((product) => (
+              <div key={product.key}>
+                <dt><Link to={`/platform/businesses?product=${encodeURIComponent(product.key)}`}>{product.name}</Link></dt>
+                <dd>{formatNumber(product.active)} active · {formatNumber(product.trialing)} trialing</dd>
+              </div>
+            ))}
+          </dl>
+        )}
+      </section>
+      </div>
+    </div>
   );
 }

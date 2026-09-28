@@ -10,6 +10,7 @@ const styles = [
   'src/styles/waya-components.css',
   'src/styles/dashboard.css',
   'src/styles/reports.css',
+  'src/styles/platform-overview.css',
 ];
 
 async function mountLayout(page: Page, theme: 'light' | 'dark') {
@@ -23,6 +24,28 @@ async function mountLayout(page: Page, theme: 'light' | 'dark') {
       <form class="card page-form"><div class="form-group"><label class="form-label">Billing email</label><input class="form-input" value="billing@example.com"></div><div class="form-actions"><button class="btn btn-primary">Save billing email</button><button class="btn btn-outline">Cancel</button></div></form>
     </div></main></body></html>`);
   for (const file of styles) await page.addStyleTag({ path: path.join(root, file) });
+}
+
+for (const viewport of [
+  { name: 'desktop-light', width: 1440, height: 1000, theme: 'light' },
+  { name: 'mobile-dark', width: 390, height: 900, theme: 'dark' },
+] as const) {
+  test(`platform overview ${viewport.name}`, async ({ page }) => {
+    await page.setViewportSize(viewport);
+    await page.setContent(`<!doctype html><html data-theme="${viewport.theme}"><body>
+      <main class="page plat-page"><div class="platform-overview">
+        <header class="plat-page-head"><div class="plat-page-head-text"><h1 class="plat-page-title">Overview</h1><p class="plat-page-desc">Signed in as platform owner.</p></div><button class="btn btn-ghost btn-sm">Refresh</button></header>
+        <div class="overview-metrics"><article class="ui-metric"><header><h2>Businesses</h2></header><strong class="overview-metric-value">8</strong><p>6 new in 30 days</p></article><article class="ui-metric"><header><h2>Active access</h2></header><strong class="overview-metric-value">0</strong><p>Current product subscriptions</p></article><article class="ui-metric"><header><h2>Revenue</h2></header><strong class="overview-metric-value">₦0</strong><p>Last 30 days · sandbox excluded</p></article><article class="ui-metric"><header><h2>Failed payments</h2></header><strong class="overview-metric-value">0</strong><p>Last 30 days</p></article></div>
+        <div class="overview-panels"><section class="overview-panel"><div class="section-head"><div class="section-head-text"><h2 class="section-title">Needs attention</h2></div></div><ul class="attention-list"><li class="attention-item is-warning"><span class="attention-dot"></span><div class="attention-body"><p class="attention-title">2 expiring within 30 days</p><p class="attention-meta">Soonest in 28 days.</p></div><div class="attention-action"><button class="btn btn-outline btn-sm">Review</button></div></li></ul></section><section class="overview-panel"><div class="section-head"><div class="section-head-text"><h2 class="section-title">Subscription state</h2></div></div><dl class="overview-status-list"><div><dt>Paying businesses</dt><dd>0</dd></div><div><dt>Businesses on trial</dt><dd>8</dd></div><div><dt>Trialing subscriptions</dt><dd>8</dd></div><div><dt>Expiring within 30 days</dt><dd>2</dd></div></dl></section><section class="overview-panel"><div class="section-head"><div class="section-head-text"><h2 class="section-title">Recent activity</h2></div></div><ol class="timeline"><li class="timeline-item"><span class="timeline-dot is-success"></span><div class="timeline-body"><p class="timeline-title">Login</p><p class="timeline-meta">Account owner · just now</p></div></li></ol></section><section class="overview-panel"><div class="section-head"><div class="section-head-text"><h2 class="section-title">Product access</h2></div></div><dl class="overview-status-list"><div><dt>TrackOja</dt><dd>0 active · 8 trialing</dd></div></dl></section></div>
+      </div></main></body></html>`);
+    for (const file of styles) await page.addStyleTag({ path: path.join(root, file) });
+    const cards = page.locator('.overview-metrics .ui-metric');
+    await expect(cards).toHaveCount(4);
+    const panel = await page.locator('.platform-overview').boundingBox();
+    expect(panel?.width).toBeLessThanOrEqual(1120);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(viewport.width);
+    await expect(page).toHaveScreenshot(`platform-overview-${viewport.name}.png`, { fullPage: true, animations: 'disabled' });
+  });
 }
 
 for (const viewport of [

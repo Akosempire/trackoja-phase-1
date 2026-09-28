@@ -1,0 +1,69 @@
+/* Adapted from the ZIP's home-dashboard.css metric and panel system. */
+.platform-overview {
+  max-width: var(--content-page);
+  margin-inline: auto;
+}
+
+.overview-metrics,
+.overview-panels {
+  display: grid;
+  gap: var(--space-8);
+}
+
+.overview-metrics { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.overview-panels { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: var(--space-8); }
+
+.ui-metric,
+.overview-panel {
+  min-width: 0;
+  border: var(--border-hairline) solid var(--color-border-control);
+  border-radius: var(--radius-card);
+  background: var(--color-panel);
+}
+
+.ui-metric {
+  display: block;
+  min-height: 152px;
+  padding: var(--space-20);
+  color: var(--color-text);
+  text-decoration: none;
+  transition: background-color var(--tr), border-color var(--tr);
+}
+
+a.ui-metric:hover { background: var(--color-subtle); border-color: var(--color-border-control); }
+a.ui-metric:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+.ui-metric header { display: flex; align-items: center; justify-content: space-between; gap: var(--space-12); }
+.ui-metric h2 { margin: 0; color: var(--color-text); font-size: var(--text-body-sm); font-weight: 600; line-height: var(--leading-ui); }
+.overview-metric-value { display: block; margin-top: var(--space-32); color: var(--color-text-strong); font-size: 29px; font-weight: 400; letter-spacing: -.035em; line-height: 1; font-variant-numeric: tabular-nums; }
+.overview-metric-value.is-warning { color: var(--color-warning-text); }
+.overview-metric-value.is-danger { color: var(--color-danger); }
+.ui-metric p { margin: var(--space-12) 0 0; color: var(--color-text-muted); font-size: var(--text-caption); }
+.overview-metric-skeleton { display: block; width: 55%; height: 28px; margin-top: var(--space-32); border-radius: var(--radius-control); background: var(--color-selected); animation: overview-pulse var(--duration-slow) ease-in-out infinite alternate; }
+
+.overview-panel { padding: var(--space-20); }
+.overview-panel .section-head { margin-bottom: var(--space-12); }
+.overview-panel .attention-item { gap: var(--space-12); }
+.overview-panel .attention-action .btn { white-space: nowrap; }
+.overview-panel .timeline-item { padding-bottom: var(--space-12); }
+.overview-panel .section-sub { margin-bottom: 0; }
+.overview-panel .state-block { min-height: 0; }
+
+.overview-status-list { display: grid; gap: 0; margin: 0; }
+.overview-status-list > div { min-height: 42px; display: flex; justify-content: space-between; align-items: center; gap: var(--space-16); border-bottom: var(--border-hairline) dashed var(--color-border-control); font-size: var(--text-body-sm); }
+.overview-status-list > div:last-child { border-bottom: 0; }
+.overview-status-list dt { color: var(--color-text-secondary); }
+.overview-status-list dd { margin: 0; color: var(--color-text-strong); font-weight: 600; font-variant-numeric: tabular-nums; text-align: right; }
+.overview-status-list a { color: inherit; text-decoration: none; }
+.overview-status-list a:hover { color: var(--color-accent); text-decoration: underline; }
+
+@keyframes overview-pulse { to { opacity: .46; } }
+@media (max-width: 1050px) { .overview-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 760px) { .overview-panels { grid-template-columns: 1fr; } }
+@media (max-width: 600px) {
+  .overview-metrics { gap: var(--space-8); }
+  .ui-metric { min-height: 132px; padding: var(--space-16); }
+  .overview-metric-value, .overview-metric-skeleton { margin-top: var(--space-24); }
+  .overview-panel { padding: var(--space-16); }
+}
+@media (max-width: 380px) { .overview-metrics { grid-template-columns: 1fr; } }
+@media (prefers-reduced-motion: reduce) { .ui-metric { transition: none; } .overview-metric-skeleton { animation: none; } }
