@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useBusinessContext } from '../contexts/BusinessContext';
+import { usePermissions } from '../hooks/usePermissions';
 import { StoreService } from '../services/store.service';
 import { ReportService } from '../services/report.service';
 import { ProductService } from '../services/product.service';
@@ -11,16 +12,13 @@ import { CustomerService } from '../services/customer.service';
 import { Button } from '../components/ui/Button';
 import { KpiCard, KpiGrid } from '../components/ui/KpiCard';
 import { PageLoader } from '../components/ui/PageLoader';
+import { SectionHead } from '../components/ui/SectionHead';
+import { StateBlock } from '../components/ui/StateBlock';
 import { getBusinessExperience, type DashboardMetric } from '../config/businessExperience';
 import { isResolvableMetric } from '../config/dashboardMetrics';
 import type { AuditLog, Product, Sale, SalesSummary, Store } from '../types';
+import { formatMoney } from '../utils/format';
 import '../styles/dashboard.css';
-
-function formatMoney(value: number): string {
-  return `₦${Math.round(value)
-    .toString()
-    .replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
-}
 
 function daysUntil(dateish: string | undefined): number | null {
   if (!dateish) return null;
@@ -45,9 +43,9 @@ interface MetricContext {
   summary: SalesSummary | null;
   products: Product[];
   lowStock: Product[];
-  kitchenOrders: Sale[];
-  refunds: { createdAt?: string }[];
-  customerCount: number;
+  kitchenOrders: Sale[] | null;
+  refunds: { createdAt?: string }[] | null;
+  customerCount: number | null;
 }
 
 interface ResolvedMetric {
@@ -91,13 +89,16 @@ function resolveMetric(metric: DashboardMetric, ctx: MetricContext): ResolvedMet
         value: String(ctx.products.filter((p) => p.trackInventory && p.stockQty <= 0).length),
       };
     case 'open_orders':
+      if (!ctx.kitchenOrders) return null;
       return { metric, value: String(ctx.kitchenOrders.filter((o) => o.orderStatus === 'new').length) };
     case 'preparing':
+      if (!ctx.kitchenOrders) return null;
       return {
         metric,
         value: String(ctx.kitchenOrders.filter((o) => o.orderStatus === 'preparing').length),
       };
     case 'ready':
+      if (!ctx.kitchenOrders) return null;
       return {
         metric,
         value: String(ctx.kitchenOrders.filter((o) => o.orderStatus === 'ready').length),
@@ -116,8 +117,10 @@ function resolveMetric(metric: DashboardMetric, ctx: MetricContext): ResolvedMet
         ),
       };
     case 'clients':
+      if (ctx.customerCount === null) return null;
       return { metric, value: String(ctx.customerCount) };
     case 'returns':
+      if (!ctx.refunds) return null;
       return { metric, value: String(ctx.refunds.length) };
     default:
       return null;
@@ -128,68 +131,73 @@ export default function DashboardPage() {
   const navigate = useNavigate();
   const { profile } = useAuth();
   const { category } = useBusinessContext();
+  const { hasPermission, loading: permissionsLoading } = usePermissions();
   const experience = getBusinessExperience(category);
   const storeId = profile?.currentStoreId;
+  const dashboardRequest = useRef(0);
 
   const [store, setStore] = useState<Store | null>(null);
   const [summary, setSummary] = useState<SalesSummary | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [lowStock, setLowStock] = useState<Product[]>([]);
-  const [kitchenOrders, setKitchenOrders] = useState<Sale[]>([]);
-  const [refunds, setRefunds] = useState<{ createdAt?: string }[]>([]);
-  const [customerCount, setCustomerCount] = useState(0);
+  const [kitchenOrders, setKitchenOrders] = useState<Sale[] | null>(null);
+  const [refunds, setRefunds] = useState<{ createdAt?: string }[] | null>(null);
+  const [customerCount, setCustomerCount] = useState<number | null>(null);
   const [activity, setActivity] = useState<AuditLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const loadDashboard = useCallback(async () => {
     if (!storeId) {
       setLoading(false);
+      setError('Choose a business workspace to view its dashboard.');
       return;
     }
+    const request = ++dashboardRequest.current;
     const now = new Date();
     const todayStart = new Date(now);
     todayStart.setHours(0, 0, 0, 0);
 
-    let cancelled = false;
     setLoading(true);
     setError(null);
+    setStore(null);
+    setSummary(null);
+    setProducts([]);
+    setLowStock([]);
+    setKitchenOrders(null);
+    setRefunds(null);
+    setCustomerCount(null);
+    setActivity([]);
 
-    Promise.all([
-      StoreService.getStore(storeId),
-      ReportService.getSalesSummary(storeId, todayStart.toISOString(), now.toISOString()),
-      ProductService.getProducts(storeId),
-      ProductService.getProducts(storeId, { status: 'active', lowStockOnly: true }),
-      AuditService.getStoreAuditLogs(storeId, 8),
-      // Optional sources: absent data must not break the dashboard.
-      SaleService.getKitchenOrders(storeId).catch(() => [] as Sale[]),
-      SaleService.getRecentRefunds(storeId).catch(() => []),
-      CustomerService.getCustomers(storeId).catch(() => []),
-    ])
-      .then(([storeRow, sales, allProducts, low, logs, orders, refundRows, customers]) => {
-        if (cancelled) return;
-        setStore(storeRow);
-        setSummary(sales);
-        setProducts(allProducts);
-        setLowStock(low);
-        setActivity(logs);
-        setKitchenOrders(orders);
-        setRefunds(refundRows as { createdAt?: string }[]);
-        setCustomerCount(customers.length);
-      })
-      .catch((err: unknown) => {
-        if (!cancelled) {
-          setError((err as Error)?.message ?? 'Could not load your dashboard');
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
+    try {
+      const [storeRow, sales, allProducts, low, logs, orders, refundRows, customers] = await Promise.all([
+        StoreService.getStore(storeId),
+        ReportService.getSalesSummary(storeId, todayStart.toISOString(), now.toISOString()),
+        ProductService.getProducts(storeId),
+        ProductService.getProducts(storeId, { status: 'active', lowStockOnly: true }),
+        AuditService.getStoreAuditLogs(storeId, 8),
+        // These enrich the dashboard; an unavailable module must not break core figures.
+        SaleService.getKitchenOrders(storeId).catch(() => null),
+        SaleService.getRecentRefunds(storeId).catch(() => null),
+        CustomerService.getCustomers(storeId).catch(() => null),
+      ]);
+      if (request !== dashboardRequest.current) return;
+      setStore(storeRow);
+      setSummary(sales);
+      setProducts(allProducts);
+      setLowStock(low);
+      setActivity(logs);
+      setKitchenOrders(orders);
+      setRefunds(refundRows as { createdAt?: string }[] | null);
+      setCustomerCount(customers?.length ?? null);
+    } catch (err) {
+      if (request === dashboardRequest.current) setError((err as Error)?.message ?? 'Could not load your dashboard');
+    } finally {
+      if (request === dashboardRequest.current) setLoading(false);
+    }
   }, [storeId]);
+
+  useEffect(() => { void loadDashboard(); }, [loadDashboard]);
 
   const resolved = useMemo(() => {
     const ctx: MetricContext = {
@@ -208,7 +216,13 @@ export default function DashboardPage() {
 
   // A business with no records at all gets guidance, not zeroes.
   const hasAnyRecords =
-    (summary?.transactionCount ?? 0) > 0 || products.length > 0 || customerCount > 0;
+    (summary?.transactionCount ?? 0) > 0 || products.length > 0 || (customerCount ?? 0) > 0;
+  const canUseAction = (route: string) => {
+    if (permissionsLoading) return false;
+    if (route === '/sales/checkout') return hasPermission('sales:create');
+    if (route === '/inventory/products/new') return hasPermission('product:create');
+    return true;
+  };
 
   if (loading) return <PageLoader />;
 
@@ -222,18 +236,16 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {error && <div className="alert alert-error">{error}</div>}
-
       {/* Primary action first: it is what this business does most often. */}
       <div className="btn-row dash-actions">
-        <Button
-          onClick={() => navigate(experience.primaryAction.route)}
-          disabled={!experience.primaryAction.implemented}
-        >
-          {experience.primaryAction.label}
-        </Button>
+        {experience.primaryAction.implemented && canUseAction(experience.primaryAction.route) && (
+          <Button onClick={() => navigate(experience.primaryAction.route)}>
+            {experience.primaryAction.label}
+          </Button>
+        )}
         {experience.secondaryActions
           .filter((action) => action.implemented)
+          .filter((action) => canUseAction(action.route))
           .map((action) => (
             <Button key={action.label} variant="outline" onClick={() => navigate(action.route)}>
               {action.label}
@@ -241,64 +253,58 @@ export default function DashboardPage() {
           ))}
       </div>
 
-      {resolved.length === 0 ? (
-        <div className="card dash-empty">
-          <p className="list-item-title">Nothing to show yet</p>
-          <p className="page-subtitle">{experience.emptyStates.dashboard}</p>
-          <Link className="btn btn-primary btn-sm" to={experience.primaryAction.route}>
-            {experience.primaryAction.label}
-          </Link>
+      {error ? (
+        <div className="card">
+          <StateBlock
+            variant="error"
+            title="Could not load the dashboard"
+            body={error}
+            actions={<Button variant="outline" className="btn-sm" onClick={loadDashboard}>Try again</Button>}
+          />
+        </div>
+      ) : !hasAnyRecords ? (
+        <div className="card">
+          <StateBlock
+            title={`No ${experience.terminology.recordPlural.toLowerCase()} to show yet`}
+            body={experience.emptyStates.dashboard}
+            actions={canUseAction(experience.primaryAction.route) ? (
+              <Link className="btn btn-primary btn-sm" to={experience.primaryAction.route}>
+                {experience.primaryAction.label}
+              </Link>
+            ) : null}
+          />
         </div>
       ) : (
-        <KpiGrid>
-          {resolved.map(({ metric, value, sub }) => {
-            const tone =
-              metric.tone === 'warn'
-                ? 'warning'
-                : metric.tone === 'danger'
-                  ? 'danger'
-                  : 'default';
-            return (
-              <KpiCard
-                key={metric.key}
-                label={metric.label}
-                value={value}
-                foot={sub}
-                tone={tone}
+        <>
+          <KpiGrid>
+            {resolved.map(({ metric, value, sub }) => {
+              const tone = metric.tone === 'warn' ? 'warning' : metric.tone === 'danger' ? 'danger' : 'default';
+              return <KpiCard key={metric.key} label={metric.label} value={value} foot={sub} tone={tone}
                 onClick={metric.linkTo ? () => navigate(metric.linkTo!) : undefined}
-                ariaLabel={metric.linkTo ? `${metric.label}: ${value}. Open details` : undefined}
-              />
-            );
-          })}
-        </KpiGrid>
-      )}
+                ariaLabel={metric.linkTo ? `${metric.label}: ${value}. Open details` : undefined} />;
+            })}
+          </KpiGrid>
 
-      <div className="card">
-        <p className="list-item-title">Recent activity</p>
-        {!hasAnyRecords ? (
-          <p className="page-subtitle">{experience.emptyStates.primaryList}</p>
-        ) : activity.length === 0 ? (
-          <p className="page-subtitle">No activity recorded yet.</p>
-        ) : (
-          <div className="list">
-            {activity.map((log) => (
-              <div className="list-item" key={log.id}>
-                <div>
-                  <p className="list-item-title">{log.action.replace(/_/g, ' ').toLowerCase()}</p>
-                  <p className="list-item-subtitle">
-                    {log.resourceName ?? log.resourceType ?? 'record'} · {timeAgo(log.createdAt)}
-                  </p>
-                </div>
-                <span
-                  className={`badge ${log.status === 'success' ? 'badge-success' : 'badge-warning'}`}
-                >
-                  {log.status}
-                </span>
+          <section className="card" aria-labelledby="recent-activity-title">
+            <SectionHead id="recent-activity-title" title="Recent activity" />
+            {activity.length === 0 ? (
+              <StateBlock title="No recent activity" body="Completed changes and actions will appear here." />
+            ) : (
+              <div className="list">
+                {activity.map((log) => (
+                  <div className="list-item" key={log.id}>
+                    <div>
+                      <p className="list-item-title">{log.action.replace(/_/g, ' ').toLowerCase()}</p>
+                      <p className="list-item-subtitle">{log.resourceName ?? log.resourceType ?? 'record'} · {timeAgo(log.createdAt)}</p>
+                    </div>
+                    <span className={`badge ${log.status === 'success' ? 'badge-success' : 'badge-warning'}`}>{log.status}</span>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        )}
-      </div>
+            )}
+          </section>
+        </>
+      )}
     </div>
   );
 }

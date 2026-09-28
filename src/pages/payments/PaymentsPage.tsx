@@ -1,16 +1,21 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { usePermissions } from '../../hooks/usePermissions';
 import { SaleService } from '../../services/sale.service';
 import { Button } from '../../components/ui/Button';
 import { PageLoader } from '../../components/ui/PageLoader';
+import { SectionHead } from '../../components/ui/SectionHead';
+import { SectionState, StateBlock } from '../../components/ui/StateBlock';
+import { useToast } from '../../components/ui/Toast';
+import { formatDateTime, formatMoney } from '../../utils/format';
 import type { PendingSalePayment, RecentRefund } from '../../types';
 
 export default function PaymentsPage() {
   const { profile } = useAuth();
   const { loading: permsLoading } = usePermissions();
   const storeId = profile?.currentStoreId;
+  const toast = useToast();
 
   const [pending, setPending] = useState<PendingSalePayment[]>([]);
   const [refunds, setRefunds] = useState<RecentRefund[]>([]);
@@ -18,36 +23,49 @@ export default function PaymentsPage() {
   const [error, setError] = useState<string | null>(null);
   const [actingId, setActingId] = useState<string | null>(null);
 
-  const load = () => {
-    if (!storeId) return;
+  const load = useCallback(async () => {
+    if (!storeId) {
+      setLoading(false);
+      setError('Choose a business workspace to view its payments.');
+      return;
+    }
     setLoading(true);
-    Promise.all([SaleService.getPendingPayments(storeId), SaleService.getRecentRefunds(storeId)])
-      .then(([pendingData, refundsData]) => {
-        setPending(pendingData);
-        setRefunds(refundsData);
-      })
-      .catch((err) => setError(err.message ?? 'Failed to load payments'))
-      .finally(() => setLoading(false));
-  };
+    setError(null);
+    setPending([]);
+    setRefunds([]);
+    try {
+      const [pendingData, refundsData] = await Promise.all([
+        SaleService.getPendingPayments(storeId),
+        SaleService.getRecentRefunds(storeId),
+      ]);
+      setPending(pendingData);
+      setRefunds(refundsData);
+    } catch (err) {
+      setError((err as Error)?.message ?? 'Failed to load payments');
+    } finally {
+      setLoading(false);
+    }
+  }, [storeId]);
 
   useEffect(() => {
-    load();
-  }, [storeId]);
+    void load();
+  }, [load]);
 
   const handleVerify = async (paymentId: string, status: 'verified' | 'rejected') => {
     setActingId(paymentId);
     setError(null);
     try {
       await SaleService.verifySalePayment(paymentId, status);
-      load();
-    } catch (err: any) {
-      setError(err.message ?? 'Failed to update payment verification');
+      toast.success(status === 'verified' ? 'Payment verified' : 'Payment rejected');
+      await load();
+    } catch (err: unknown) {
+      toast.error('Payment update failed', { description: (err as Error)?.message });
     } finally {
       setActingId(null);
     }
   };
 
-  if (permsLoading || loading) return <PageLoader />;
+  if (permsLoading) return <PageLoader />;
 
   return (
     <div className="page">
@@ -58,15 +76,12 @@ export default function PaymentsPage() {
         </div>
       </div>
 
-      {error && <div className="alert alert-error">{error}</div>}
-
-      <div className="card">
-        <p className="list-item-title" style={{ marginBottom: 8 }}>
-          Pending verification
-        </p>
-        {pending.length === 0 ? (
-          <div className="empty-state">No payments awaiting verification.</div>
-        ) : (
+      <SectionState loading={loading} error={error} onRetry={load}>
+        <section className="card" aria-labelledby="pending-payments-title">
+          <SectionHead id="pending-payments-title" title="Pending verification" sub="Payments that require an authorised review" />
+          {pending.length === 0 ? (
+            <StateBlock title="All payments are reviewed" body="New payments that need verification will appear here." />
+          ) : (
           <div className="list">
             {pending.map((payment) => (
               <div key={payment.id} className="list-item">
@@ -76,11 +91,11 @@ export default function PaymentsPage() {
                   </Link>
                   <p className="list-item-subtitle" style={{ textTransform: 'capitalize' }}>
                     {payment.method}
-                    {payment.reference && ` · Ref: ${payment.reference}`} · {new Date(payment.createdAt).toLocaleString()}
+                    {payment.reference && ` · Ref: ${payment.reference}`} · {formatDateTime(payment.createdAt)}
                   </p>
                 </div>
                 <div className="list-item-meta">
-                  <span className="list-item-subtitle">₦{payment.amount.toLocaleString()}</span>
+                  <span className="list-item-subtitle">{formatMoney(payment.amount)}</span>
                   <div className="btn-row">
                     <Button
                       variant="ghost"
@@ -104,14 +119,12 @@ export default function PaymentsPage() {
             ))}
           </div>
         )}
-      </div>
+        </section>
 
-      <div className="card">
-        <p className="list-item-title" style={{ marginBottom: 8 }}>
-          Recent refunds
-        </p>
+        <section className="card" aria-labelledby="recent-refunds-title">
+          <SectionHead id="recent-refunds-title" title="Recent refunds" sub="Completed refunds with their source transaction" />
         {refunds.length === 0 ? (
-          <div className="empty-state">No refunds processed yet.</div>
+          <StateBlock title="No refunds processed" body="Refunded transactions will be listed here for review." />
         ) : (
           <div className="list">
             {refunds.map((refund) => (
@@ -119,7 +132,7 @@ export default function PaymentsPage() {
                 <div>
                   <p className="list-item-title">Sale #{refund.saleNumber}</p>
                   <p className="list-item-subtitle">
-                    {refund.reason} · {new Date(refund.createdAt).toLocaleString()}
+                    {refund.reason} · {formatDateTime(refund.createdAt)}
                     {refund.createdByEmail && ` · ${refund.createdByEmail}`}
                   </p>
                 </div>
@@ -127,13 +140,14 @@ export default function PaymentsPage() {
                   <span className="badge badge-default" style={{ textTransform: 'capitalize' }}>
                     {refund.method}
                   </span>
-                  <span className="list-item-subtitle">₦{refund.amount.toLocaleString()}</span>
+                  <span className="list-item-subtitle">{formatMoney(refund.amount)}</span>
                 </div>
               </Link>
             ))}
           </div>
         )}
-      </div>
+        </section>
+      </SectionState>
     </div>
   );
 }

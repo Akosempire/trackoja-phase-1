@@ -47,3 +47,22 @@ export function getReportDateRange(preset: ReportDateRangePreset, now: Date = ne
       };
   }
 }
+
+/** Formats the inclusive dates represented by a [from, to) report range. */
+export function formatReportDateRange(range: ReportDateRange): string {
+  const from = new Date(range.from);
+  const through = new Date(new Date(range.to).getTime() - 1);
+  if (Number.isNaN(from.getTime()) || Number.isNaN(through.getTime())) return 'Selected period';
+
+  const sameDay = from.toDateString() === through.toDateString();
+  const format = (date: Date, includeYear = true) =>
+    date.toLocaleDateString('en-NG', {
+      day: 'numeric',
+      month: 'short',
+      ...(includeYear ? { year: 'numeric' as const } : {}),
+    });
+
+  if (sameDay) return format(from);
+  const sameYear = from.getFullYear() === through.getFullYear();
+  return `${format(from, !sameYear)} – ${format(through)}`;
+}

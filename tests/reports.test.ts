@@ -2,7 +2,7 @@
 // Verify report date-range presets and the Phase 5 reporting RPC functions
 
 import { describe, it, expect } from 'vitest';
-import { getReportDateRange } from '../src/utils/report-date-ranges';
+import { formatReportDateRange, getReportDateRange } from '../src/utils/report-date-ranges';
 
 const FIXED_NOW = new Date(2026, 5, 14, 15, 30); // 2026-06-14 15:30 local time
 
@@ -35,6 +35,19 @@ describe('getReportDateRange', () => {
     const morning = getReportDateRange('today', new Date(2026, 5, 14, 0, 1));
     const evening = getReportDateRange('today', new Date(2026, 5, 14, 23, 59));
     expect(morning.to).toBe(evening.to);
+  });
+});
+
+describe('formatReportDateRange', () => {
+  it('shows the inclusive day represented by an exclusive upper bound', () => {
+    const range = getReportDateRange('today', FIXED_NOW);
+    expect(formatReportDateRange(range)).toContain('14 Jun 2026');
+  });
+
+  it('shows both inclusive endpoints for a multi-day period', () => {
+    const range = getReportDateRange('last7', FIXED_NOW);
+    expect(formatReportDateRange(range)).toContain('8 Jun');
+    expect(formatReportDateRange(range)).toContain('14 Jun 2026');
   });
 });
 

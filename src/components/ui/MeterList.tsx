@@ -1,4 +1,5 @@
 export interface MeterItem {
+  id?: string;
   label: string;
   value: number;
   /** Formatted value shown on the right. */
@@ -41,7 +42,7 @@ export function MeterList({ items, max }: { items: MeterItem[]; max?: number }) 
               : 'accent');
 
         return (
-          <div className="meter-row" key={item.label}>
+          <div className="meter-row" key={item.id ?? item.label}>
             <span className="meter-label">{item.label}</span>
             <span className="meter-value">{item.display ?? item.value.toLocaleString()}</span>
             <span className="meter-track">

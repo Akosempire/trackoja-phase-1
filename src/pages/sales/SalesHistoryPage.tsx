@@ -1,15 +1,22 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { usePermissions } from '../../hooks/usePermissions';
+import { useBusinessContext } from '../../contexts/BusinessContext';
 import { SaleService } from '../../services/sale.service';
 import { Button } from '../../components/ui/Button';
 import { PageLoader } from '../../components/ui/PageLoader';
+import { SectionState } from '../../components/ui/StateBlock';
+import { getBusinessExperience } from '../../config/businessExperience';
+import { formatDateTime, formatMoney } from '../../utils/format';
+import { recordSaleAction } from '../../utils/business-language';
 import type { Sale, SaleStatus } from '../../types';
 
 export default function SalesHistoryPage() {
   const { profile } = useAuth();
   const { hasPermission, loading: permsLoading } = usePermissions();
+  const { category } = useBusinessContext();
+  const experience = getBusinessExperience(category);
   const storeId = profile?.currentStoreId;
 
   const [sales, setSales] = useState<Sale[]>([]);
@@ -19,14 +26,25 @@ export default function SalesHistoryPage() {
 
   const canCheckout = hasPermission('sales:create');
 
-  useEffect(() => {
-    if (!storeId) return;
+  const loadSales = useCallback(async () => {
+    if (!storeId) {
+      setLoading(false);
+      setError('Choose a business workspace to view its sales.');
+      return;
+    }
     setLoading(true);
-    SaleService.getSales(storeId, { status: status || undefined })
-      .then(setSales)
-      .catch((err) => setError(err.message ?? 'Failed to load sales'))
-      .finally(() => setLoading(false));
+    setError(null);
+    setSales([]);
+    try {
+      setSales(await SaleService.getSales(storeId, { status: status || undefined }));
+    } catch (err) {
+      setError((err as Error)?.message ?? 'Failed to load sales');
+    } finally {
+      setLoading(false);
+    }
   }, [storeId, status]);
+
+  useEffect(() => { void loadSales(); }, [loadSales]);
 
   if (permsLoading) return <PageLoader />;
 
@@ -34,17 +52,15 @@ export default function SalesHistoryPage() {
     <div className="page">
       <div className="page-header">
         <div>
-          <h1 className="page-title">Sales history</h1>
-          <p className="page-subtitle">{sales.length} sale{sales.length === 1 ? '' : 's'}</p>
+          <h1 className="page-title">{experience.terminology.recordPlural} history</h1>
+          <p className="page-subtitle">{loading ? 'Loading records…' : `${sales.length} ${experience.terminology.recordPlural.toLowerCase()}`}</p>
         </div>
         {canCheckout && (
           <Link to="/sales/checkout">
-            <Button className="btn-sm">New sale</Button>
+            <Button className="btn-sm">{category === 'restaurant' ? 'New order' : 'New sale'}</Button>
           </Link>
         )}
       </div>
-
-      {error && <div className="alert alert-error">{error}</div>}
 
       <div className="form-group">
         <select className="select-input" value={status} onChange={(e) => setStatus(e.target.value as SaleStatus | '')}>
@@ -54,26 +70,30 @@ export default function SalesHistoryPage() {
         </select>
       </div>
 
-      {loading ? (
-        <PageLoader />
-      ) : sales.length === 0 ? (
-        <div className="empty-state">No sales found.</div>
-      ) : (
+      <SectionState
+        loading={loading}
+        error={error}
+        onRetry={loadSales}
+        empty={sales.length === 0}
+        emptyTitle={status ? `No ${status} ${experience.terminology.recordPlural.toLowerCase()}` : `No ${experience.terminology.recordPlural.toLowerCase()} yet`}
+        emptyBody={status ? 'Choose another status to broaden the list.' : experience.emptyStates.primaryList}
+        emptyActions={!status && canCheckout ? <Link className="btn btn-primary btn-sm" to="/sales/checkout">{recordSaleAction(category)}</Link> : null}
+      >
         <div className="list">
           {sales.map((sale) => (
             <Link key={sale.id} to={`/sales/${sale.id}`} className="list-item">
               <div>
-                <p className="list-item-title">Sale #{sale.saleNumber}</p>
-                <p className="list-item-subtitle">{new Date(sale.createdAt).toLocaleString()}</p>
+                <p className="list-item-title">{experience.terminology.record} #{sale.saleNumber}</p>
+                <p className="list-item-subtitle">{formatDateTime(sale.createdAt)}</p>
               </div>
               <div className="list-item-meta">
                 <span className={`badge ${sale.status === 'voided' ? 'badge-danger' : 'badge-success'}`}>{sale.status}</span>
-                <span className="list-item-subtitle">₦{sale.total.toLocaleString()}</span>
+                <span className="list-item-subtitle">{formatMoney(sale.total)}</span>
               </div>
             </Link>
           ))}
         </div>
-      )}
+      </SectionState>
     </div>
   );
 }

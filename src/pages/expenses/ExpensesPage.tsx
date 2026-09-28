@@ -12,16 +12,11 @@ import {
 import { Button } from '../../components/ui/Button';
 import { FormField } from '../../components/ui/FormField';
 import { PageLoader } from '../../components/ui/PageLoader';
+import { SectionHead } from '../../components/ui/SectionHead';
+import { StateBlock } from '../../components/ui/StateBlock';
 import { useToast } from '../../components/ui/Toast';
 import { getBusinessExperience } from '../../config/businessExperience';
-
-function formatMoney(value: number, currency = 'NGN'): string {
-  const symbol = currency === 'NGN' ? '₦' : '';
-  return `${symbol}${value
-    .toFixed(2)
-    .replace(/\.00$/, '')
-    .replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
-}
+import { formatMoney } from '../../utils/format';
 
 function startOfMonth(): string {
   const d = new Date();
@@ -65,6 +60,7 @@ export default function ExpensesPage() {
   const load = useCallback(() => {
     if (!storeId) {
       setLoading(false);
+      setError('Choose a business workspace to view its expenses.');
       return;
     }
     setLoading(true);
@@ -144,6 +140,23 @@ export default function ExpensesPage() {
 
   const periodTotal = summary.reduce((sum, row) => sum + row.total, 0);
 
+  if (error) {
+    return (
+      <div className="page" data-business-type={category} data-stock-model={experience.stock.model}>
+        <div className="page-header">
+          <div>
+            <h1 className="page-title">Expenses</h1>
+            <p className="page-subtitle">What this business spent, and where it went</p>
+          </div>
+        </div>
+        <div className="card">
+          <StateBlock variant="error" title="Could not load expenses" body={error}
+            actions={<Button variant="outline" className="btn-sm" onClick={load}>Try again</Button>} />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="page" data-business-type={category} data-stock-model={experience.stock.model}>
       <div className="page-header">
@@ -160,8 +173,6 @@ export default function ExpensesPage() {
           </Button>
         )}
       </div>
-
-      {error && <div className="alert alert-error">{error}</div>}
 
       {/* Period selector: expenses are reported on the date money was spent. */}
       <div className="card">
@@ -281,7 +292,7 @@ export default function ExpensesPage() {
 
       {summary.length > 0 && (
         <div className="card">
-          <p className="list-item-title">Where it went</p>
+          <SectionHead title="Where it went" sub="Expense categories for the selected period" />
           <div className="list">
             {summary.map((row) => (
               <div className="list-item" key={row.category}>
@@ -304,12 +315,13 @@ export default function ExpensesPage() {
       )}
 
       <div className="card">
-        <p className="list-item-title">Recorded expenses</p>
+        <SectionHead title="Recorded expenses" sub={`${range.from} to ${range.to}`} />
         {expenses.length === 0 ? (
-          <div className="empty-state">
-            Nothing recorded in this period. Record what you spent to see where the money
-            goes.
-          </div>
+          <StateBlock
+            title="No expenses in this period"
+            body="Record what the business spent to see where the money goes."
+            actions={canCreate ? <Button className="btn-sm" onClick={() => setShowForm(true)}>Record expense</Button> : null}
+          />
         ) : (
           <div className="list">
             {expenses.map((expense) => (

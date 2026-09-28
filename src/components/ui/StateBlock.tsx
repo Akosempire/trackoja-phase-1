@@ -42,6 +42,7 @@ interface SectionStateProps {
   empty?: boolean;
   emptyTitle?: string;
   emptyBody?: ReactNode;
+  emptyActions?: ReactNode;
   onRetry?: () => void;
   children: ReactNode;
 }
@@ -57,6 +58,7 @@ export function SectionState({
   empty,
   emptyTitle = 'Nothing here yet',
   emptyBody,
+  emptyActions,
   onRetry,
   children,
 }: SectionStateProps) {
@@ -92,7 +94,7 @@ export function SectionState({
   }
 
   if (empty) {
-    return <StateBlock variant="empty" title={emptyTitle} body={emptyBody} />;
+    return <StateBlock variant="empty" title={emptyTitle} body={emptyBody} actions={emptyActions} />;
   }
 
   return <>{children}</>;

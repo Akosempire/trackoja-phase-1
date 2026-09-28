@@ -1,17 +1,25 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { usePermissions } from '../../hooks/usePermissions';
+import { useBusinessContext } from '../../contexts/BusinessContext';
 import { ProductService } from '../../services/product.service';
 import { CategoryService } from '../../services/category.service';
 import { Button } from '../../components/ui/Button';
 import { PageLoader } from '../../components/ui/PageLoader';
+import { SectionState } from '../../components/ui/StateBlock';
+import { getBusinessExperience } from '../../config/businessExperience';
+import { formatMoney } from '../../utils/format';
+import { lineItemPlural } from '../../utils/business-language';
 import { BarcodeScanner } from '../../components/BarcodeScanner';
 import type { Product, ProductCategory } from '../../types';
 
 export default function ProductsPage() {
   const { profile } = useAuth();
   const { hasPermission, loading: permsLoading } = usePermissions();
+  const { category } = useBusinessContext();
+  const experience = getBusinessExperience(category);
+  const itemPlural = lineItemPlural(experience.terminology.lineItem);
   const [searchParams, setSearchParams] = useSearchParams();
   const storeId = profile?.currentStoreId;
 
@@ -33,18 +41,29 @@ export default function ProductsPage() {
     CategoryService.getCategories(storeId).then(setCategories).catch(() => {});
   }, [storeId]);
 
-  useEffect(() => {
-    if (!storeId) return;
+  const loadProducts = useCallback(async () => {
+    if (!storeId) {
+      setLoading(false);
+      setError('Choose a business workspace to view its inventory.');
+      return;
+    }
     setLoading(true);
-    ProductService.getProducts(storeId, {
-      search: search || undefined,
-      categoryId: categoryId || undefined,
-      lowStockOnly,
-    })
-      .then(setProducts)
-      .catch((err) => setError(err.message ?? 'Failed to load products'))
-      .finally(() => setLoading(false));
+    setError(null);
+    setProducts([]);
+    try {
+      setProducts(await ProductService.getProducts(storeId, {
+        search: search || undefined,
+        categoryId: categoryId || undefined,
+        lowStockOnly,
+      }));
+    } catch (err) {
+      setError((err as Error)?.message ?? 'Failed to load products');
+    } finally {
+      setLoading(false);
+    }
   }, [storeId, search, categoryId, lowStockOnly]);
+
+  useEffect(() => { void loadProducts(); }, [loadProducts]);
 
   const categoryName = (id?: string) => categories.find((c) => c.id === id)?.name;
 
@@ -62,8 +81,8 @@ export default function ProductsPage() {
     <div className="page">
       <div className="page-header">
         <div>
-          <h1 className="page-title">Products</h1>
-          <p className="page-subtitle">{products.length} item{products.length === 1 ? '' : 's'}</p>
+          <h1 className="page-title">{itemPlural[0].toUpperCase()}{itemPlural.slice(1)}</h1>
+          <p className="page-subtitle">{loading ? 'Loading inventory…' : `${products.length} ${products.length === 1 ? 'item' : 'items'}`}</p>
         </div>
         {canCreate && (
           <div className="btn-row">
@@ -73,13 +92,11 @@ export default function ProductsPage() {
               </Button>
             </Link>
             <Link to="/inventory/products/new">
-              <Button className="btn-sm">Add product</Button>
+              <Button className="btn-sm">Add {experience.terminology.lineItem.toLowerCase()}</Button>
             </Link>
           </div>
         )}
       </div>
-
-      {error && <div className="alert alert-error">{error}</div>}
 
       <div className="btn-row search-input">
         <div style={{ flex: 1, minWidth: 0 }}>
@@ -126,11 +143,15 @@ export default function ProductsPage() {
         <label htmlFor="low-stock-only">Low stock only</label>
       </div>
 
-      {loading ? (
-        <PageLoader />
-      ) : products.length === 0 ? (
-        <div className="empty-state">No products found.</div>
-      ) : (
+      <SectionState
+        loading={loading}
+        error={error}
+        onRetry={loadProducts}
+        empty={products.length === 0}
+        emptyTitle={search || categoryId || lowStockOnly ? 'No matching inventory' : `No ${itemPlural} yet`}
+        emptyBody={search || categoryId || lowStockOnly ? 'Clear or change the filters to see more results.' : `Add the first ${experience.terminology.lineItem.toLowerCase()} to start tracking ${experience.terminology.stock.toLowerCase()}.`}
+        emptyActions={!search && !categoryId && !lowStockOnly && canCreate ? <Link className="btn btn-primary btn-sm" to="/inventory/products/new">Add {experience.terminology.lineItem.toLowerCase()}</Link> : null}
+      >
         <div className="list">
           {products.map((product) => {
             const isLowStock = product.trackInventory && product.stockQty <= product.reorderLevel;
@@ -154,13 +175,13 @@ export default function ProductsPage() {
                   <span className={`badge ${isLowStock ? 'badge-warning' : 'badge-default'}`}>
                     {product.trackInventory ? `${product.stockQty} ${product.unit}` : 'No tracking'}
                   </span>
-                  <span className="list-item-subtitle">₦{product.sellingPrice.toLocaleString()}</span>
+                  <span className="list-item-subtitle">{formatMoney(product.sellingPrice)}</span>
                 </div>
               </Link>
             );
           })}
         </div>
-      )}
+      </SectionState>
 
       {canAdjust && (
         <div className="btn-row" style={{ marginTop: 16 }}>

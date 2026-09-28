@@ -1,10 +1,23 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { useBusinessContext } from '../../contexts/BusinessContext';
+import { usePermissions } from '../../hooks/usePermissions';
 import { ReportService } from '../../services/report.service';
-import { Button } from '../../components/ui/Button';
-import { PageLoader } from '../../components/ui/PageLoader';
-import { KpiCard, KpiGrid } from '../../components/ui/KpiCard';
-import { getReportDateRange, REPORT_DATE_RANGE_PRESETS, type ReportDateRangePreset } from '../../utils/report-date-ranges';
+import { MeterList } from '../../components/ui/MeterList';
+import { MetricStrip } from '../../components/ui/MetricStrip';
+import { SectionHead } from '../../components/ui/SectionHead';
+import { SegmentedControl } from '../../components/ui/SegmentedControl';
+import { SectionState, StateBlock } from '../../components/ui/StateBlock';
+import { getBusinessExperience } from '../../config/businessExperience';
+import {
+  formatReportDateRange,
+  getReportDateRange,
+  REPORT_DATE_RANGE_PRESETS,
+  type ReportDateRangePreset,
+} from '../../utils/report-date-ranges';
+import { formatMoney, formatNumber } from '../../utils/format';
+import { lineItemPlural, recordSaleAction } from '../../utils/business-language';
 import type {
   SalesSummary,
   PaymentMethodBreakdown,
@@ -12,18 +25,20 @@ import type {
   InventoryValuation,
   CustomerBalancesSummary,
 } from '../../types';
+import '../../styles/reports.css';
 
 const PAYMENT_METHOD_LABELS: Record<string, string> = {
-  cash: 'Cash',
-  card: 'Card',
-  transfer: 'Transfer',
-  credit: 'Credit',
-  other: 'Other',
+  cash: 'Cash', card: 'Card', transfer: 'Transfer', credit: 'Credit', other: 'Other',
 };
 
 export default function ReportsPage() {
   const { profile } = useAuth();
+  const { category, loading: businessLoading } = useBusinessContext();
+  const { hasPermission, loading: permissionsLoading } = usePermissions();
+  const experience = getBusinessExperience(category);
   const storeId = profile?.currentStoreId;
+  const salesRequest = useRef(0);
+  const snapshotRequest = useRef(0);
 
   const [preset, setPreset] = useState<ReportDateRangePreset>('today');
   const [summary, setSummary] = useState<SalesSummary | null>(null);
@@ -31,238 +46,194 @@ export default function ReportsPage() {
   const [topProducts, setTopProducts] = useState<TopProduct[]>([]);
   const [inventoryValuation, setInventoryValuation] = useState<InventoryValuation | null>(null);
   const [customerBalances, setCustomerBalances] = useState<CustomerBalancesSummary | null>(null);
-
   const [loadingSales, setLoadingSales] = useState(true);
   const [loadingSnapshots, setLoadingSnapshots] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [salesError, setSalesError] = useState<string | null>(null);
+  const [snapshotError, setSnapshotError] = useState<string | null>(null);
 
-  const [quickStats, setQuickStats] = useState<{
-    todayRevenue: number;
-    todayProfit: number;
-    weekRevenue: number;
-    weekProfit: number;
-  } | null>(null);
+  const range = useMemo(() => getReportDateRange(preset), [preset]);
+  const rangeLabel = useMemo(() => formatReportDateRange(range), [range]);
+  const itemPlural = lineItemPlural(experience.terminology.lineItem);
+  const canRecordSale = !permissionsLoading && hasPermission('sales:create');
+  const canAddProduct = !permissionsLoading && hasPermission('product:create');
 
-  useEffect(() => {
-    if (!storeId) return;
-    const today = getReportDateRange('today');
-    const week = getReportDateRange('last7');
-
-    Promise.all([
-      ReportService.getSalesSummary(storeId, today.from, today.to),
-      ReportService.getProfitSummary(storeId, today.from, today.to),
-      ReportService.getSalesSummary(storeId, week.from, week.to),
-      ReportService.getProfitSummary(storeId, week.from, week.to),
-    ])
-      .then(([todaySummary, todayProfit, weekSummary, weekProfit]) => {
-        setQuickStats({
-          todayRevenue: todaySummary.totalRevenue,
-          todayProfit,
-          weekRevenue: weekSummary.totalRevenue,
-          weekProfit,
-        });
-      })
-      .catch((err) => setError(err.message ?? 'Failed to load quick stats'));
-  }, [storeId]);
-
-  useEffect(() => {
-    if (!storeId) return;
-    const { from, to } = getReportDateRange(preset);
-
+  const loadSales = useCallback(async () => {
+    if (!storeId) {
+      setLoadingSales(false);
+      setSalesError('Choose a business workspace to view its reports.');
+      return;
+    }
+    const request = ++salesRequest.current;
     setLoadingSales(true);
-    Promise.all([
-      ReportService.getSalesSummary(storeId, from, to),
-      ReportService.getSalesByPaymentMethod(storeId, from, to),
-      ReportService.getTopProducts(storeId, from, to, 10),
-    ])
-      .then(([s, payments, products]) => {
-        setSummary(s);
-        setPaymentBreakdown(payments);
-        setTopProducts(products);
-      })
-      .catch((err) => setError(err.message ?? 'Failed to load sales reports'))
-      .finally(() => setLoadingSales(false));
-  }, [storeId, preset]);
+    setSalesError(null);
+    setSummary(null);
+    setPaymentBreakdown([]);
+    setTopProducts([]);
+    try {
+      const [nextSummary, payments, products] = await Promise.all([
+        ReportService.getSalesSummary(storeId, range.from, range.to),
+        ReportService.getSalesByPaymentMethod(storeId, range.from, range.to),
+        ReportService.getTopProducts(storeId, range.from, range.to, 10),
+      ]);
+      if (request !== salesRequest.current) return;
+      setSummary(nextSummary);
+      setPaymentBreakdown(payments);
+      setTopProducts(products);
+    } catch (error) {
+      if (request === salesRequest.current) setSalesError((error as Error)?.message ?? 'Could not load sales reports.');
+    } finally {
+      if (request === salesRequest.current) setLoadingSales(false);
+    }
+  }, [range.from, range.to, storeId]);
 
-  useEffect(() => {
-    if (!storeId) return;
+  const loadSnapshots = useCallback(async () => {
+    if (!storeId) {
+      setLoadingSnapshots(false);
+      setSnapshotError('Choose a business workspace to view its stock snapshot.');
+      return;
+    }
+    const request = ++snapshotRequest.current;
     setLoadingSnapshots(true);
-    Promise.all([ReportService.getInventoryValuation(storeId), ReportService.getCustomerBalancesSummary(storeId)])
-      .then(([inventory, customers]) => {
-        setInventoryValuation(inventory);
-        setCustomerBalances(customers);
-      })
-      .catch((err) => setError(err.message ?? 'Failed to load inventory/customer snapshots'))
-      .finally(() => setLoadingSnapshots(false));
+    setSnapshotError(null);
+    setInventoryValuation(null);
+    setCustomerBalances(null);
+    try {
+      const [inventory, customers] = await Promise.all([
+        ReportService.getInventoryValuation(storeId),
+        ReportService.getCustomerBalancesSummary(storeId),
+      ]);
+      if (request !== snapshotRequest.current) return;
+      setInventoryValuation(inventory);
+      setCustomerBalances(customers);
+    } catch (error) {
+      if (request === snapshotRequest.current) setSnapshotError((error as Error)?.message ?? 'Could not load current business snapshots.');
+    } finally {
+      if (request === snapshotRequest.current) setLoadingSnapshots(false);
+    }
   }, [storeId]);
+
+  useEffect(() => { void loadSales(); }, [loadSales]);
+  useEffect(() => { void loadSnapshots(); }, [loadSnapshots]);
+
+  const noCompletedSales = summary?.transactionCount === 0;
+  const salesAction = canRecordSale ? (
+    <Link className="btn btn-primary btn-sm" to="/sales/checkout">
+      {recordSaleAction(category)}
+    </Link>
+  ) : null;
+  const inventoryAction = canAddProduct ? (
+    <Link className="btn btn-primary btn-sm" to="/inventory/products/new">
+      Add {experience.terminology.lineItem.toLowerCase()}
+    </Link>
+  ) : null;
 
   return (
-    <div className="page">
+    <div className="page reports-page">
       <div className="page-header">
         <div>
           <h1 className="page-title">Reports</h1>
-          <p className="page-subtitle">Sales, inventory, and customer snapshots</p>
+          <p className="page-subtitle">Sales performance and current business snapshots</p>
         </div>
       </div>
 
-      {error && <div className="alert alert-error">{error}</div>}
-
-      {quickStats && (
-        <KpiGrid>
-          <KpiCard
-            label="Daily sales"
-            value={`₦${quickStats.todayRevenue.toLocaleString()}`}
-            foot={`Profit ₦${quickStats.todayProfit.toLocaleString()}`}
-          />
-          <KpiCard
-            label="Weekly sales"
-            value={`₦${quickStats.weekRevenue.toLocaleString()}`}
-            foot={`Profit ₦${quickStats.weekProfit.toLocaleString()}`}
-          />
-        </KpiGrid>
-      )}
-
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        {REPORT_DATE_RANGE_PRESETS.map((p) => (
-          <Button
-            key={p.value}
-            className="btn-sm"
-            variant={preset === p.value ? 'primary' : 'ghost'}
-            onClick={() => setPreset(p.value)}
-          >
-            {p.label}
-          </Button>
-        ))}
+      <div className="report-period-bar">
+        <SegmentedControl label="Reporting period" value={preset} options={REPORT_DATE_RANGE_PRESETS} onChange={setPreset} />
+        <p className="report-period-label" aria-live="polite">{rangeLabel} · Completed transactions only</p>
       </div>
 
-      {loadingSales ? (
-        <PageLoader />
-      ) : (
-        <>
-          <div className="card">
-            <p className="list-item-title" style={{ marginBottom: 8 }}>
-              Sales summary
-            </p>
-            <div className="total-row">
-              <span>Transactions</span>
-              <span>{summary?.transactionCount.toLocaleString() ?? 0}</span>
-            </div>
-            <div className="total-row">
-              <span>Discounts given</span>
-              <span>₦{(summary?.discountTotal ?? 0).toLocaleString()}</span>
-            </div>
-            <div className="total-row">
-              <span>Tax collected</span>
-              <span>₦{(summary?.taxTotal ?? 0).toLocaleString()}</span>
-            </div>
-            <div className="total-row">
-              <span>Average sale</span>
-              <span>₦{(summary?.averageSale ?? 0).toLocaleString()}</span>
-            </div>
-            <div className="total-row">
-              <span>Voided sales</span>
-              <span>{summary?.voidedCount.toLocaleString() ?? 0}</span>
-            </div>
-            <div className="total-row grand">
-              <span>Total revenue</span>
-              <span>₦{(summary?.totalRevenue ?? 0).toLocaleString()}</span>
-            </div>
-          </div>
+      <section className="report-panel" aria-labelledby="sales-summary-title">
+        <SectionHead id="sales-summary-title" title="Sales summary" sub={`${rangeLabel} · Excludes cancelled and voided transactions from revenue`} />
+        <SectionState loading={loadingSales || businessLoading} error={salesError} onRetry={loadSales}>
+          {summary && (
+            <>
+              <div className="report-revenue">
+                <span className="report-revenue-label">Total revenue</span>
+                <strong className="report-revenue-value">{formatMoney(summary.totalRevenue)}</strong>
+              </div>
+              <MetricStrip metrics={[
+                { id: 'transactions', label: 'Transactions', value: formatNumber(summary.transactionCount) },
+                { id: 'average', label: 'Average sale', value: formatMoney(summary.averageSale) },
+                { id: 'discounts', label: 'Discounts', value: formatMoney(summary.discountTotal) },
+                { id: 'tax', label: 'Tax collected', value: formatMoney(summary.taxTotal) },
+                { id: 'voided', label: 'Voided sales', value: formatNumber(summary.voidedCount), tone: summary.voidedCount > 0 ? 'warning' : 'default' },
+              ]} />
+            </>
+          )}
+        </SectionState>
+      </section>
 
-          <div className="card">
-            <p className="list-item-title" style={{ marginBottom: 8 }}>
-              Sales by payment method
-            </p>
+      {!salesError && <div className="report-grid">
+        <SectionState
+          loading={loadingSales || businessLoading}
+          error={salesError}
+          onRetry={loadSales}
+          empty={noCompletedSales}
+          emptyTitle={`No completed ${category === 'restaurant' ? 'orders' : 'sales'} for this period`}
+          emptyBody={`Payment and ${itemPlural} breakdowns will appear after the first completed transaction.`}
+          emptyActions={salesAction}
+        >
+          <section className="report-panel" aria-labelledby="payment-method-title">
+            <SectionHead id="payment-method-title" title="Sales by payment method" sub="Revenue and completed transaction count" />
             {paymentBreakdown.length === 0 ? (
-              <p className="page-subtitle">No completed sales in this period.</p>
+              <StateBlock variant="unavailable" title="Payment split unavailable" body="Completed revenue exists, but no payment allocation was returned for this period." />
             ) : (
-              paymentBreakdown.map((p) => (
-                <div key={p.method} className="movement-row">
-                  <div>{PAYMENT_METHOD_LABELS[p.method] ?? p.method}</div>
-                  <div style={{ textAlign: 'right' }}>
-                    <div>₦{p.amount.toLocaleString()}</div>
-                    <div className="page-subtitle">
-                      {p.transactionCount} transaction{p.transactionCount === 1 ? '' : 's'}
-                    </div>
-                  </div>
-                </div>
-              ))
+              <MeterList items={paymentBreakdown.map((payment) => ({
+                label: PAYMENT_METHOD_LABELS[payment.method] ?? payment.method,
+                value: payment.amount,
+                display: formatMoney(payment.amount),
+                detail: `${formatNumber(payment.transactionCount)} transaction${payment.transactionCount === 1 ? '' : 's'}`,
+              }))} />
             )}
-          </div>
+          </section>
 
-          <div className="card">
-            <p className="list-item-title" style={{ marginBottom: 8 }}>
-              Top products
-            </p>
+          <section className="report-panel" aria-labelledby="top-products-title">
+            <SectionHead id="top-products-title" title={`Top ${itemPlural}`} sub="Ranked by completed sales revenue" />
             {topProducts.length === 0 ? (
-              <p className="page-subtitle">No completed sales in this period.</p>
+              <StateBlock variant="unavailable" title={`${itemPlural[0].toUpperCase()}${itemPlural.slice(1)} unavailable`} body="Completed revenue exists, but no sold item lines were returned for this period." />
             ) : (
-              topProducts.map((p, i) => (
-                <div key={p.productId ?? `${p.productName}-${i}`} className="movement-row">
-                  <div>
-                    <div>{p.productName}</div>
-                    {p.sku && <div className="page-subtitle">{p.sku}</div>}
-                  </div>
-                  <div style={{ textAlign: 'right' }}>
-                    <div>₦{p.revenue.toLocaleString()}</div>
-                    <div className="page-subtitle">{p.quantitySold.toLocaleString()} sold</div>
-                  </div>
-                </div>
-              ))
+              <MeterList items={topProducts.map((product, index) => ({
+                id: product.productId ?? `${product.productName}-${index}`,
+                label: product.productName,
+                value: product.revenue,
+                display: formatMoney(product.revenue),
+                detail: `${formatNumber(product.quantitySold)} sold${product.sku ? ` · ${product.sku}` : ''}`,
+                tone: index === 0 ? 'accent' : 'muted',
+              }))} />
             )}
-          </div>
-        </>
-      )}
+          </section>
+        </SectionState>
+      </div>}
 
-      {loadingSnapshots ? (
-        <PageLoader />
-      ) : (
-        <>
-          <div className="card">
-            <p className="list-item-title" style={{ marginBottom: 8 }}>
-              Inventory valuation
-            </p>
-            <div className="total-row">
-              <span>Products tracked</span>
-              <span>{inventoryValuation?.productCount.toLocaleString() ?? 0}</span>
-            </div>
-            <div className="total-row">
-              <span>Total stock quantity</span>
-              <span>{inventoryValuation?.totalStockQty.toLocaleString() ?? 0}</span>
-            </div>
-            <div className="total-row">
-              <span>Stock value (cost)</span>
-              <span>₦{(inventoryValuation?.totalCostValue ?? 0).toLocaleString()}</span>
-            </div>
-            <div className="total-row grand">
-              <span>Stock value (retail)</span>
-              <span>₦{(inventoryValuation?.totalRetailValue ?? 0).toLocaleString()}</span>
-            </div>
-            <div className="total-row">
-              <span>Low stock products</span>
-              <span>{inventoryValuation?.lowStockCount.toLocaleString() ?? 0}</span>
-            </div>
-          </div>
+      <div className="report-grid">
+        <SectionState loading={loadingSnapshots || businessLoading} error={snapshotError} onRetry={loadSnapshots}>
+          <section className="report-panel" aria-labelledby="inventory-title">
+            <SectionHead id="inventory-title" title={`${experience.terminology.stock} valuation`} sub="Current stock snapshot · the selected sales period does not apply" />
+            <SectionState
+              empty={inventoryValuation?.productCount === 0}
+              emptyTitle={`No ${itemPlural} are being tracked`}
+              emptyBody={`Add a ${experience.terminology.lineItem.toLowerCase()} and enable stock tracking to see its valuation here.`}
+              emptyActions={inventoryAction}
+            >
+              {inventoryValuation && <MetricStrip metrics={[
+                { id: 'products', label: `${itemPlural[0].toUpperCase()}${itemPlural.slice(1)} tracked`, value: formatNumber(inventoryValuation.productCount) },
+                { id: 'quantity', label: 'Total quantity', value: formatNumber(inventoryValuation.totalStockQty) },
+                { id: 'cost', label: 'Cost value', value: formatMoney(inventoryValuation.totalCostValue) },
+                { id: 'retail', label: 'Retail value', value: formatMoney(inventoryValuation.totalRetailValue) },
+                { id: 'low', label: 'Low stock', value: formatNumber(inventoryValuation.lowStockCount), tone: inventoryValuation.lowStockCount > 0 ? 'warning' : 'default' },
+              ]} />}
+            </SectionState>
+          </section>
 
-          <div className="card">
-            <p className="list-item-title" style={{ marginBottom: 8 }}>
-              Customer balances
-            </p>
-            <div className="total-row">
-              <span>Customers with a balance</span>
-              <span>{customerBalances?.customersWithBalance.toLocaleString() ?? 0}</span>
-            </div>
-            <div className="total-row">
-              <span>Loyalty points outstanding</span>
-              <span>{customerBalances?.totalLoyaltyPoints.toLocaleString() ?? 0}</span>
-            </div>
-            <div className="total-row grand">
-              <span>Total receivables</span>
-              <span>₦{(customerBalances?.totalReceivables ?? 0).toLocaleString()}</span>
-            </div>
-          </div>
-        </>
-      )}
+          <section className="report-panel" aria-labelledby="balances-title">
+            <SectionHead id="balances-title" title={`${experience.terminology.customer} balances`} sub="Current balances · the selected sales period does not apply" />
+            {customerBalances && <MetricStrip metrics={[
+              { id: 'receivables', label: 'Total receivables', value: formatMoney(customerBalances.totalReceivables) },
+              { id: 'balances', label: `${experience.terminology.customer}s with a balance`, value: formatNumber(customerBalances.customersWithBalance) },
+              { id: 'loyalty', label: 'Loyalty points outstanding', value: formatNumber(customerBalances.totalLoyaltyPoints) },
+            ]} />}
+          </section>
+        </SectionState>
+      </div>
     </div>
   );
 }
