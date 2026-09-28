@@ -2,32 +2,47 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { usePermissions } from '../../hooks/usePermissions';
+import { useBusinessContext } from '../../contexts/BusinessContext';
+import { getBusinessExperience } from '../../config/businessExperience';
 import { CustomerService } from '../../services/customer.service';
 import { Button } from '../../components/ui/Button';
 import { PageLoader } from '../../components/ui/PageLoader';
-import { StateBlock } from '../../components/ui/StateBlock';
+import { SectionState } from '../../components/ui/StateBlock';
 import type { Customer } from '../../types';
 
 export default function CustomersListPage() {
   const { profile } = useAuth();
   const { hasPermission, loading: permsLoading } = usePermissions();
+  const { category } = useBusinessContext();
+  const customerLabel = getBusinessExperience(category).terminology.customer.toLowerCase();
+  const customersLabel = `${customerLabel}s`;
   const storeId = profile?.currentStoreId;
 
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
+  const [loadAttempt, setLoadAttempt] = useState(0);
 
   const canCreate = hasPermission('customer:create');
 
   useEffect(() => {
-    if (!storeId) return;
+    if (!storeId) {
+      setCustomers([]);
+      setLoading(false);
+      setError(`Choose a business workspace to view ${customersLabel}.`);
+      return;
+    }
+    let active = true;
     setLoading(true);
+    setError(null);
+    setCustomers([]);
     CustomerService.getCustomers(storeId, { search: search || undefined, isActive: true })
-      .then(setCustomers)
-      .catch((err) => setError(err.message ?? 'Failed to load customers'))
-      .finally(() => setLoading(false));
-  }, [storeId, search]);
+      .then((data) => { if (active) setCustomers(data); })
+      .catch((err) => { if (active) setError(err instanceof Error ? err.message : 'Failed to load customers'); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [storeId, search, loadAttempt, customersLabel]);
 
   if (permsLoading) return <PageLoader />;
 
@@ -35,17 +50,15 @@ export default function CustomersListPage() {
     <div className="page">
       <div className="page-header">
         <div>
-          <h1 className="page-title">Customers</h1>
-          <p className="page-subtitle">{customers.length} customer{customers.length === 1 ? '' : 's'}</p>
+          <h1 className="page-title">{customersLabel[0].toUpperCase()}{customersLabel.slice(1)}</h1>
+          <p className="page-subtitle">{loading ? `Loading ${customersLabel}…` : error ? `${customersLabel[0].toUpperCase()}${customersLabel.slice(1)} unavailable` : `${customers.length} ${customerLabel}${customers.length === 1 ? '' : 's'}`}</p>
         </div>
         {canCreate && (
           <Link to="/customers/new">
-            <Button className="btn-sm">Add customer</Button>
+            <Button className="btn-sm">Add {customerLabel}</Button>
           </Link>
         )}
       </div>
-
-      {error && <div className="alert alert-error">{error}</div>}
 
       <input
         className="form-input search-input"
@@ -54,15 +67,15 @@ export default function CustomersListPage() {
         onChange={(e) => setSearch(e.target.value)}
       />
 
-      {loading ? (
-        <PageLoader />
-      ) : customers.length === 0 ? (
-        <StateBlock
-          title={search ? 'No matching customers' : 'No customers yet'}
-          body={search ? 'Try a different name, phone number, or email.' : 'Add a customer to track purchases, balances, and loyalty.'}
-          actions={canCreate && !search ? <Link className="btn btn-primary btn-sm" to="/customers/new">Add customer</Link> : undefined}
-        />
-      ) : (
+      <SectionState
+        loading={loading}
+        error={error}
+        onRetry={() => setLoadAttempt((attempt) => attempt + 1)}
+        empty={customers.length === 0}
+        emptyTitle={search ? `No matching ${customersLabel}` : `No ${customersLabel} yet`}
+        emptyBody={search ? 'Try a different name, phone number, or email.' : `Add a ${customerLabel} to track purchases, balances, and loyalty.`}
+        emptyActions={canCreate && !search ? <Link className="btn btn-primary btn-sm" to="/customers/new">Add {customerLabel}</Link> : undefined}
+      >
         <div className="list">
           {customers.map((customer) => (
             <Link key={customer.id} to={`/customers/${customer.id}`} className="list-item">
@@ -81,7 +94,7 @@ export default function CustomersListPage() {
             </Link>
           ))}
         </div>
-      )}
+      </SectionState>
     </div>
   );
 }

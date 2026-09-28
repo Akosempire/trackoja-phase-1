@@ -9,31 +9,40 @@ import type { Permission } from '../types';
 
 export function usePermissions() {
   const { user, profile } = useAuth();
-  const [permissions, setPermissions] = useState<Permission[]>([]);
-  const [roleName, setRoleName] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const storeId = profile?.currentStoreId;
+  const identity = user && storeId ? `${user.id}:${storeId}` : null;
+  const [result, setResult] = useState<{
+    identity: string | null;
+    permissions: Permission[];
+    roleName: string | null;
+    loading: boolean;
+  }>({ identity: null, permissions: [], roleName: null, loading: true });
 
   useEffect(() => {
-    if (!user || !profile?.currentStoreId) {
-      setPermissions([]);
-      setRoleName(null);
-      setLoading(false);
+    if (!user || !storeId || !identity) {
+      setResult({ identity: null, permissions: [], roleName: null, loading: false });
       return;
     }
 
-    setLoading(true);
-    RbacService.getUserPermissions(user.id, profile.currentStoreId)
+    let active = true;
+    setResult({ identity, permissions: [], roleName: null, loading: true });
+    RbacService.getUserPermissions(user.id, storeId)
       .then((result) => {
-        setPermissions(result.permissions);
-        setRoleName(result.role?.name ?? null);
+        if (active) setResult({ identity, permissions: result.permissions, roleName: result.role?.name ?? null, loading: false });
       })
       .catch((err) => {
         console.error('Load permissions error:', err);
-        setPermissions([]);
-        setRoleName(null);
-      })
-      .finally(() => setLoading(false));
-  }, [user, profile?.currentStoreId]);
+        if (active) setResult({ identity, permissions: [], roleName: null, loading: false });
+      });
+    return () => { active = false; };
+  }, [identity, storeId, user?.id]);
+
+  // A store switch can render before the effect runs. Never expose the prior
+  // store's role or links during that render.
+  const current = result.identity === identity && !result.loading;
+  const permissions = current ? result.permissions : [];
+  const roleName = current ? result.roleName : null;
+  const loading = Boolean(identity) && !current;
 
   const hasPermission = (name: string) => permissions.some((p) => p.name === name);
 

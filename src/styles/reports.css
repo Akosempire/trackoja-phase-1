@@ -32,7 +32,7 @@
   padding: var(--space-20);
   border: 1px solid var(--color-border-control);
   border-radius: var(--radius-card);
-  background: var(--color-surface);
+  background: var(--color-panel);
 }
 
 .report-panel .section-head:last-child { margin-bottom: 0; }

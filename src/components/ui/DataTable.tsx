@@ -154,8 +154,19 @@ export function DataTable<T,>({
             sorted.map((row, index) => (
               <tr
                 key={rowKey(row, index)}
-                onClick={onRowClick ? () => onRowClick(row) : undefined}
-                style={onRowClick ? { cursor: 'pointer' } : undefined}
+                onClick={onRowClick ? (event) => {
+                  if (event.target instanceof Element && event.target.closest('a, button, input, select, textarea, [role="button"]')) return;
+                  onRowClick(row);
+                } : undefined}
+                onKeyDown={onRowClick ? (event) => {
+                  if (event.target !== event.currentTarget) return;
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    onRowClick(row);
+                  }
+                } : undefined}
+                tabIndex={onRowClick ? 0 : undefined}
+                className={onRowClick ? 'is-interactive' : undefined}
               >
                 {columns.map((column) => (
                   <td

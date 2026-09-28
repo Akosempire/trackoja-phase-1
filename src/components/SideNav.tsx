@@ -10,7 +10,7 @@ interface SideNavProps { onLogout: () => void; mobile?: boolean; onClose?: () =>
 
 export function SideNav({ onLogout, mobile = false, onClose }: SideNavProps) {
   const { profile } = useAuth();
-  const { allItems, handleScan } = useAppNav();
+  const { allItems, handleScan, canScan } = useAppNav();
   const [collapsed, setCollapsed] = useState(() => {
     try { return localStorage.getItem('trackoja-sidebar-collapsed') === 'true'; } catch { return false; }
   });
@@ -45,7 +45,7 @@ export function SideNav({ onLogout, mobile = false, onClose }: SideNavProps) {
           </span>
         ))}
       </nav>
-      <button type="button" className="side-nav-scan" aria-label="Scan barcode" title={compact ? 'Scan barcode' : undefined} onClick={() => { handleScan(); onClose?.(); }}>
+      <button type="button" className="side-nav-scan" aria-label="Scan barcode" title={compact ? 'Scan barcode' : undefined} disabled={!canScan} onClick={() => { handleScan(); onClose?.(); }}>
         <ScanIcon width={17} height={17} /><span className="nav-label">Scan barcode</span>
       </button>
       <div className="side-nav-footer">

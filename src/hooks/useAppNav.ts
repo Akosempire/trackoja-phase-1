@@ -49,11 +49,12 @@ export function useAppNav() {
 
   const experience = getBusinessExperience(category);
 
-  // While permissions are still loading, do not filter - otherwise every item
-  // disappears for a frame and the sidebar visibly empties on each store switch.
+  // Keep public workspace navigation visible while permissions resolve. Do not
+  // briefly expose restricted links during a store or role change.
   const permitted = visibleNav(experience).filter(
-    (item) => permsLoading || !item.permission || hasPermission(item.permission)
+    (item) => !item.permission || (!permsLoading && hasPermission(item.permission))
   );
+  const canScan = !permsLoading && (hasPermission('sales:create') || hasPermission('inventory:view'));
 
   const navByKey = new Map<string, NavItem>();
 
@@ -85,6 +86,7 @@ export function useAppNav() {
   ];
 
   const handleScan = () => {
+    if (!canScan) return;
     if (hasPermission('sales:create')) {
       navigate('/sales/checkout?scan=1');
     } else {
@@ -92,5 +94,5 @@ export function useAppNav() {
     }
   };
 
-  return { leftItems, rightItems, allItems, handleScan, ScanIcon, experience };
+  return { leftItems, rightItems, allItems, handleScan, canScan, ScanIcon, experience };
 }

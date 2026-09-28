@@ -13,6 +13,7 @@ import { MenuIcon } from './icons';
 import { MerchantCommandSearch } from './MerchantCommandSearch';
 import { Drawer } from './ui/Drawer';
 import { RouteBackBar } from './RouteBackBar';
+import { useToast } from './ui/Toast';
 
 /**
  * The merchant workspace shell.
@@ -25,11 +26,26 @@ import { RouteBackBar } from './RouteBackBar';
 export function AppLayout() {
   const navigate = useNavigate();
   const { profile } = useAuth();
+  const toast = useToast();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
 
   const handleLogout = async () => {
-    await AuthService.logout();
-    navigate('/login', { replace: true });
+    if (loggingOut) return;
+    setLoggingOut(true);
+    const toastId = toast.loading('Logging out…', { dedupeKey: 'merchant-logout' });
+    try {
+      await AuthService.logout();
+      toast.dismiss(toastId);
+      navigate('/login', { replace: true });
+    } catch (cause) {
+      toast.update(toastId, {
+        variant: 'error',
+        message: 'Could not log out',
+        description: cause instanceof Error ? cause.message : 'Please try again.',
+      });
+      setLoggingOut(false);
+    }
   };
 
   return (
@@ -57,8 +73,8 @@ export function AppLayout() {
               Platform
             </NavLink>
           )}
-          <Button variant="ghost" className="btn-sm" onClick={handleLogout}>
-            Log out
+          <Button variant="ghost" className="btn-sm" onClick={handleLogout} disabled={loggingOut}>
+            {loggingOut ? 'Logging out…' : 'Log out'}
           </Button>
         </div>
       </header>

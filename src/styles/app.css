@@ -707,6 +707,16 @@
   border-color: var(--border2);
 }
 
+.qty-stepper button:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.qty-stepper button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
 .qty-stepper span {
   min-width: 24px;
   text-align: center;

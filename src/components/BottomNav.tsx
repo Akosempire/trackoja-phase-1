@@ -16,7 +16,7 @@ import { useCartCount } from '../utils/cart-count';
  * off centre, which is what happens when items size themselves.
  */
 export function BottomNav() {
-  const { leftItems, rightItems, handleScan } = useAppNav();
+  const { leftItems, rightItems, handleScan, canScan } = useAppNav();
   const cartCount = useCartCount();
 
   const renderLink = (item: NavItem) => {
@@ -51,6 +51,7 @@ export function BottomNav() {
         type="button"
         className="bottom-nav-scan"
         onClick={handleScan}
+        disabled={!canScan}
         aria-label="Scan a barcode to add it to the sale"
       >
         <span className="bottom-nav-scan-face">

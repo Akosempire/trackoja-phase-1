@@ -14,6 +14,8 @@ import { StateBlock } from '../../components/ui/StateBlock';
 import { BarcodeScanner } from '../../components/BarcodeScanner';
 import { OfflineSalesService, isNetworkError } from '../../services/offlineSales.service';
 import { setCartCount } from '../../utils/cart-count';
+import { usePermissions } from '../../hooks/usePermissions';
+import { useToast } from '../../components/ui/Toast';
 import type { Customer, CreateSaleRequest, PaymentMethod, Product, ProductCategory, StoreSettings, OrderType } from '../../types';
 
 interface CartLine {
@@ -45,6 +47,8 @@ function round2(value: number): number {
 export default function CheckoutPage() {
   const { profile } = useAuth();
   const { category, config } = useBusinessContext();
+  const { hasPermission } = usePermissions();
+  const toast = useToast();
   const isRestaurant = category === 'restaurant';
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -56,6 +60,8 @@ export default function CheckoutPage() {
   const [storeSettings, setStoreSettings] = useState<StoreSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [saving, setSaving] = useState(false);
 
   const [search, setSearch] = useState('');
@@ -82,9 +88,25 @@ export default function CheckoutPage() {
     setCartCount(cart.length);
   }, [cart.length]);
 
+  // A store switch must never carry a previous tenant's draft sale into the
+  // newly selected workspace.
   useEffect(() => {
-    if (!storeId) return;
+    setCart([]);
+    setSelectedCustomer(null);
+    setCustomerSearch('');
+    setSearch('');
+    setCategoryId('');
+  }, [storeId]);
+
+  useEffect(() => {
+    if (!storeId) {
+      setLoading(false);
+      setLoadError('Choose a business workspace to start a sale.');
+      return;
+    }
+    let active = true;
     setLoading(true);
+    setLoadError(null);
     Promise.all([
       ProductService.getProducts(storeId, { status: 'active' }),
       CategoryService.getCategories(storeId),
@@ -92,14 +114,18 @@ export default function CheckoutPage() {
       StoreService.getStoreSettings(storeId),
     ])
       .then(([productsData, categoriesData, customersData, settingsData]) => {
+        if (!active) return;
         setProducts(productsData);
         setCategories(categoriesData);
         setCustomers(customersData);
         setStoreSettings(settingsData);
       })
-      .catch((err) => setError(err.message ?? 'Failed to load checkout data'))
-      .finally(() => setLoading(false));
-  }, [storeId]);
+      .catch((err) => {
+        if (active) setLoadError(err instanceof Error ? err.message : 'Failed to load checkout data');
+      })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [storeId, loadAttempt]);
 
   useEffect(() => {
     if (loading || searchParams.get('scan') !== '1') return;
@@ -136,7 +162,9 @@ export default function CheckoutPage() {
       const existing = prev.find((line) => line.productId === product.id);
       if (existing) {
         return prev.map((line) =>
-          line.productId === product.id ? { ...line, quantity: line.quantity + 1 } : line
+          line.productId === product.id
+            ? { ...line, quantity: line.trackInventory ? Math.min(line.quantity + 1, line.stockQty) : line.quantity + 1 }
+            : line
         );
       }
       return [
@@ -171,7 +199,9 @@ export default function CheckoutPage() {
   const updateQuantity = (productId: string, delta: number) => {
     setCart((prev) =>
       prev
-        .map((line) => (line.productId === productId ? { ...line, quantity: line.quantity + delta } : line))
+        .map((line) => (line.productId === productId
+          ? { ...line, quantity: line.trackInventory ? Math.min(line.quantity + delta, line.stockQty) : line.quantity + delta }
+          : line))
         .filter((line) => line.quantity > 0)
     );
   };
@@ -236,6 +266,7 @@ export default function CheckoutPage() {
 
     if (!navigator.onLine) {
       OfflineSalesService.addPendingSale(storeId, request, cart.length, total);
+      toast.info('Sale saved for sync', { description: 'It will be submitted when your connection returns.' });
       navigate('/sales');
       return;
     }
@@ -243,22 +274,40 @@ export default function CheckoutPage() {
     try {
       const sale = await SaleService.createSale(storeId, request);
       if (isRestaurant) {
-        await SaleService.setOrderMeta(sale.id, orderType, 'new', orderType === 'dine_in' ? tableNumber : undefined);
+        try {
+          await SaleService.setOrderMeta(sale.id, orderType, 'new', orderType === 'dine_in' ? tableNumber : undefined);
+        } catch {
+          toast.warning('Sale recorded, order details need attention', { description: 'The sale succeeded, but its restaurant order details could not be saved.' });
+          navigate(`/sales/${sale.id}`);
+          return;
+        }
       }
+      toast.success('Sale recorded');
       navigate(`/sales/${sale.id}`);
-    } catch (err: any) {
+    } catch (err) {
       if (isNetworkError(err)) {
         OfflineSalesService.addPendingSale(storeId, request, cart.length, total);
+        toast.info('Sale saved for sync', { description: 'It will be submitted when your connection returns.' });
         navigate('/sales');
         return;
       }
-      setError(err.message ?? 'Failed to complete sale');
+      const message = err instanceof Error ? err.message : 'Failed to complete sale';
+      setError(message);
+      toast.error('Sale could not be recorded', { description: message });
     } finally {
       setSaving(false);
     }
   };
 
   if (loading) return <PageLoader />;
+  if (loadError) return (
+    <StateBlock
+      variant="error"
+      title="Could not load checkout"
+      body={loadError}
+      actions={<Button variant="outline" onClick={() => setLoadAttempt((attempt) => attempt + 1)}>Try again</Button>}
+    />
+  );
 
   return (
     <div className="checkout-page">
@@ -323,7 +372,12 @@ export default function CheckoutPage() {
           )}
 
           {displayedProducts.length === 0 ? (
-            <StateBlock compact title="No matching products" body="Change the search or category filter and try again." />
+            <StateBlock
+              compact
+              title={products.length === 0 ? `No ${config.productLabel.toLowerCase()} yet` : 'No matching products'}
+              body={products.length === 0 ? 'Add your first item to start taking sales.' : 'Change the search or category filter and try again.'}
+              actions={products.length === 0 && hasPermission('product:create') && <Button variant="outline" onClick={() => navigate('/inventory/products/new')}>Add {config.productLabel.toLowerCase()}</Button>}
+            />
           ) : (
             <div className="product-grid">
               {displayedProducts.map((product) => {
@@ -375,9 +429,9 @@ export default function CheckoutPage() {
                     </div>
                     <div className="co-line-bottom">
                       <div className="qty-stepper">
-                        <button type="button" onClick={() => updateQuantity(line.productId, -1)} aria-label="Decrease">−</button>
-                        <span>{line.quantity}</span>
-                        <button type="button" onClick={() => updateQuantity(line.productId, 1)} aria-label="Increase">+</button>
+                        <button type="button" onClick={() => updateQuantity(line.productId, -1)} aria-label={`Decrease ${line.name} quantity`}>−</button>
+                        <span aria-live="polite" aria-label={`${line.quantity} ${line.unit}`}>{line.quantity}</span>
+                        <button type="button" onClick={() => updateQuantity(line.productId, 1)} disabled={line.trackInventory && line.quantity >= line.stockQty} aria-label={`Increase ${line.name} quantity`}>+</button>
                       </div>
                       <span className="co-line-unit">₦{line.unitPrice.toLocaleString()} ea.</span>
                       <button type="button" className="co-line-remove" onClick={() => removeLine(line.productId)}>✕</button>
