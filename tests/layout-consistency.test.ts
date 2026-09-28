@@ -47,4 +47,11 @@ describe('shared application layout', () => {
     expect(sideNav).toContain('aria-label="Back to current page"');
     expect(sideNav).toContain('<ArrowLeftIcon');
   });
+
+  it('keeps dashboard cards visibly bordered in both themes', () => {
+    const dashboard = source('src/styles/dashboard.css');
+    expect(dashboard).toContain('.dash .kpi-card');
+    expect(dashboard).toContain('.dash > .card');
+    expect(dashboard).toContain('border: 1px solid var(--color-border-control)');
+  });
 });
