@@ -14,6 +14,7 @@ import { KpiCard, KpiGrid } from '../components/ui/KpiCard';
 import { PageLoader } from '../components/ui/PageLoader';
 import { SectionHead } from '../components/ui/SectionHead';
 import { StateBlock } from '../components/ui/StateBlock';
+import { HealthyStrip } from '../components/ui/AttentionList';
 import { getBusinessExperience, type DashboardMetric } from '../config/businessExperience';
 import { isResolvableMetric } from '../config/dashboardMetrics';
 import type { AuditLog, Product, Sale, SalesSummary, Store } from '../types';
@@ -41,10 +42,10 @@ function timeAgo(iso: string): string {
 
 interface MetricContext {
   summary: SalesSummary | null;
-  products: Product[];
-  lowStock: Product[];
+  products: Product[] | null;
+  lowStock: Product[] | null;
   kitchenOrders: Sale[] | null;
-  refunds: { createdAt?: string }[] | null;
+  refundCount: number | null;
   customerCount: number | null;
 }
 
@@ -63,7 +64,7 @@ function resolveMetric(metric: DashboardMetric, ctx: MetricContext): ResolvedMet
   if (!isResolvableMetric(metric.key)) return null;
 
   const expiringWithin = (days: number) =>
-    ctx.products.filter((p) => {
+    (ctx.products ?? []).filter((p) => {
       const left = daysUntil(p.attributes?.expiryDate);
       return left !== null && left >= 0 && left <= days;
     });
@@ -82,8 +83,10 @@ function resolveMetric(metric: DashboardMetric, ctx: MetricContext): ResolvedMet
       if (!ctx.summary) return null;
       return { metric, value: String(ctx.summary.transactionCount) };
     case 'low_stock':
+      if (!ctx.lowStock) return null;
       return { metric, value: String(ctx.lowStock.length) };
     case 'unavailable_items':
+      if (!ctx.products) return null;
       return {
         metric,
         value: String(ctx.products.filter((p) => p.trackInventory && p.stockQty <= 0).length),
@@ -105,8 +108,10 @@ function resolveMetric(metric: DashboardMetric, ctx: MetricContext): ResolvedMet
       };
     case 'near_expiry':
     case 'expiring':
+      if (!ctx.products) return null;
       return { metric, value: String(expiringWithin(90).length) };
     case 'expired':
+      if (!ctx.products) return null;
       return {
         metric,
         value: String(
@@ -120,8 +125,8 @@ function resolveMetric(metric: DashboardMetric, ctx: MetricContext): ResolvedMet
       if (ctx.customerCount === null) return null;
       return { metric, value: String(ctx.customerCount) };
     case 'returns':
-      if (!ctx.refunds) return null;
-      return { metric, value: String(ctx.refunds.length) };
+      if (ctx.refundCount === null) return null;
+      return { metric, value: String(ctx.refundCount) };
     default:
       return null;
   }
@@ -132,22 +137,28 @@ export default function DashboardPage() {
   const { profile } = useAuth();
   const { category } = useBusinessContext();
   const { hasPermission, loading: permissionsLoading } = usePermissions();
+  const canReadReports = hasPermission('reports:view');
+  const canReadInventory = hasPermission('inventory:view');
+  const canReadSales = hasPermission('sales:view');
+  const canReadCustomers = hasPermission('customer:view');
   const experience = getBusinessExperience(category);
   const storeId = profile?.currentStoreId;
   const dashboardRequest = useRef(0);
 
   const [store, setStore] = useState<Store | null>(null);
   const [summary, setSummary] = useState<SalesSummary | null>(null);
-  const [products, setProducts] = useState<Product[]>([]);
-  const [lowStock, setLowStock] = useState<Product[]>([]);
+  const [products, setProducts] = useState<Product[] | null>(null);
+  const [lowStock, setLowStock] = useState<Product[] | null>(null);
   const [kitchenOrders, setKitchenOrders] = useState<Sale[] | null>(null);
-  const [refunds, setRefunds] = useState<{ createdAt?: string }[] | null>(null);
+  const [refundCount, setRefundCount] = useState<number | null>(null);
   const [customerCount, setCustomerCount] = useState<number | null>(null);
-  const [activity, setActivity] = useState<AuditLog[]>([]);
+  const [activity, setActivity] = useState<AuditLog[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [partialFailures, setPartialFailures] = useState(0);
 
   const loadDashboard = useCallback(async () => {
+    if (permissionsLoading) return;
     if (!storeId) {
       setLoading(false);
       setError('Choose a business workspace to view its dashboard.');
@@ -162,24 +173,29 @@ export default function DashboardPage() {
     setError(null);
     setStore(null);
     setSummary(null);
-    setProducts([]);
-    setLowStock([]);
+    setProducts(null);
+    setLowStock(null);
     setKitchenOrders(null);
-    setRefunds(null);
+    setRefundCount(null);
     setCustomerCount(null);
-    setActivity([]);
+    setActivity(null);
+    setPartialFailures(0);
 
     try {
+      let failed = 0;
+      const optional = <T,>(request: Promise<T>): Promise<T | null> => request.catch(() => {
+        failed += 1;
+        return null;
+      });
       const [storeRow, sales, allProducts, low, logs, orders, refundRows, customers] = await Promise.all([
         StoreService.getStore(storeId),
-        ReportService.getSalesSummary(storeId, todayStart.toISOString(), now.toISOString()),
-        ProductService.getProducts(storeId),
-        ProductService.getProducts(storeId, { status: 'active', lowStockOnly: true }),
-        AuditService.getStoreAuditLogs(storeId, 8),
-        // These enrich the dashboard; an unavailable module must not break core figures.
-        SaleService.getKitchenOrders(storeId).catch(() => null),
-        SaleService.getRecentRefunds(storeId).catch(() => null),
-        CustomerService.getCustomers(storeId).catch(() => null),
+        canReadReports ? optional(ReportService.getSalesSummary(storeId, todayStart.toISOString(), now.toISOString())) : Promise.resolve(null),
+        canReadInventory ? optional(ProductService.getProducts(storeId)) : Promise.resolve(null),
+        canReadInventory ? optional(ProductService.getProducts(storeId, { status: 'active', lowStockOnly: true })) : Promise.resolve(null),
+        optional(AuditService.getStoreAuditLogs(storeId, 8)),
+        category === 'restaurant' && canReadSales ? optional(SaleService.getKitchenOrders(storeId)) : Promise.resolve(null),
+        canReadSales ? optional(SaleService.getRefundCount(storeId, todayStart.toISOString(), now.toISOString())) : Promise.resolve(null),
+        canReadCustomers ? optional(CustomerService.getCustomers(storeId)) : Promise.resolve(null),
       ]);
       if (request !== dashboardRequest.current) return;
       setStore(storeRow);
@@ -188,14 +204,15 @@ export default function DashboardPage() {
       setLowStock(low);
       setActivity(logs);
       setKitchenOrders(orders);
-      setRefunds(refundRows as { createdAt?: string }[] | null);
+      setRefundCount(refundRows);
       setCustomerCount(customers?.length ?? null);
+      setPartialFailures(failed);
     } catch (err) {
       if (request === dashboardRequest.current) setError((err as Error)?.message ?? 'Could not load your dashboard');
     } finally {
       if (request === dashboardRequest.current) setLoading(false);
     }
-  }, [storeId]);
+  }, [storeId, permissionsLoading, canReadReports, canReadInventory, canReadSales, canReadCustomers, category]);
 
   useEffect(() => { void loadDashboard(); }, [loadDashboard]);
 
@@ -205,18 +222,19 @@ export default function DashboardPage() {
       products,
       lowStock,
       kitchenOrders,
-      refunds,
+      refundCount,
       customerCount,
     };
     return experience.dashboard
       .filter((metric) => metric.implemented)
       .map((metric) => resolveMetric(metric, ctx))
       .filter((entry): entry is ResolvedMetric => entry !== null);
-  }, [experience, summary, products, lowStock, kitchenOrders, refunds, customerCount]);
+  }, [experience, summary, products, lowStock, kitchenOrders, refundCount, customerCount]);
 
   // A business with no records at all gets guidance, not zeroes.
   const hasAnyRecords =
-    (summary?.transactionCount ?? 0) > 0 || products.length > 0 || (customerCount ?? 0) > 0;
+    (summary?.transactionCount ?? 0) > 0 || (products?.length ?? 0) > 0 || (customerCount ?? 0) > 0;
+  const hasAvailableData = summary !== null || products !== null || customerCount !== null || kitchenOrders !== null;
   const canUseAction = (route: string) => {
     if (permissionsLoading) return false;
     if (route === '/sales/checkout') return hasPermission('sales:create');
@@ -224,7 +242,7 @@ export default function DashboardPage() {
     return true;
   };
 
-  if (loading) return <PageLoader />;
+  if (loading || permissionsLoading) return <PageLoader />;
 
   return (
     <div className="page dash">
@@ -253,6 +271,13 @@ export default function DashboardPage() {
           ))}
       </div>
 
+      {partialFailures > 0 && !error && (
+        <div className="alert alert-warning" role="status">
+          <span className="alert-text">{partialFailures} dashboard source{partialFailures === 1 ? '' : 's'} could not load. Unavailable figures are hidden.</span>
+          <Button variant="ghost" className="btn-sm" onClick={loadDashboard}>Try again</Button>
+        </div>
+      )}
+
       {error ? (
         <div className="card">
           <StateBlock
@@ -262,12 +287,19 @@ export default function DashboardPage() {
             actions={<Button variant="outline" className="btn-sm" onClick={loadDashboard}>Try again</Button>}
           />
         </div>
+      ) : !hasAvailableData ? (
+        <div className="card">
+          <StateBlock variant="unavailable" title="Dashboard data unavailable" body="Your role has no accessible dashboard data, or the available sources did not answer." actions={partialFailures > 0 && <Button variant="outline" className="btn-sm" onClick={loadDashboard}>Try again</Button>} />
+        </div>
       ) : !hasAnyRecords ? (
         <div className="card">
           <StateBlock
-            title={`No ${experience.terminology.recordPlural.toLowerCase()} to show yet`}
-            body={experience.emptyStates.dashboard}
-            actions={canUseAction(experience.primaryAction.route) ? (
+            variant={partialFailures > 0 ? 'error' : 'empty'}
+            title={partialFailures > 0 ? 'Dashboard is incomplete' : `No ${experience.terminology.recordPlural.toLowerCase()} to show yet`}
+            body={partialFailures > 0 ? 'Some data did not load, so an empty result cannot be confirmed.' : experience.emptyStates.dashboard}
+            actions={partialFailures > 0 ? (
+              <Button variant="outline" className="btn-sm" onClick={loadDashboard}>Try again</Button>
+            ) : canUseAction(experience.primaryAction.route) ? (
               <Link className="btn btn-primary btn-sm" to={experience.primaryAction.route}>
                 {experience.primaryAction.label}
               </Link>
@@ -285,24 +317,55 @@ export default function DashboardPage() {
             })}
           </KpiGrid>
 
-          <section className="card" aria-labelledby="recent-activity-title">
-            <SectionHead id="recent-activity-title" title="Recent activity" />
-            {activity.length === 0 ? (
-              <StateBlock title="No recent activity" body="Completed changes and actions will appear here." />
-            ) : (
-              <div className="list">
-                {activity.map((log) => (
-                  <div className="list-item" key={log.id}>
-                    <div>
-                      <p className="list-item-title">{log.action.replace(/_/g, ' ').toLowerCase()}</p>
-                      <p className="list-item-subtitle">{log.resourceName ?? log.resourceType ?? 'record'} · {timeAgo(log.createdAt)}</p>
+          <div className="dash-panels">
+            <section className="card dash-panel" aria-labelledby="recent-activity-title">
+              <SectionHead id="recent-activity-title" title="Recent activity" />
+              {activity === null ? (
+                <StateBlock compact variant="error" title="Activity unavailable" body="Recent actions could not be loaded." actions={<Button variant="outline" className="btn-sm" onClick={loadDashboard}>Try again</Button>} />
+              ) : activity.length === 0 ? (
+                <StateBlock compact title="No recent activity" body="Completed changes and actions will appear here." />
+              ) : (
+                <div className="list">
+                  {activity.slice(0, 5).map((log) => (
+                    <div className="list-item" key={log.id}>
+                      <div>
+                        <p className="list-item-title">{log.action.replace(/_/g, ' ').toLowerCase()}</p>
+                        <p className="list-item-subtitle">{log.resourceName ?? log.resourceType ?? 'record'} · {timeAgo(log.createdAt)}</p>
+                      </div>
+                      <span className={`badge ${log.status === 'success' ? 'badge-success' : 'badge-warning'}`}>{log.status}</span>
                     </div>
-                    <span className={`badge ${log.status === 'success' ? 'badge-success' : 'badge-warning'}`}>{log.status}</span>
+                  ))}
+                </div>
+              )}
+            </section>
+
+            {hasPermission('inventory:view') && (
+              <section className="card dash-panel" aria-labelledby="stock-attention-title">
+                <SectionHead
+                  id="stock-attention-title"
+                  title={`${experience.terminology.stock} attention`}
+                  actions={<Link className="btn btn-ghost btn-sm" to="/inventory/products">View {experience.terminology.lineItem.toLowerCase()}</Link>}
+                />
+                {lowStock === null ? (
+                  <StateBlock compact variant="error" title="Stock status unavailable" body="Inventory could not be loaded." actions={<Button variant="outline" className="btn-sm" onClick={loadDashboard}>Try again</Button>} />
+                ) : lowStock.length === 0 ? (
+                  <HealthyStrip>No low-stock {experience.terminology.lineItem.toLowerCase()} need attention.</HealthyStrip>
+                ) : (
+                  <div className="list">
+                    {lowStock.slice(0, 5).map((product) => (
+                      <Link className="list-item" key={product.id} to={`/inventory/products/${product.id}`}>
+                        <div>
+                          <p className="list-item-title">{product.name}</p>
+                          <p className="list-item-subtitle">Reorder at {product.reorderLevel.toLocaleString()} {product.unit}</p>
+                        </div>
+                        <span className="badge badge-warning">{product.stockQty.toLocaleString()} left</span>
+                      </Link>
+                    ))}
                   </div>
-                ))}
-              </div>
+                )}
+              </section>
             )}
-          </section>
+          </div>
         </>
       )}
     </div>

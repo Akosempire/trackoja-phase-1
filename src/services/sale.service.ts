@@ -241,6 +241,18 @@ export class SaleService {
     }
   }
 
+  /** Exact count for a dashboard period; the recent-refunds list is capped. */
+  static async getRefundCount(storeId: string, from: string, to: string): Promise<number> {
+    const { count, error } = await supabase
+      .from('refunds')
+      .select('id', { count: 'exact', head: true })
+      .eq('store_id', storeId)
+      .gte('created_at', from)
+      .lt('created_at', to);
+    if (error) throw error;
+    return count ?? 0;
+  }
+
   /**
    * Attach restaurant order metadata to a sale immediately after creation.
    */

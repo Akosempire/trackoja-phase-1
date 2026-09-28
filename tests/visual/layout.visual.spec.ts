@@ -4,10 +4,12 @@ import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const styles = [
-  'src/styles/tokens.css',
   'src/styles/theme.css',
+  'src/styles/app.css',
+  'src/styles/tokens.css',
   'src/styles/waya.css',
   'src/styles/waya-components.css',
+  'src/styles/mobile.css',
   'src/styles/dashboard.css',
   'src/styles/reports.css',
   'src/styles/platform-overview.css',
@@ -19,7 +21,7 @@ async function mountLayout(page: Page, theme: 'light' | 'dark') {
       <nav class="route-back-bar"><a class="route-back-link" href="#">← <span>Back to dashboard</span></a></nav>
       <header class="page-header"><div><h1 class="page-title">Reports</h1><p class="page-subtitle">Today · 28 September 2026</p></div><div class="btn-row"><button class="btn btn-outline btn-sm">Export</button><button class="btn btn-primary btn-sm">Record a sale</button></div></header>
       <div class="report-period-bar"><div class="segmented-control" role="radiogroup"><button class="is-active">Today</button><button>Last 7 days</button><button>Last 30 days</button><button>This month</button></div><p class="report-period-label">28 September 2026 · Completed transactions only</p></div>
-      <section class="report-panel"><h2>Sales summary</h2><div class="metric-grid"><div><span>Revenue</span><strong>₦22,500</strong></div><div><span>Transactions</span><strong>5</strong></div></div></section>
+      <section class="report-panel"><div class="section-head"><h2 class="section-title">Sales summary</h2></div><div class="report-revenue"><span class="report-revenue-label">Total revenue</span><strong class="report-revenue-value">₦22,500</strong></div><div class="metric-strip"><div class="metric"><span class="metric-label">Transactions</span><span class="metric-value">5</span></div><div class="metric"><span class="metric-label">Average sale</span><span class="metric-value">₦4,500</span></div></div></section>
       <section class="report-grid"><article class="report-panel"><h2>Sales by payment method</h2><div class="state-block is-compact"><p class="state-title">No completed sales</p><p class="state-body">Record a sale to see payment totals.</p><div class="state-actions"><button class="btn btn-primary btn-sm">Record a sale</button></div></div></article><article class="report-panel"><h2>Top products</h2><p>Products rank here after completed sales.</p></article></section>
       <form class="card page-form"><div class="form-group"><label class="form-label">Billing email</label><input class="form-input" value="billing@example.com"></div><div class="form-actions"><button class="btn btn-primary">Save billing email</button><button class="btn btn-outline">Cancel</button></div></form>
     </div></main></body></html>`);
@@ -60,7 +62,10 @@ for (const viewport of [
       const content = page.locator('.page');
       await expect(content).toBeVisible();
       const box = await content.boundingBox();
-      expect(box?.width).toBeLessThanOrEqual(1120);
+      expect(box?.width).toBeLessThanOrEqual(1168);
+      const formInput = await page.locator('.page-form .form-input').boundingBox();
+      const formButton = await page.locator('.page-form .btn').first().boundingBox();
+      expect(formInput?.height).toBe(formButton?.height);
       await expect(page.locator('.report-panel').first()).toHaveCSS('border-top-width', '1px');
       const buttons = page.locator('.page-header .btn');
       if (viewport.width >= 600) {
@@ -70,6 +75,47 @@ for (const viewport of [
         expect(first?.height).toBe(second?.height);
       }
       await expect(page).toHaveScreenshot(`${viewport.name}-${theme}.png`, { fullPage: true, animations: 'disabled' });
+    });
+  }
+}
+
+for (const viewport of [
+  { name: 'desktop', width: 1440, height: 1000 },
+  { name: 'mobile', width: 390, height: 900 },
+]) {
+  for (const theme of ['light', 'dark'] as const) {
+    test(`merchant dashboard ${viewport.name} ${theme}`, async ({ page }) => {
+      await page.setViewportSize(viewport);
+      await page.setContent(`<!doctype html><html data-theme="${theme}"><body>
+        <div class="app-shell"><aside class="side-nav">Workspace</aside><div class="app-main"><div class="app-content">
+          <main class="page dash">
+            <header class="page-header"><div><h1 class="page-title">Akos Store</h1><p class="page-subtitle">How are sales and stock today?</p></div></header>
+            <div class="btn-row dash-actions"><button class="btn btn-primary">Record a sale</button><button class="btn btn-outline">Add product</button></div>
+            <div class="kpi-grid">
+              <article class="kpi-card"><span class="kpi-head"><span class="kpi-label">Sales today</span></span><strong class="kpi-value">₦22,500</strong><span class="kpi-foot">5 sales</span></article>
+              <article class="kpi-card"><span class="kpi-head"><span class="kpi-label">Transactions</span></span><strong class="kpi-value">5</strong><span class="kpi-foot" aria-hidden="true">&nbsp;</span></article>
+              <article class="kpi-card"><span class="kpi-head"><span class="kpi-label">Low stock</span></span><strong class="kpi-value">2</strong><span class="kpi-foot" aria-hidden="true">&nbsp;</span></article>
+              <article class="kpi-card"><span class="kpi-head"><span class="kpi-label">Unavailable items</span></span><strong class="kpi-value">0</strong><span class="kpi-foot" aria-hidden="true">&nbsp;</span></article>
+            </div>
+            <div class="dash-panels"><section class="card dash-panel"><div class="section-head"><h2 class="section-title">Recent activity</h2></div><div class="list"><div class="list-item"><div><p class="list-item-title">Sale recorded</p><p class="list-item-subtitle">Order 124 · just now</p></div><span class="badge badge-success">Success</span></div></div></section><section class="card dash-panel"><div class="section-head"><h2 class="section-title">Stock attention</h2><a class="btn btn-ghost btn-sm" href="#">View products</a></div><div class="list"><div class="list-item"><div><p class="list-item-title">Rice</p><p class="list-item-subtitle">Reorder at 5 bags</p></div><span class="badge badge-warning">2 left</span></div></div></section></div>
+          </main>
+        </div></div></div></body></html>`);
+      for (const file of styles) await page.addStyleTag({ path: path.join(root, file) });
+      const frame = await page.locator('.app-main').boundingBox();
+      const card = await page.locator('.kpi-card').first().boundingBox();
+      const lastCard = await page.locator('.kpi-card').last().boundingBox();
+      expect(frame).not.toBeNull();
+      expect(card).not.toBeNull();
+      expect(card!.x - frame!.x).toBeGreaterThanOrEqual(viewport.width < 600 ? 16 : 24);
+      expect(frame!.x + frame!.width - (lastCard!.x + lastCard!.width)).toBeGreaterThanOrEqual(16);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(viewport.width);
+      await expect(page.locator('.kpi-card').first()).toHaveCSS('border-top-width', '1px');
+      await expect(page.locator('.kpi-value').first()).toHaveCSS('font-family', /Inter/);
+      const values = await page.locator('.kpi-value').all();
+      const valueBoxes = await Promise.all(values.map((value) => value.boundingBox()));
+      expect(valueBoxes[0]?.y).toBe(valueBoxes[1]?.y);
+      expect(valueBoxes[2]?.y).toBe(valueBoxes[3]?.y);
+      await expect(page).toHaveScreenshot(`merchant-dashboard-${viewport.name}-${theme}.png`, { fullPage: true, animations: 'disabled' });
     });
   }
 }

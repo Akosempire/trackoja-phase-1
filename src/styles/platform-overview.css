@@ -16,7 +16,7 @@
 .ui-metric,
 .overview-panel {
   min-width: 0;
-  border: var(--border-hairline) solid var(--color-border-control);
+  border: 1px solid var(--color-border-control);
   border-radius: var(--radius-card);
   background: var(--color-panel);
 }
@@ -34,7 +34,7 @@ a.ui-metric:hover { background: var(--color-subtle); border-color: var(--color-b
 a.ui-metric:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
 .ui-metric header { display: flex; align-items: center; justify-content: space-between; gap: var(--space-12); }
 .ui-metric h2 { margin: 0; color: var(--color-text); font-size: var(--text-body-sm); font-weight: 600; line-height: var(--leading-ui); }
-.overview-metric-value { display: block; margin-top: var(--space-32); color: var(--color-text-strong); font-size: 29px; font-weight: 400; letter-spacing: -.035em; line-height: 1; font-variant-numeric: tabular-nums; }
+.overview-metric-value { display: block; margin-top: var(--space-32); color: var(--color-text-strong); font-family: var(--font-body); font-size: var(--text-metric); font-weight: 500; letter-spacing: -.035em; line-height: 1; font-variant-numeric: tabular-nums; }
 .overview-metric-value.is-warning { color: var(--color-warning-text); }
 .overview-metric-value.is-danger { color: var(--color-danger); }
 .ui-metric p { margin: var(--space-12) 0 0; color: var(--color-text-muted); font-size: var(--text-caption); }

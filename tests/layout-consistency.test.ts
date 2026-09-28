@@ -12,8 +12,8 @@ describe('shared application layout', () => {
     expect(tokens).toContain('--content-form: 760px');
     expect(tokens).toContain('--content-page: 1120px');
     expect(tokens).toContain('--content-readable: 1440px');
-    expect(surfaces).toContain('.page { max-width: var(--content-page)');
-    expect(surfaces).toContain('.page-wide, .checkout-page { max-width: var(--content-readable); }');
+    expect(surfaces).toContain('.page { max-width: calc(var(--content-page) + var(--space-24) + var(--space-24))');
+    expect(surfaces).toContain('.page-wide, .checkout-page { max-width: calc(var(--content-readable) + var(--space-24) + var(--space-24)); }');
   });
 
   it('keeps ordinary buttons content-sized and grouped actions aligned', () => {

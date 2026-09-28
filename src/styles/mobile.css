@@ -65,9 +65,6 @@ label,
   }
 }
 
-/* Guard against horizontal panning: a page that can scroll sideways is what makes
-   a layout feel like it is sliding around under a thumb. `clip` avoids the scroll
-   container that `hidden` creates, so position: sticky keeps working. */
-body {
-  overflow-x: clip;
-}
+/* Do not conceal overflow with clip: it hides controls and the left page gutter.
+   Responsive grids and table wrappers must contain their own width instead. */
+body { overflow-x: auto; }

@@ -7,6 +7,9 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
+      // The injected one-line register script never reloads a tab after a new
+      // worker takes control. The app registers through virtual:pwa-register.
+      injectRegister: false,
       includeAssets: ['favicon.svg'],
       manifest: {
         name: 'TrackOja',
@@ -25,6 +28,8 @@ export default defineConfig({
         ],
       },
       workbox: {
+        skipWaiting: true,
+        clientsClaim: true,
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/_/],
         runtimeCaching: [

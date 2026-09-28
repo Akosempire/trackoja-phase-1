@@ -18,8 +18,10 @@ import './styles/form-controls.css';
 import './styles/mobile.css';
 import { ToastProvider } from './components/ui/Toast';
 import { applyTheme, readTheme } from './components/ThemeSelect';
+import { registerAppWorker } from './pwa';
 
 applyTheme(readTheme());
+registerAppWorker();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

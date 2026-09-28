@@ -45,7 +45,7 @@ export function KpiCard({
         )}
       </span>
       <span className="kpi-value">{value}</span>
-      {foot && <span className="kpi-foot">{foot}</span>}
+      <span className="kpi-foot" aria-hidden={foot == null ? true : undefined}>{foot ?? '\u00a0'}</span>
     </>
   );
 

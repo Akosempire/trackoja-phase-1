@@ -1,5 +1,6 @@
 /* Shared component mapping. Commerce-specific geometry stays in app.css. */
 body { font-family: var(--font-body); font-size: var(--text-body); line-height: var(--leading-body); }
+.app-content { width: 100%; min-width: 0; }
 button, input, select, textarea { font-family: inherit; }
 button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
 :where(button, a, input, select, textarea, [tabindex]):focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
@@ -26,9 +27,11 @@ svg { flex-shrink: 0; }
 .icon-button, .sidebar-toggle { display: inline-flex; align-items: center; justify-content: center; gap: var(--space-12); border: 0; background: transparent; color: var(--t2); height: var(--control-small); border-radius: var(--radius-control); cursor: pointer; }
 .icon-button { width: var(--control-small); flex-shrink: 0; font-size: var(--text-title); }
 .icon-button:hover, .sidebar-toggle:hover { background: var(--color-hover); color: var(--t1); }
+.form-group { min-width: 0; gap: var(--space-6); margin-bottom: var(--space-16); }
 .form-label { font-size: var(--text-label); font-weight: 500; color: var(--t1); }
-.form-input, .select-input, textarea { background: var(--surf); border: 1px solid var(--border2); border-radius: var(--radius-input); font-size: var(--text-body-sm); padding: var(--space-10) 11px; color: var(--t1); }
+.form-input, .select-input, textarea { display: block; width: 100%; min-width: 0; background: var(--surf); border: 1px solid var(--border2); border-radius: var(--radius-input); font-size: var(--text-body-sm); line-height: var(--leading-ui); padding: var(--space-8) var(--space-12); color: var(--t1); }
 .form-input, .select-input { height: var(--control-height); }
+.form-input:focus-visible, .select-input:focus-visible, textarea:focus-visible { border-color: var(--color-accent); outline: 2px solid var(--color-accent); outline-offset: 1px; }
 textarea { min-height: 112px; width: 100%; resize: vertical; }
 .form-hint, .form-error { font-size: var(--text-caption); }
 .search-input { height: 44px; border-radius: var(--radius-pill); max-width: 560px; padding-left: var(--space-14); }
@@ -38,9 +41,9 @@ input[type='checkbox'], input[type='radio'] { accent-color: var(--color-accent);
 .alert-success, .badge-success { color: var(--success); background: var(--green-s); }
 .badge { font-size: var(--text-sm); font-weight: 500; letter-spacing: normal; text-transform: none; }
 
-.page { max-width: var(--content-page); width: 100%; padding: var(--space-32) var(--space-16); margin: 0 auto; }
-.page-wide, .checkout-page { max-width: var(--content-readable); }
-.page-form, .page-settings { max-width: var(--content-form); }
+.page { max-width: calc(var(--content-page) + var(--space-24) + var(--space-24)); width: 100%; min-width: 0; padding: var(--space-32) var(--space-16); margin: 0 auto; }
+.page-wide, .checkout-page { max-width: calc(var(--content-readable) + var(--space-24) + var(--space-24)); }
+.page-form, .page-settings { max-width: calc(var(--content-form) + var(--space-24) + var(--space-24)); }
 .page-header { align-items: center; flex-wrap: wrap; gap: var(--space-16); margin-bottom: var(--space-32); }
 .page-header > :first-child { flex: 1; min-width: 0; }
 .page-header > :is(a, .btn, .btn-row, .toolbar-group) { flex-shrink: 0; }
@@ -170,14 +173,12 @@ input[type='checkbox'], input[type='radio'] { accent-color: var(--color-accent);
 
 @media (min-width: 601px) { .page { padding: var(--space-40) var(--space-24); } }
 @media (min-width: 901px) {
-  .page { padding: var(--space-40) var(--space-16); }
+  .page { padding: var(--space-40) var(--space-24); }
   .page-title, .auth-title, .onboarding-title { font-size: var(--text-display); }
-  .page-settings, .page-form { max-width: var(--content-form); }
+  .page-settings, .page-form { max-width: calc(var(--content-form) + var(--space-24) + var(--space-24)); }
   .rp-page { max-width: 600px; margin-inline: auto; }
   .app-content { padding-bottom: 0; }
 }
-@media (min-width: 1280px) { .page { padding-inline: var(--space-20); } }
-@media (min-width: 1440px) { .page { padding-inline: var(--space-24); } }
 @media (max-width: 1100px) { .dash-body { flex-direction: column; } .dash-body-right { width: 100%; } }
 @media (min-width: 768px) and (max-width: 900px) {
   .app-shell { flex-direction: column; }

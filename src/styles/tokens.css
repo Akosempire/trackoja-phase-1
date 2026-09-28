@@ -32,6 +32,7 @@
   --text-2xs: 9px; --text-xs: 10px; --text-sm: 11px;
   --text-caption: 12px; --text-label: 13px; --text-body-sm: 14px;
   --text-body: 15px; --text-body-lg: 16px; --text-title-sm: 18px; --text-title: 20px;
+  --text-metric: 29px;
   --text-display: 48px; --text-display-mobile: 39px;
   --leading-tight: 1.08; --leading-ui: 1.25; --leading-body: 1.45; --leading-relaxed: 1.6;
   --space-0: 0; --space-2: 2px; --space-4: 4px; --space-6: 6px;
@@ -44,6 +45,7 @@
   --radius-pill: 999px;
   --border-hairline: .5px;
   --shadow-popover: 0 4px 20px rgb(0 0 0 / .08);
+  --shadow-xs: 0 1px 2px rgb(0 0 0 / .08);
   --shadow-dialog: 0 16px 48px rgb(0 0 0 / .16);
   --sidebar-width: 247px; --sidebar-collapsed: 60px;
   --content-form: 760px; --content-page: 1120px; --content-readable: 1440px;
