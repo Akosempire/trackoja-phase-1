@@ -440,10 +440,10 @@ consumer):**
   what the CLI tracks and what `DEPLOYMENT.md` documents.
 - **F9 (verified):** the two untracked files both claim version `20260927000095`:
   `20260927000095_payments_fail_closed.sql` and
-  `20260927000095_platform_business_billing_email.sql`. `supabase_migrations.schema_migrations`
+  `20260927000096_platform_business_billing_email.sql`. `supabase_migrations.schema_migrations`
   is keyed on version, and `DEPLOYMENT.md:93-100` shows that version being written
   explicitly. Two files with one version will collide. Renumber one — the billing-email
-  migration is the smaller and more self-contained change (`20260927000095_platform_business_billing_email.sql:1-25`
+  migration is the smaller and more self-contained change (`20260927000096_platform_business_billing_email.sql:1-25`
   appends one JSONB key to `get_platform_business`) — before pushing to any project.
 - `DEPLOYMENT.md:88-91` states every migration is written to be idempotent, and that
   each platform migration has a re-runnable verification script in

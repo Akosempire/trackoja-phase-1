@@ -120,7 +120,7 @@ the VPS as updated until this comparison passes.
 
 Migrations are plain SQL files in `supabase/migrations/`, named
 `YYYYMMDD` + a 6-digit sequence, for example
-`20260927000095_platform_business_billing_email.sql`. Applying them in filename
+`20260927000096_platform_business_billing_email.sql`. Applying them in filename
 order is the same as applying them in the order they were written; there is no
 other ordering mechanism and no separate manifest.
 
@@ -136,12 +136,12 @@ table does not record, in version order. Or, when no database password is availa
 the Management API's SQL endpoint with a personal access token, one file at a time:
 
 ```bash
-jq -Rs '{query: .}' supabase/migrations/20260927000095_platform_business_billing_email.sql > /tmp/095.json
+jq -Rs '{query: .}' supabase/migrations/20260927000096_platform_business_billing_email.sql > /tmp/096.json
 curl -sS -X POST \
   -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
   -H "Content-Type: application/json" \
   "https://api.supabase.com/v1/projects/wgcolmnlieefqvtzfvjt/database/query" \
-  --data-binary @/tmp/095.json
+  --data-binary @/tmp/096.json
 ```
 
 The exact command for the billing_email migration, if you apply nothing else, is
@@ -151,7 +151,7 @@ record it, because the API path does not:
 
 ```sql
 INSERT INTO supabase_migrations.schema_migrations (version, name)
-VALUES ('20260927000095', 'platform_business_billing_email')
+VALUES ('20260927000096', 'platform_business_billing_email')
 ON CONFLICT (version) DO NOTHING;
 ```
 
@@ -178,7 +178,7 @@ file.
 | `20260927000092_billing_single_source.sql` | published plan catalogue, `get_my_entitlement`, `start_plan_checkout`, plan publishing | **applied**: `list_published_plans` returns the catalogue to an anonymous caller, and `get_my_entitlement` / `list_product_plans` exist while refusing anon, which is exactly the ACL 092 sets |
 | `20260927000093_platform_role_baselines_billing.sql` | corrects the finance and developer baselines | **consistent with applied**: `platform_level_baseline` exists in the schema cache and refuses anon; not decisive, since 091 revokes the same grant |
 | `20260927000094_checkout_records_its_cycle.sql` | records the billing cycle and the purchased plan on the transaction so an annual charge activates a year | not verifiable from outside: it changes function bodies and adds nullable columns, neither of which is visible to an anonymous probe |
-| `20260927000095_platform_business_billing_email.sql` | returns `organizations.billing_email` from `get_platform_business`, and removes anon's EXECUTE on it | **not applied**: the file is new and has not been applied anywhere |
+| `20260927000096_platform_business_billing_email.sql` | returns `organizations.billing_email` from `get_platform_business`, and removes anon's EXECUTE on it | **not applied**: the file is new and has not been applied anywhere |
 
 The probes above used only the publishable (anon) key that ships in the bundle,
 against `https://wgcolmnlieefqvtzfvjt.supabase.co/rest/v1/rpc/<function>`. A missing
@@ -187,7 +187,7 @@ answers HTTP 401 `42501 permission denied for function`; `get_platform_business`
 answers HTTP 400 `P0001 Authentication required`, which is how anon's surviving
 EXECUTE on it was established rather than assumed.
 
-`20260927000095` is the migration the billing_email work needs. It is additive: it
+`20260927000096` is the migration the billing_email work needs. It is additive: it
 replaces one function body with the same signature and the same return type, adds no
 column and rewrites no row.
 

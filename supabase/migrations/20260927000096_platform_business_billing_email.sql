@@ -1,4 +1,4 @@
--- Migration: 095_platform_business_billing_email.sql
+-- Migration: 096_platform_business_billing_email.sql
 -- Description: get_platform_business returns organizations.billing_email, so the
 --   business detail stops printing "Not set" for a field its query never asked for.
 --
