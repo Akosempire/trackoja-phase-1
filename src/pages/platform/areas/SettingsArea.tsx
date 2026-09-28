@@ -62,10 +62,6 @@ const INERT_NOTES: { key: string; note: string }[] = [
     note: 'Duplicates platform_products.visibility for the same product — two sources of truth for one question.',
   },
   {
-    key: 'products.trackoja_works.visible',
-    note: 'Duplicates platform_products.visibility for the same product.',
-  },
-  {
     key: 'activation.keys_enabled',
     note: 'Issuing and redeeming activation keys is not gated on this key, so turning it off does not disable keys.',
   },

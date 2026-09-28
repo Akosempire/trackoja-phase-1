@@ -45,7 +45,7 @@ The target was also audited across authentication, onboarding, merchant navigati
 
 ## Product-specific decisions preserved
 
-- TrackOja and TrackOja Works remain separate entitlements. A subscription to one does not grant the other.
+- TrackOja is the single customer product. The unused TrackOja Works placeholder is removed by migration 097.
 - Platform areas remain filtered by server-backed platform permissions and developer grants.
 - Developer mode remains visible, audited, and limited to permitted sandbox behavior.
 - Existing business-category terminology and modules continue to shape merchant navigation.

@@ -2836,11 +2836,7 @@ export default function BillingArea() {
                           }`
                         : 'No plans exist yet'
                     }
-                    body={
-                      productFilter === 'trackoja_works'
-                        ? 'TrackOja Works was seeded as a product row only: no plans, prices, features or limits were invented for it.'
-                        : 'Plans appear here once they are created.'
-                    }
+                    body="Plans appear here once they are created."
                   />
                 }
               />

@@ -23,7 +23,7 @@ The existing product catalogue, Paystack Edge Functions, platform permissions, m
 
 - Trials are unsupported for the rebuilt checkout. The UI does not promise a trial and tenant creation grants no temporary product access. A future trial policy needs eligibility, duration, conversion, expiry, and abuse rules before `trial_enabled` can be introduced.
 - Setup fees are operational and configurable per plan. They are charged once on the initial checkout and snapshotted in the purchased plan version.
-- TrackOja Works remains a separate configurable product. No TrackOja price, feature, plan version, or entitlement is copied to it. Its launch catalogue, prices, limits, implementation policy, and onboarding rules still need product approval.
+- TrackOja Works was an unused placeholder and has been consolidated into TrackOja. The admin and customer experience now expose one product. The schema can still support another product later, but it must be deliberately approved and priced before creation.
 
 ## Deployment
 
