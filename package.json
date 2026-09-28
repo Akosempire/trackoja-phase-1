@@ -12,6 +12,7 @@
     "test:coverage": "vitest run --coverage",
     "test:visual": "playwright test",
     "test:visual:update": "playwright test --update-snapshots",
+    "check:pwa": "node scripts/check-pwa.mjs",
     "lint": "eslint src --ext .ts,.tsx",
     "format": "prettier --write 'src/**/*.{ts,tsx}'",
     "db:reset": "supabase db reset",

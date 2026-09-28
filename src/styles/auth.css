@@ -168,3 +168,4 @@
   width: 20px;
   border-radius: 4px;
 }
+.auth-install { display: flex; justify-content: center; margin-top: var(--space-12); }

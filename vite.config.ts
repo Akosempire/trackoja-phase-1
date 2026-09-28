@@ -15,10 +15,12 @@ export default defineConfig({
         name: 'TrackOja',
         short_name: 'TrackOja',
         description: 'Inventory, sales and store management for small businesses',
+        id: '/',
+        categories: ['business', 'productivity'],
         theme_color: '#ffffff',
         background_color: '#ffffff',
         display: 'standalone',
-        start_url: '/',
+        start_url: '/auth/continue',
         scope: '/',
         icons: [
           { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
@@ -32,22 +34,8 @@ export default defineConfig({
         clientsClaim: true,
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/_/],
-        runtimeCaching: [
-          {
-            urlPattern: ({ url, request }) =>
-              request.method === 'GET' &&
-              url.hostname.endsWith('.supabase.co') &&
-              url.pathname.startsWith('/rest/v1/') &&
-              !url.pathname.startsWith('/rest/v1/rpc/'),
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'supabase-data',
-              networkTimeoutSeconds: 5,
-              cacheableResponse: { statuses: [0, 200] },
-              expiration: { maxEntries: 200, maxAgeSeconds: 60 * 60 * 24 },
-            },
-          },
-        ],
+        // Only static app assets belong in the worker cache. Authenticated
+        // Supabase responses must not be reused across accounts or workspaces.
       },
     }),
   ],

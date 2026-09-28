@@ -3,6 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { usePermissions } from '../hooks/usePermissions';
 import { useBusinessContext } from '../contexts/BusinessContext';
 import { AuthService } from '../services/auth.service';
+import { InstallAppAction } from '../components/InstallAppAction';
 import {
   ProductsIcon,
   CustomersIcon,
@@ -14,6 +15,7 @@ import {
   SupportIcon,
   ChevronRightIcon,
   ExpiryIcon,
+  DownloadIcon,
 } from '../components/icons';
 
 interface MoreLink {
@@ -78,6 +80,13 @@ export default function MorePage() {
             <ChevronRightIcon width={18} height={18} style={{ color: 'var(--t2)' }} />
           </Link>
         ))}
+        <InstallAppAction
+          className="list-item"
+          label="Install TrackOja"
+          labelClassName="list-item-title"
+          icon={<DownloadIcon width={20} height={20} />}
+          trailing={<ChevronRightIcon width={18} height={18} style={{ color: 'var(--t2)' }} />}
+        />
       </div>
 
       <div className="card" style={{ marginTop: 12 }}>

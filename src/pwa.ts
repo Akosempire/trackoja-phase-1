@@ -4,6 +4,10 @@ import { registerSW } from 'virtual:pwa-register';
 export function registerAppWorker() {
   if (!import.meta.env.PROD || !('serviceWorker' in navigator)) return;
 
+  // Older workers cached authenticated Supabase GET responses without partitioning
+  // by account. Drop that legacy cache as the new worker takes over.
+  if ('caches' in window) void caches.delete('supabase-data');
+
   registerSW({
     immediate: true,
     onRegisteredSW: (_workerUrl, registration) => {

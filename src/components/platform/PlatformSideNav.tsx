@@ -12,6 +12,8 @@ import { usePlatform } from './PlatformContext';
 import { EnvironmentMarker } from './EnvironmentBadge';
 import { ContractIcon } from './icons';
 import { HomeIcon, LogoutIcon, SidebarIcon } from '../icons';
+import { DownloadIcon } from '../icons';
+import { InstallAppAction } from '../InstallAppAction';
 
 interface PlatformSideNavProps {
   mobile?: boolean;
@@ -143,6 +145,7 @@ export function PlatformSideNav({ mobile = false, onClose, onLogout, loggingOut 
       </div>
 
       <div className="side-nav-footer">
+        <InstallAppAction className="side-nav-link" label="Install TrackOja" labelClassName="nav-label" icon={<DownloadIcon width={17} height={17} />} />
         <Link to="/dashboard" className="side-nav-link" onClick={onClose}>
           <HomeIcon width={17} height={17} />
           <span className="nav-label">Customer workspace</span>

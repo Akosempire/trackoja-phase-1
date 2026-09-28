@@ -199,6 +199,8 @@
   font-weight: 500;
 }
 
+button.lp-mobile-link.install-app-action { width: 100%; border-left: 0; border-right: 0; border-top: 0; background: transparent; text-align: left; cursor: pointer; }
+
 .lp-mobile-cta {
   width: 100%;
 }

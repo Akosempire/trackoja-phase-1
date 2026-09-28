@@ -22,6 +22,7 @@ import {
 } from './landingContent';
 import { SubscriptionService } from '../../services/subscription.service';
 import { PhonePreview } from './PhonePreview';
+import { InstallAppAction } from '../../components/InstallAppAction';
 import { useRevealOnScroll } from './useRevealOnScroll';
 import {
   IconArrowRight,
@@ -133,6 +134,7 @@ export default function LandingPage() {
           </nav>
 
           <div className="lp-nav-actions">
+            <InstallAppAction className="lp-btn lp-btn-quiet" label="Install app" />
             <Link className="lp-btn lp-btn-quiet" to="/login">
               Sign in
             </Link>
@@ -164,6 +166,7 @@ export default function LandingPage() {
               <Link className="lp-mobile-link" to="/login" onClick={closeMenu}>
                 Sign in
               </Link>
+              <InstallAppAction className="lp-mobile-link" label="Install app" />
             </nav>
             <Link className="lp-btn lp-btn-primary lp-mobile-cta" to="/signup" onClick={closeMenu}>
               Get started

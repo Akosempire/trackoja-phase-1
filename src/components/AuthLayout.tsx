@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { ThemeSelect } from './ThemeSelect';
+import { InstallAppAction } from './InstallAppAction';
 
 interface AuthLayoutProps {
   title: string;
@@ -27,6 +28,7 @@ export function AuthLayout({ title, subtitle, children, footer }: AuthLayoutProp
           {children}
         </div>
         {footer && <div className="auth-footer">{footer}</div>}
+        <div className="auth-install"><InstallAppAction className="btn btn-ghost btn-sm" label="Install TrackOja" /></div>
         <div className="auth-appearance"><ThemeSelect /></div>
       </div>
     </div>

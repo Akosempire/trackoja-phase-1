@@ -4,6 +4,7 @@ import {
   Alert02Icon, ArrowLeft01Icon, ArrowRight01Icon, Building03Icon, Calendar03Icon,
   ChartHistogramIcon, CodeIcon as HugeCodeIcon, ComputerIcon, CreditCardIcon,
   CustomerSupportIcon, Home01Icon, Invoice03Icon, Key01Icon, KitchenUtensilsIcon,
+  Download01Icon,
   LockIcon as HugeLockIcon, MoreHorizontalIcon, PackageIcon, Plug01Icon,
   Logout01Icon, Menu01Icon, PanelLeftIcon, Pulse01Icon, QrCode01Icon,
   RefreshIcon as HugeRefreshIcon, Search01Icon,
@@ -60,4 +61,5 @@ export const LockIcon = icon(HugeLockIcon);
 export const CheckIcon = icon(Tick02Icon);
 export const MenuIcon = icon(Menu01Icon);
 export const LogoutIcon = icon(Logout01Icon);
+export const DownloadIcon = icon(Download01Icon);
 export const SidebarIcon = icon(PanelLeftIcon);

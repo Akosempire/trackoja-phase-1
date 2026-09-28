@@ -13,7 +13,7 @@ const pageModules = import.meta.glob<{ default: ComponentType }>([
   '!./pages/landing/LegalPlaceholderPage.tsx',
 ]);
 const lazyPage = (path: string) => {
-  const loader = pageModules[path];
+  const loader = pageModules[`${path}.tsx`];
   if (!loader) throw new Error(`Unknown page module: ${path}`);
   return lazy(loader);
 };
