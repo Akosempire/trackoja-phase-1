@@ -28,7 +28,7 @@ export default function VerifyEmailPage() {
 
     try {
       await AuthService.verifyOtp(email, code);
-      navigate('/dashboard', { replace: true });
+      navigate('/auth/continue', { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Invalid or expired code. Please try again.');
     } finally {

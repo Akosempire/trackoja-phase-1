@@ -20,7 +20,7 @@ export default function LoginPage() {
 
     try {
       await AuthService.login({ email, password });
-      navigate('/dashboard', { replace: true });
+      navigate('/auth/continue', { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to sign in. Please try again.');
     } finally {

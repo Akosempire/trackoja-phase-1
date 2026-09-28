@@ -1,5 +1,5 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
-import { ProtectedRoute, GuestRoute, OnboardingRoute, PlatformAdminRoute, WorkspaceRoute } from './routes/ProtectedRoute';
+import { AuthEntryRedirect, ProtectedRoute, GuestRoute, OnboardingRoute, PlatformAdminRoute, WorkspaceRoute } from './routes/ProtectedRoute';
 import { AppLayout } from './components/AppLayout';
 import WelcomePage from './pages/WelcomePage';
 import LoginPage from './pages/auth/LoginPage';
@@ -82,6 +82,7 @@ export default function App() {
       <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route path="/verify-email" element={<VerifyEmailPage />} />
       <Route path="/auth/callback" element={<AuthCallbackPage />} />
+      <Route path="/auth/continue" element={<AuthEntryRedirect />} />
 
       {/* Public legal pages linked from the landing page footer */}
       <Route

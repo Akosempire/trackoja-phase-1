@@ -29,7 +29,10 @@ export default function WorkspaceSelectionPage() {
       const result = await EntryService.selectWorkspace(workspace.orgId);
       await refreshProfile();
       toast.dismiss(toastId);
-      navigate(result.destination, { replace: true });
+      // Choosing a workspace is an explicit request to enter the customer app.
+      // Platform admins keep `/platform` as their default sign-in destination,
+      // so use the separately enforced merchant destination here.
+      navigate(result.merchantDestination ?? result.destination, { replace: true });
     } catch (cause) {
       toast.update(toastId, { variant: 'error', message: 'Could not open business',
         description: cause instanceof Error ? cause.message : 'Try again.' });

@@ -4,9 +4,17 @@ import { join } from 'path';
 
 const root = process.cwd();
 const sql = readFileSync(join(root, 'supabase/migrations/20260928000098_onboarding_entry_resolution.sql'), 'utf8');
+const adminWorkspaceSql = readFileSync(
+  join(root, 'supabase/migrations/20260928000099_platform_admin_workspace_routing.sql'),
+  'utf8'
+);
 const routes = readFileSync(join(root, 'src/routes/ProtectedRoute.tsx'), 'utf8');
 const auth = readFileSync(join(root, 'src/contexts/AuthContext.tsx'), 'utf8');
 const onboarding = readFileSync(join(root, 'src/pages/onboarding/OnboardingPage.tsx'), 'utf8');
+const login = readFileSync(join(root, 'src/pages/auth/LoginPage.tsx'), 'utf8');
+const callback = readFileSync(join(root, 'src/pages/auth/AuthCallbackPage.tsx'), 'utf8');
+const verify = readFileSync(join(root, 'src/pages/auth/VerifyEmailPage.tsx'), 'utf8');
+const workspace = readFileSync(join(root, 'src/pages/WorkspaceSelectionPage.tsx'), 'utf8');
 
 describe('central post-authentication resolution', () => {
   it('waits for server resolution before selecting a destination', () => {
@@ -30,6 +38,20 @@ describe('central post-authentication resolution', () => {
     expect(sql).toMatch(/'workspace_selection_required'/);
     expect(sql).toMatch(/select_my_trackoja_workspace/);
     expect(routes).toMatch(/WorkspaceRoute/);
+  });
+  it('sends every authentication method through the central entry resolver', () => {
+    for (const source of [login, callback, verify]) {
+      expect(source).toMatch(/navigate\('\/auth\/continue'/);
+      expect(source).not.toMatch(/navigate\('\/dashboard'/);
+    }
+    expect(routes).toMatch(/AuthEntryRedirect/);
+  });
+  it('keeps a platform admin default separate from their paid merchant workspace', () => {
+    expect(adminWorkspaceSql).toMatch(/v_is_platform_admin/);
+    expect(adminWorkspaceSql).toMatch(/'merchant_destination'/);
+    expect(adminWorkspaceSql).toMatch(/v_has_access/);
+    expect(routes).toMatch(/entry\.merchantDestination/);
+    expect(workspace).toMatch(/result\.merchantDestination \?\? result\.destination/);
   });
 });
 

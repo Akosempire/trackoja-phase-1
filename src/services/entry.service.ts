@@ -16,6 +16,10 @@ export interface EntryResolution {
   isInvitedUser: boolean;
   onboardingState: string | null;
   entitlementStatus: string | null;
+  /** Platform admins can also own a customer workspace. This destination keeps
+   * that commercial route separate from their default platform destination. */
+  merchantDestination: '/onboarding' | '/dashboard' | '/billing' | '/workspace' | null;
+  merchantKind: Exclude<EntryKind, 'platform_admin'> | null;
 }
 
 export interface WorkspaceChoice {
@@ -30,6 +34,8 @@ function mapResolution(data: any): EntryResolution {
     organizationCount: Number(data.organization_count ?? 0), role: data.role ?? null,
     isInvitedUser: Boolean(data.is_invited_user), onboardingState: data.onboarding_state ?? null,
     entitlementStatus: data.entitlement_status ?? null,
+    merchantDestination: data.merchant_destination ?? (data.kind === 'platform_admin' ? null : data.destination),
+    merchantKind: data.merchant_kind ?? (data.kind === 'platform_admin' ? null : data.kind),
   };
 }
 

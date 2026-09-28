@@ -40,7 +40,7 @@ export default function AuthCallbackPage() {
     const go = () => {
       if (!navigated.current) {
         navigated.current = true;
-        navigate('/dashboard', { replace: true });
+        navigate('/auth/continue', { replace: true });
       }
     };
 
