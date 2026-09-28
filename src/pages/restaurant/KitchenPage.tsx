@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { SaleService } from '../../services/sale.service';
 import { PageLoader } from '../../components/ui/PageLoader';
+import { StateBlock } from '../../components/ui/StateBlock';
 import type { Sale, OrderStatus } from '../../types';
 
 const STATUS_ORDER: OrderStatus[] = ['new', 'preparing', 'ready', 'served'];
@@ -82,7 +83,7 @@ export default function KitchenPage() {
       </div>
 
       {active.length === 0 && (
-        <div className="empty-state">No active orders right now. Orders placed from checkout will appear here.</div>
+        <StateBlock title="Kitchen is clear" body="New restaurant orders will appear here as soon as they are placed." />
       )}
 
       {byStatus.map(({ status, cfg, orders: statusOrders }) =>

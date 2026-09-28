@@ -5,6 +5,7 @@ import { usePermissions } from '../../hooks/usePermissions';
 import { CustomerService } from '../../services/customer.service';
 import { Button } from '../../components/ui/Button';
 import { PageLoader } from '../../components/ui/PageLoader';
+import { StateBlock } from '../../components/ui/StateBlock';
 import type { Customer } from '../../types';
 
 export default function CustomersListPage() {
@@ -56,7 +57,11 @@ export default function CustomersListPage() {
       {loading ? (
         <PageLoader />
       ) : customers.length === 0 ? (
-        <div className="empty-state">No customers found.</div>
+        <StateBlock
+          title={search ? 'No matching customers' : 'No customers yet'}
+          body={search ? 'Try a different name, phone number, or email.' : 'Add a customer to track purchases, balances, and loyalty.'}
+          actions={canCreate && !search ? <Link className="btn btn-primary btn-sm" to="/customers/new">Add customer</Link> : undefined}
+        />
       ) : (
         <div className="list">
           {customers.map((customer) => (

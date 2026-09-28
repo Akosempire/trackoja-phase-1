@@ -9,6 +9,7 @@ interface StateBlockProps {
   body?: ReactNode;
   actions?: ReactNode;
   centred?: boolean;
+  compact?: boolean;
 }
 
 /**
@@ -18,8 +19,8 @@ interface StateBlockProps {
  * instrumented, the honest answer is "Not configured", not a zero that looks like
  * a healthy measurement.
  */
-export function StateBlock({ variant = 'empty', title, body, actions, centred }: StateBlockProps) {
-  const classes = ['state-block', `state-${variant}`, centred ? 'is-centred' : ''].filter(Boolean).join(' ');
+export function StateBlock({ variant = 'empty', title, body, actions, centred, compact }: StateBlockProps) {
+  const classes = ['state-block', `state-${variant}`, centred ? 'is-centred' : '', compact ? 'is-compact' : ''].filter(Boolean).join(' ');
   return (
     <div className={classes}>
       {(variant === 'error' || variant === 'denied' || variant === 'unavailable') && (

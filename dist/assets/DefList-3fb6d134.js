@@ -1,0 +1,1 @@
+import{j as s}from"./react-905cd176.js";function t({rows:d,className:a}){return s.jsx("dl",{className:["def-list",a].filter(Boolean).join(" "),children:d.map(e=>s.jsxs("div",{className:"def-row",children:[s.jsx("dt",{className:"def-term",children:e.term}),s.jsx("dd",{className:e.muted?"def-value is-muted":"def-value",children:e.value})]},e.term))})}export{t as D};

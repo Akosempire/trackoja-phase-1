@@ -49,4 +49,17 @@ export default defineConfig({
   server: {
     port: 5173,
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (!id.includes('node_modules')) return undefined;
+          if (id.includes('@supabase')) return 'supabase';
+          if (id.includes('@hugeicons')) return 'icons';
+          if (id.includes('react') || id.includes('scheduler')) return 'react';
+          return undefined;
+        },
+      },
+    },
+  },
 });

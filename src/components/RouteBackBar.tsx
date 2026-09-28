@@ -5,6 +5,9 @@ interface BackDestination { to: string; label: string }
 
 function destination(pathname: string): BackDestination | null {
   if (pathname === '/more') return { to: '/dashboard', label: 'Back to dashboard' };
+  if (['/inventory/products', '/sales', '/customers'].includes(pathname)) {
+    return { to: '/dashboard', label: 'Back to dashboard' };
+  }
 
   if (pathname === '/inventory/products/new' || pathname === '/inventory/products/bulk-import') {
     return { to: '/inventory/products', label: 'Back to products' };

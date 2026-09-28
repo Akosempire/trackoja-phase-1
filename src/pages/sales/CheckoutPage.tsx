@@ -10,6 +10,7 @@ import { StoreService } from '../../services/store.service';
 import { Button } from '../../components/ui/Button';
 import { FormField } from '../../components/ui/FormField';
 import { PageLoader } from '../../components/ui/PageLoader';
+import { StateBlock } from '../../components/ui/StateBlock';
 import { BarcodeScanner } from '../../components/BarcodeScanner';
 import { OfflineSalesService, isNetworkError } from '../../services/offlineSales.service';
 import { setCartCount } from '../../utils/cart-count';
@@ -322,7 +323,7 @@ export default function CheckoutPage() {
           )}
 
           {displayedProducts.length === 0 ? (
-            <div className="empty-state">No products match your search.</div>
+            <StateBlock compact title="No matching products" body="Change the search or category filter and try again." />
           ) : (
             <div className="product-grid">
               {displayedProducts.map((product) => {

@@ -5,6 +5,7 @@ import { CategoryService } from '../../services/category.service';
 import { Button } from '../../components/ui/Button';
 import { FormField } from '../../components/ui/FormField';
 import { PageLoader } from '../../components/ui/PageLoader';
+import { StateBlock } from '../../components/ui/StateBlock';
 import type { ProductCategory } from '../../types';
 
 export default function CategoriesPage() {
@@ -151,7 +152,11 @@ export default function CategoriesPage() {
       )}
 
       {categories.length === 0 ? (
-        <div className="empty-state">No categories yet.</div>
+        <StateBlock
+          title="No categories yet"
+          body="Create a category above to make products easier to find and report on."
+          actions={canCreate ? <Button className="btn-sm" onClick={() => document.getElementById('category-name')?.focus()}>Add a category</Button> : undefined}
+        />
       ) : (
         <div className="list">
           {categories.map((category) => (

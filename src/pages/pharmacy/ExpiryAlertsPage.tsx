@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { ProductService } from '../../services/product.service';
 import { PageLoader } from '../../components/ui/PageLoader';
+import { StateBlock } from '../../components/ui/StateBlock';
 import type { Product } from '../../types';
 
 type ExpiryGroup = 'expired' | 'soon30' | 'soon90' | 'ok';
@@ -90,9 +91,10 @@ export default function ExpiryAlertsPage() {
       </div>
 
       {alertCount === 0 && groups.ok.length === 0 && (
-        <div className="empty-state">
-          No products have expiry dates recorded. Add expiry dates when creating or editing products.
-        </div>
+        <StateBlock
+          title="No expiry dates recorded"
+          body="Add an expiry date when creating or editing a pharmacy product to monitor it here."
+        />
       )}
 
       {GROUP_ORDER.filter((g) => g !== 'ok').map((group) => {

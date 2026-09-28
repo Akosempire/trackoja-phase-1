@@ -7,6 +7,7 @@ import { OrganizationService } from '../services/organization.service';
 import { Button } from '../components/ui/Button';
 import { FormField } from '../components/ui/FormField';
 import { PageLoader } from '../components/ui/PageLoader';
+import { StateBlock } from '../components/ui/StateBlock';
 import { BUSINESS_CATEGORIES, type BusinessCategory } from '../config/businessModules';
 import type { Store } from '../types';
 import { ThemeSelect } from '../components/ThemeSelect';
@@ -165,7 +166,7 @@ export default function SettingsPage() {
       )}
 
       {!store ? (
-        <div className="empty-state">No store selected.</div>
+        <StateBlock variant="unavailable" title="No store selected" body="Choose a workspace before changing store settings." />
       ) : (
         <form className="card" onSubmit={handleSubmit}>
           <p className="list-item-title" style={{ marginBottom: 12 }}>Store details</p>

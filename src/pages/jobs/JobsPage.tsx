@@ -14,6 +14,7 @@ import { FormField } from '../../components/ui/FormField';
 import { PageLoader } from '../../components/ui/PageLoader';
 import { useToast } from '../../components/ui/Toast';
 import { KpiCard, KpiGrid } from '../../components/ui/KpiCard';
+import { StateBlock } from '../../components/ui/StateBlock';
 
 function formatMoney(value: number): string {
   return `₦${value
@@ -305,9 +306,11 @@ export default function JobsPage() {
           {jobs.length} open job{jobs.length === 1 ? '' : 's'}
         </p>
         {jobs.length === 0 ? (
-          <div className="empty-state">
-            No jobs yet. Add a client and record their measurements to get started.
-          </div>
+          <StateBlock
+            title="No tailoring jobs yet"
+            body="Add a client and record their measurements to get started."
+            actions={canCreate ? <Button className="btn-sm" onClick={() => setShowForm(true)}>Create job</Button> : undefined}
+          />
         ) : (
           <div className="list">
             {jobs.map((job) => {

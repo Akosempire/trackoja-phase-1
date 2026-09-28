@@ -6,6 +6,7 @@ import { InventoryService } from '../../services/inventory.service';
 import { Button } from '../../components/ui/Button';
 import { FormField } from '../../components/ui/FormField';
 import { PageLoader } from '../../components/ui/PageLoader';
+import { StateBlock } from '../../components/ui/StateBlock';
 import type { InventoryMovement, Product } from '../../types';
 import { useToast } from '../../components/ui/Toast';
 
@@ -125,7 +126,10 @@ export default function StockAdjustmentPage() {
       {error && <div className="alert alert-error">{error}</div>}
 
       {products.length === 0 ? (
-        <div className="empty-state">No inventory-tracked products yet.</div>
+        <StateBlock
+          title="No tracked inventory yet"
+          body="Turn on inventory tracking for a product before recording stock movements."
+        />
       ) : (
         <>
           <form className="card" onSubmit={handleSubmit}>

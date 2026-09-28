@@ -1,0 +1,1 @@
+import{j as s}from"./react-905cd176.js";function n({title:c,sub:e,actions:i,id:t}){return s.jsxs("div",{className:"section-head",children:[s.jsxs("div",{className:"section-head-text",children:[s.jsx("h2",{className:"section-title",id:t,children:c}),e&&s.jsx("p",{className:"section-sub",children:e})]}),i&&s.jsx("div",{className:"section-actions",children:i})]})}export{n as S};

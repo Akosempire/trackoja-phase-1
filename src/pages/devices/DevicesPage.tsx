@@ -6,6 +6,7 @@ import { DeviceService } from '../../services/device.service';
 import { Button } from '../../components/ui/Button';
 import { FormField } from '../../components/ui/FormField';
 import { PageLoader } from '../../components/ui/PageLoader';
+import { StateBlock } from '../../components/ui/StateBlock';
 import type { Device, DeviceType, DeviceStatus, DeviceConnectivity } from '../../types';
 
 const DEVICE_TYPES: { value: DeviceType; label: string }[] = [
@@ -235,7 +236,10 @@ export default function DevicesPage() {
       )}
 
       {devices.length === 0 ? (
-        <div className="empty-state">No devices registered yet.</div>
+        <StateBlock
+          title="No devices registered"
+          body="Register a payment terminal, scanner, printer, tablet, or mobile device above."
+        />
       ) : (
         <div className="list">
           {devices.map((device) => (

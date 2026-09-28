@@ -6,6 +6,7 @@ import { RbacService } from '../../services/rbac.service';
 import { Button } from '../../components/ui/Button';
 import { FormField } from '../../components/ui/FormField';
 import { PageLoader } from '../../components/ui/PageLoader';
+import { StateBlock } from '../../components/ui/StateBlock';
 import type { Role, StoreMemberWithDetails } from '../../types';
 
 const STATUS_BADGES: Record<string, string> = {
@@ -150,7 +151,11 @@ export default function StaffPage() {
       )}
 
       {members.length === 0 ? (
-        <div className="empty-state">No staff members yet.</div>
+        <StateBlock
+          title="No staff members yet"
+          body="Invite a team member and assign the access they need."
+          actions={canInvite ? <Button className="btn-sm" onClick={() => setShowInvite(true)}>Invite staff</Button> : undefined}
+        />
       ) : (
         <div className="list">
           {members.map((member) => {

@@ -31,7 +31,6 @@ export function OfflineBanner() {
     if (online && storeId && pendingCount > 0) {
       sync();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [online, storeId]);
 
   if (online && pendingCount === 0) return null;

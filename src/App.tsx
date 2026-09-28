@@ -1,57 +1,70 @@
+import { lazy, Suspense, type ComponentType } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { AuthEntryRedirect, ProtectedRoute, GuestRoute, OnboardingRoute, PlatformAdminRoute, WorkspaceRoute } from './routes/ProtectedRoute';
 import { AppLayout } from './components/AppLayout';
-import WelcomePage from './pages/WelcomePage';
-import LoginPage from './pages/auth/LoginPage';
-import SignUpPage from './pages/auth/SignUpPage';
-import ForgotPasswordPage from './pages/auth/ForgotPasswordPage';
-import ResetPasswordPage from './pages/auth/ResetPasswordPage';
-import VerifyEmailPage from './pages/auth/VerifyEmailPage';
-import AuthCallbackPage from './pages/auth/AuthCallbackPage';
-import OnboardingPage from './pages/onboarding/OnboardingPage';
-import DashboardPage from './pages/DashboardPage';
-import ProductsPage from './pages/inventory/ProductsPage';
-import ProductFormPage from './pages/inventory/ProductFormPage';
-import BulkImportPage from './pages/inventory/BulkImportPage';
-import CategoriesPage from './pages/inventory/CategoriesPage';
-import StockAdjustmentPage from './pages/inventory/StockAdjustmentPage';
-import StockLotsPage from './pages/inventory/StockLotsPage';
-import CheckoutPage from './pages/sales/CheckoutPage';
-import ReceiptPage from './pages/sales/ReceiptPage';
-import SalesHubPage from './pages/sales/SalesHubPage';
-import SalesHistoryPage from './pages/sales/SalesHistoryPage';
-import CustomersListPage from './pages/customers/CustomersListPage';
-import CustomerFormPage from './pages/customers/CustomerFormPage';
-import CustomerDetailPage from './pages/customers/CustomerDetailPage';
-import PaymentsPage from './pages/payments/PaymentsPage';
-import ExpensesPage from './pages/expenses/ExpensesPage';
-import JobsPage from './pages/jobs/JobsPage';
-import DevicesPage from './pages/devices/DevicesPage';
-import DeviceDetailPage from './pages/devices/DeviceDetailPage';
-import StaffPage from './pages/staff/StaffPage';
-import ReportsPage from './pages/reports/ReportsPage';
-import BillingPage from './pages/billing/BillingPage';
-import MorePage from './pages/MorePage';
-import SettingsPage from './pages/SettingsPage';
-import SupportPage from './pages/SupportPage';
+import { PageLoader } from './components/ui/PageLoader';
+import LegalPlaceholderPage from './pages/landing/LegalPlaceholderPage';
 import { PlatformProvider } from './components/platform/PlatformContext';
 import { PlatformLayout } from './components/platform/PlatformLayout';
-import OverviewArea from './pages/platform/areas/OverviewArea';
-import BusinessesArea from './pages/platform/areas/BusinessesArea';
-import BusinessDetailArea from './pages/platform/areas/BusinessDetailArea';
-import BillingArea from './pages/platform/areas/BillingArea';
-import ActivationArea from './pages/platform/areas/ActivationArea';
-import SupportArea from './pages/platform/areas/SupportArea';
-import IntegrationsArea from './pages/platform/areas/IntegrationsArea';
-import HealthArea from './pages/platform/areas/HealthArea';
-import DeveloperArea from './pages/platform/areas/DeveloperArea';
-import AuditArea from './pages/platform/areas/AuditArea';
-import SettingsArea from './pages/platform/areas/SettingsArea';
-import KitchenPage from './pages/restaurant/KitchenPage';
-import ExpiryAlertsPage from './pages/pharmacy/ExpiryAlertsPage';
-import LandingPage from './pages/landing/LandingPage';
-import LegalPlaceholderPage from './pages/landing/LegalPlaceholderPage';
-import WorkspaceSelectionPage from './pages/WorkspaceSelectionPage';
+
+const pageModules = import.meta.glob<{ default: ComponentType }>([
+  './pages/**/*.tsx',
+  '!./pages/landing/LandingIcons.tsx',
+  '!./pages/landing/LegalPlaceholderPage.tsx',
+]);
+const lazyPage = (path: string) => {
+  const loader = pageModules[path];
+  if (!loader) throw new Error(`Unknown page module: ${path}`);
+  return lazy(loader);
+};
+const WelcomePage = lazyPage('./pages/WelcomePage');
+const LoginPage = lazyPage('./pages/auth/LoginPage');
+const SignUpPage = lazyPage('./pages/auth/SignUpPage');
+const ForgotPasswordPage = lazyPage('./pages/auth/ForgotPasswordPage');
+const ResetPasswordPage = lazyPage('./pages/auth/ResetPasswordPage');
+const VerifyEmailPage = lazyPage('./pages/auth/VerifyEmailPage');
+const AuthCallbackPage = lazyPage('./pages/auth/AuthCallbackPage');
+const OnboardingPage = lazyPage('./pages/onboarding/OnboardingPage');
+const DashboardPage = lazyPage('./pages/DashboardPage');
+const ProductsPage = lazyPage('./pages/inventory/ProductsPage');
+const ProductFormPage = lazyPage('./pages/inventory/ProductFormPage');
+const BulkImportPage = lazyPage('./pages/inventory/BulkImportPage');
+const CategoriesPage = lazyPage('./pages/inventory/CategoriesPage');
+const StockAdjustmentPage = lazyPage('./pages/inventory/StockAdjustmentPage');
+const StockLotsPage = lazyPage('./pages/inventory/StockLotsPage');
+const CheckoutPage = lazyPage('./pages/sales/CheckoutPage');
+const ReceiptPage = lazyPage('./pages/sales/ReceiptPage');
+const SalesHubPage = lazyPage('./pages/sales/SalesHubPage');
+const SalesHistoryPage = lazyPage('./pages/sales/SalesHistoryPage');
+const CustomersListPage = lazyPage('./pages/customers/CustomersListPage');
+const CustomerFormPage = lazyPage('./pages/customers/CustomerFormPage');
+const CustomerDetailPage = lazyPage('./pages/customers/CustomerDetailPage');
+const PaymentsPage = lazyPage('./pages/payments/PaymentsPage');
+const ExpensesPage = lazyPage('./pages/expenses/ExpensesPage');
+const JobsPage = lazyPage('./pages/jobs/JobsPage');
+const DevicesPage = lazyPage('./pages/devices/DevicesPage');
+const DeviceDetailPage = lazyPage('./pages/devices/DeviceDetailPage');
+const StaffPage = lazyPage('./pages/staff/StaffPage');
+const ReportsPage = lazyPage('./pages/reports/ReportsPage');
+const BillingPage = lazyPage('./pages/billing/BillingPage');
+const MorePage = lazyPage('./pages/MorePage');
+const SettingsPage = lazyPage('./pages/SettingsPage');
+const SupportPage = lazyPage('./pages/SupportPage');
+const KitchenPage = lazyPage('./pages/restaurant/KitchenPage');
+const ExpiryAlertsPage = lazyPage('./pages/pharmacy/ExpiryAlertsPage');
+const LandingPage = lazyPage('./pages/landing/LandingPage');
+const WorkspaceSelectionPage = lazyPage('./pages/WorkspaceSelectionPage');
+const OverviewArea = lazyPage('./pages/platform/areas/OverviewArea');
+const BusinessesArea = lazyPage('./pages/platform/areas/BusinessesArea');
+const BusinessDetailArea = lazyPage('./pages/platform/areas/BusinessDetailArea');
+const BillingArea = lazyPage('./pages/platform/areas/BillingArea');
+const ActivationArea = lazyPage('./pages/platform/areas/ActivationArea');
+const SupportArea = lazyPage('./pages/platform/areas/SupportArea');
+const IntegrationsArea = lazyPage('./pages/platform/areas/IntegrationsArea');
+const HealthArea = lazyPage('./pages/platform/areas/HealthArea');
+const DeveloperArea = lazyPage('./pages/platform/areas/DeveloperArea');
+const AuditArea = lazyPage('./pages/platform/areas/AuditArea');
+const SettingsArea = lazyPage('./pages/platform/areas/SettingsArea');
 
 /**
  * Public front door. The landing page replaced the old "/" -> /welcome redirect;
@@ -69,6 +82,7 @@ function LandingRoute() {
 
 export default function App() {
   return (
+    <Suspense fallback={<PageLoader />}>
     <Routes>
       <Route element={<GuestRoute />}>
         <Route path="/" element={<LandingRoute />} />
@@ -177,5 +191,6 @@ export default function App() {
 
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
+    </Suspense>
   );
 }

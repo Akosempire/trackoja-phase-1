@@ -7,6 +7,7 @@ import { StockLotService, type StockLot, type StockLotStatus, type StockLotType 
 import { Button } from '../../components/ui/Button';
 import { FormField } from '../../components/ui/FormField';
 import { PageLoader } from '../../components/ui/PageLoader';
+import { StateBlock } from '../../components/ui/StateBlock';
 import { getBusinessExperience } from '../../config/businessExperience';
 import type { Product } from '../../types';
 import { useToast } from '../../components/ui/Toast';
@@ -280,10 +281,10 @@ export default function StockLotsPage() {
         </p>
 
         {lots.length === 0 ? (
-          <div className="empty-state">
-            Nothing received yet. Add a {experience.terminology.lineItem.toLowerCase()} first, then
-            record what you received.
-          </div>
+          <StateBlock
+            title="No stock received yet"
+            body={<>Add a {experience.terminology.lineItem.toLowerCase()} first, then record what you received.</>}
+          />
         ) : (
           <div className="list">
             {lots.map((lot) => {
