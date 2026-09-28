@@ -101,6 +101,9 @@ input[type='checkbox'], input[type='radio'] { accent-color: var(--color-accent);
 .side-nav-link svg { stroke-width: 1.5; }
 .side-nav-link:hover { background: var(--color-hover); }
 .side-nav-link.active { background: var(--color-selected); color: var(--color-text-strong); font-weight: 500; }
+.platform-logout { width: 100%; border: 0; background: transparent; color: var(--t2); cursor: pointer; font: inherit; text-align: left; }
+.platform-logout:hover { color: var(--color-danger); }
+.platform-logout:disabled { cursor: wait; opacity: .65; }
 .side-nav-scan { min-height: var(--control-height); background: var(--color-neutral-action); color: var(--color-on-neutral); border: 0; font-size: var(--text-label); font-weight: 500; flex-shrink: 0; }
 .side-nav-scan:hover { background: var(--color-neutral-action); opacity: .9; color: var(--color-on-neutral); }
 .side-nav-avatar { background: var(--color-selected); color: var(--t2); font-weight: 500; }

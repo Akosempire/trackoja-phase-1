@@ -11,6 +11,7 @@ import { usePlatform } from './PlatformContext';
 import { CommandSearch } from '../CommandSearch';
 import { MenuIcon } from '../icons';
 import { PLATFORM_AREAS, canSeeArea, platformAreaPath } from '../../config/platformAreas';
+import { useToast } from '../ui/Toast';
 
 /**
  * Shell for the Platform Owner dashboard.
@@ -22,9 +23,11 @@ import { PLATFORM_AREAS, canSeeArea, platformAreaPath } from '../../config/platf
  */
 export function PlatformLayout() {
   const navigate = useNavigate();
+  const toast = useToast();
   const { access, environment } = usePlatform();
   const drawer = useRef<HTMLDialogElement>(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
   const searchItems = access ? PLATFORM_AREAS.filter((area) => canSeeArea(area, access)).map((area) => ({
     id: `platform-${area.id}`,
     label: area.label,
@@ -51,8 +54,21 @@ export function PlatformLayout() {
   }, [menuOpen]);
 
   async function handleLogout() {
-    await AuthService.logout();
-    navigate('/login', { replace: true });
+    if (loggingOut) return;
+    setLoggingOut(true);
+    const toastId = toast.loading('Logging out…', { dedupeKey: 'platform-logout' });
+    try {
+      await AuthService.logout();
+      toast.dismiss(toastId);
+      navigate('/login', { replace: true });
+    } catch (cause) {
+      toast.update(toastId, {
+        variant: 'error',
+        message: 'Could not log out',
+        description: cause instanceof Error ? cause.message : 'Please try again.',
+      });
+      setLoggingOut(false);
+    }
   }
 
   return (
@@ -76,13 +92,13 @@ export function PlatformLayout() {
         <div className="app-header-actions">
           <CommandSearch items={searchItems} label="Search platform" />
           <EnvironmentBadge environment={environment} />
-          <Button variant="ghost" className="btn-sm" onClick={handleLogout}>
-            Log out
+          <Button variant="ghost" className="btn-sm" onClick={handleLogout} disabled={loggingOut}>
+            {loggingOut ? 'Logging out…' : 'Log out'}
           </Button>
         </div>
       </header>
 
-      <PlatformSideNav />
+      <PlatformSideNav onLogout={() => void handleLogout()} loggingOut={loggingOut} />
 
       <dialog
         ref={drawer}
@@ -95,7 +111,7 @@ export function PlatformLayout() {
           if (event.target === event.currentTarget) setMenuOpen(false);
         }}
       >
-        {menuOpen && <PlatformSideNav mobile onClose={() => setMenuOpen(false)} />}
+        {menuOpen && <PlatformSideNav mobile onClose={() => setMenuOpen(false)} onLogout={() => void handleLogout()} loggingOut={loggingOut} />}
       </dialog>
 
       <div className="app-main">

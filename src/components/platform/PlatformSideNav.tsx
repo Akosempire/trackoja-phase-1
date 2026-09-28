@@ -11,11 +11,13 @@ import {
 import { usePlatform } from './PlatformContext';
 import { EnvironmentMarker } from './EnvironmentBadge';
 import { ContractIcon } from './icons';
-import { HomeIcon, SidebarIcon } from '../icons';
+import { HomeIcon, LogoutIcon, SidebarIcon } from '../icons';
 
 interface PlatformSideNavProps {
   mobile?: boolean;
   onClose?: () => void;
+  onLogout: () => void;
+  loggingOut?: boolean;
 }
 
 /**
@@ -26,7 +28,7 @@ interface PlatformSideNavProps {
  * so the two halves of the product feel like one system. Entries are grouped so
  * ten destinations stay scannable.
  */
-export function PlatformSideNav({ mobile = false, onClose }: PlatformSideNavProps) {
+export function PlatformSideNav({ mobile = false, onClose, onLogout, loggingOut = false }: PlatformSideNavProps) {
   const { access, environment } = usePlatform();
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(() => {
@@ -145,6 +147,20 @@ export function PlatformSideNav({ mobile = false, onClose }: PlatformSideNavProp
           <HomeIcon width={17} height={17} />
           <span className="nav-label">Customer workspace</span>
         </Link>
+        <button
+          type="button"
+          className="side-nav-link platform-logout"
+          onClick={() => {
+            onClose?.();
+            onLogout();
+          }}
+          disabled={loggingOut}
+          aria-label="Log out"
+          title={compact ? 'Log out' : undefined}
+        >
+          <LogoutIcon width={17} height={17} />
+          <span className="nav-label">{loggingOut ? 'Logging out…' : 'Log out'}</span>
+        </button>
       </div>
     </aside>
   );
