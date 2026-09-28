@@ -2,8 +2,8 @@
 //
 // These are the assertions that keep the marketing page honest: the money
 // formatting, the "two months free" annual discount, the mapping from the
-// published plan catalogue onto a pricing card, and the rule that anything the
-// product does not ship yet is marked upcoming.
+// published plan catalogue onto a pricing card, and the rule that unshipped
+// features do not appear as included in the public list.
 //
 // The price ladder itself is deliberately NOT asserted here. It lives in the
 // published catalogue (`product_plans`, read through `list_published_plans`), and
@@ -31,6 +31,7 @@ import {
   seatLabel,
   toPricingPlan,
   toPricingPlans,
+  visiblePricingFeatures,
 } from '../src/pages/landing/landingContent';
 import type { PublishedPlan } from '../src/services/subscription.service';
 import { CATEGORY_CONFIGS } from '../src/config/businessModules';
@@ -293,6 +294,19 @@ describe('Mapping the published catalogue onto pricing cards', () => {
   it('does not mark a catalogue feature upcoming that the catalogue did not', () => {
     const standard = one('p-standard');
     expect(standard.features.every((f) => f.upcoming === false)).toBe(true);
+  });
+
+  it('keeps shipped expenses visible and hides other future features from public cards', () => {
+    const features = [
+      ...one('p-starter').features,
+      { key: 'receivables_payables', label: 'Receivables and payables', upcoming: true },
+    ];
+    expect(visiblePricingFeatures(features).map((feature) => feature.label)).toEqual([
+      'Sales recording and checkout',
+      'Expenses and supplier records',
+    ]);
+    expect(pageSource).not.toContain('Detailed pricing page coming soon');
+    expect(pageSource).not.toContain('lp-soon');
   });
 
   it('carries the catalogue feature keys through, so a list keys by identity', () => {

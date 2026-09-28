@@ -521,17 +521,6 @@ button.lp-mobile-link.install-app-action { width: 100%; border-left: 0; border-r
   color: var(--color-text-secondary);
 }
 
-.lp-soon {
-  padding: 2px var(--space-6);
-  border-radius: var(--radius-tooltip);
-  background: var(--color-panel);
-  border: var(--border-hairline) solid var(--color-border-control);
-  font-size: var(--text-sm);
-  font-weight: 600;
-  color: var(--color-text-muted);
-  white-space: nowrap;
-}
-
 /* -------------------------------------------------- business types */
 
 .lp-biz {
@@ -884,13 +873,22 @@ button.lp-mobile-link.install-app-action { width: 100%; border-left: 0; border-r
 }
 
 .lp-price-grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   align-items: stretch;
+  gap: var(--space-16);
+  width: 100%;
+  max-width: var(--content-page);
+  margin-inline: auto;
 }
 
 .lp-price-card {
   position: relative;
   display: flex;
   flex-direction: column;
+  flex: 1 1 calc((var(--content-page) - 3 * var(--space-16)) / 4);
+  max-width: calc((var(--content-page) - 3 * var(--space-16)) / 4);
   padding: var(--space-20);
   border-radius: var(--radius-card);
   border: var(--border-hairline) solid var(--color-border);
@@ -1007,19 +1005,11 @@ button.lp-mobile-link.install-app-action { width: 100%; border-left: 0; border-r
   width: 100%;
 }
 
-.lp-compare {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-8);
-  flex-wrap: wrap;
-  margin: var(--space-28) 0 0;
-}
-
-.lp-compare-label {
-  font-size: var(--text-body-sm);
-  font-weight: 600;
-  color: var(--color-text-secondary);
+@media (max-width: 600px) {
+  .lp-price-card {
+    flex-basis: 100%;
+    max-width: 100%;
+  }
 }
 
 /* -------------------------------------------------------- final CTA */

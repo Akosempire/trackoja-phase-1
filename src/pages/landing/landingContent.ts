@@ -11,8 +11,8 @@
 // (`list_published_plans` through `SubscriptionService.getPublishedPlans`) and
 // shapes it for the pricing section with `toPricingPlans` below.
 //
-// Accuracy rule for this file: a feature that the product does not ship yet must
-// be marked `upcoming: true` so the page can label it instead of claiming it.
+// Accuracy rule for this file: a feature marked `upcoming: true` is not shown
+// as included on a public pricing card until it actually ships.
 
 import type { PublishedPlan } from '../../services/subscription.service';
 
@@ -22,8 +22,16 @@ export interface PlanFeature {
   /** The catalogue's own feature key, so a card keys its list by identity. */
   key?: string;
   label: string;
-  /** Not shipped yet - rendered with an "Upcoming" marker. */
+  /** Catalogue flag for a feature that has not shipped yet. */
   upcoming?: boolean;
+}
+
+/** Expenses and suppliers shipped after the catalogue was seeded with an old flag. */
+const SHIPPED_FEATURE_KEYS = new Set(['expenses']);
+
+/** Public cards list available features only; an unchecked promise is not an inclusion. */
+export function visiblePricingFeatures(features: PlanFeature[]): PlanFeature[] {
+  return features.filter((feature) => !feature.upcoming || (feature.key != null && SHIPPED_FEATURE_KEYS.has(feature.key)));
 }
 
 /**

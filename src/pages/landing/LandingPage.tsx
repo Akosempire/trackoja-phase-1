@@ -17,6 +17,7 @@ import {
   monthsFree,
   priceFor,
   toPricingPlans,
+  visiblePricingFeatures,
   type BillingCycle,
   type PricingPlan,
 } from './landingContent';
@@ -472,7 +473,7 @@ export default function LandingPage() {
                 <p className="sr-only" role="status">
                   Loading published plans
                 </p>
-                <div className="lp-grid lp-grid-4 lp-price-grid" aria-hidden="true">
+                <div className="lp-price-grid" aria-hidden="true">
                   {PRICE_CARD_PLACEHOLDERS.map((card) => (
                     <article className="lp-price-card" key={card}>
                       <span className="skeleton skeleton-text is-short" />
@@ -493,7 +494,7 @@ export default function LandingPage() {
             )}
 
             {pricing.status === 'ready' && (
-              <div className="lp-grid lp-grid-4 lp-price-grid">
+              <div className="lp-price-grid">
                 {pricing.plans.map((plan) => {
                   const price = priceFor(plan, billing);
                   const saving = monthsFree(plan.monthlyPrice, plan.annualPrice);
@@ -519,13 +520,12 @@ export default function LandingPage() {
                       </p>
 
                       <ul className="lp-price-features">
-                        {plan.features.map((feature) => (
+                        {visiblePricingFeatures(plan.features).map((feature) => (
                           <li key={feature.key ?? feature.label}>
                             <span className="lp-check" aria-hidden="true">
                               <IconCheck />
                             </span>
                             <span>{feature.label}</span>
-                            {feature.upcoming && <span className="lp-soon">Upcoming</span>}
                           </li>
                         ))}
                       </ul>
@@ -569,10 +569,6 @@ export default function LandingPage() {
               </p>
             )}
 
-            <p className="lp-compare" data-reveal>
-              <span className="lp-compare-label">Compare all features</span>
-              <span className="lp-soon">Detailed pricing page coming soon</span>
-            </p>
           </div>
         </section>
 

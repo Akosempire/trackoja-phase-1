@@ -140,3 +140,36 @@ for (const width of [730, 390]) {
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
   });
 }
+
+for (const width of [1440, 820, 390]) {
+  test(`landing pricing cards stay centred at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.setContent(`<!doctype html><html data-theme="light"><body>
+      <main class="lp"><section class="lp-section"><div class="lp-container">
+        <div class="lp-section-head lp-section-head-center"><h2 class="lp-h2">A plan for your business</h2></div>
+        <div class="lp-price-grid">
+          <article class="lp-price-card"><h3 class="lp-price-name">Starter</h3><p class="lp-price-desc">For a single owner.</p><p class="lp-price-amount">₦5,000</p><ul class="lp-price-features"><li>Sales recording</li></ul></article>
+          <article class="lp-price-card"><h3 class="lp-price-name">Standard</h3><p class="lp-price-desc">For a single shop.</p><p class="lp-price-amount">₦22,500</p><ul class="lp-price-features"><li>Products and stock</li></ul></article>
+          <article class="lp-price-card"><h3 class="lp-price-name">Premium</h3><p class="lp-price-desc">For busier shops.</p><p class="lp-price-amount">₦45,000</p><ul class="lp-price-features"><li>Staff management</li></ul></article>
+        </div>
+      </div></section></main>
+    </body></html>`);
+    for (const file of [...styles, 'src/styles/landing.css']) {
+      await page.addStyleTag({ path: path.join(root, file) });
+    }
+
+    const boxes = await Promise.all((await page.locator('.lp-price-card').all()).map((card) => card.boundingBox()));
+    const rows = new Map<number, NonNullable<typeof boxes[number]>[]>();
+    for (const box of boxes) {
+      expect(box).not.toBeNull();
+      const row = Math.round(box!.y);
+      rows.set(row, [...(rows.get(row) ?? []), box!]);
+    }
+    for (const row of rows.values()) {
+      const left = Math.min(...row.map((box) => box.x));
+      const right = Math.max(...row.map((box) => box.x + box.width));
+      expect(Math.abs((left + right) / 2 - width / 2)).toBeLessThanOrEqual(2);
+    }
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+  });
+}
