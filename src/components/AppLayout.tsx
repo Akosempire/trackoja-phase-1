@@ -8,10 +8,10 @@ import { OfflineBanner } from './OfflineBanner';
 import { DeveloperModeBanner } from './DeveloperModeBanner';
 import { useAuth } from '../contexts/AuthContext';
 import { BusinessProvider } from '../contexts/BusinessContext';
-import { useEffect, useRef, useState } from 'react';
-import { containDialogFocus } from '../utils/dialog-focus';
+import { useState } from 'react';
 import { MenuIcon } from './icons';
 import { MerchantCommandSearch } from './MerchantCommandSearch';
+import { Drawer } from './ui/Drawer';
 
 /**
  * The merchant workspace shell.
@@ -24,25 +24,7 @@ import { MerchantCommandSearch } from './MerchantCommandSearch';
 export function AppLayout() {
   const navigate = useNavigate();
   const { profile } = useAuth();
-  const drawer = useRef<HTMLDialogElement>(null);
   const [menuOpen, setMenuOpen] = useState(false);
-
-  useEffect(() => {
-    if (!menuOpen) return;
-    drawer.current?.showModal();
-    const overflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    const desktop = matchMedia('(min-width: 901px)');
-    const closeOnDesktop = () => {
-      if (desktop.matches) setMenuOpen(false);
-    };
-    desktop.addEventListener('change', closeOnDesktop);
-    return () => {
-      drawer.current?.close();
-      document.body.style.overflow = overflow;
-      desktop.removeEventListener('change', closeOnDesktop);
-    };
-  }, [menuOpen]);
 
   const handleLogout = async () => {
     await AuthService.logout();
@@ -81,19 +63,15 @@ export function AppLayout() {
       </header>
 
         <SideNav onLogout={handleLogout} />
-        <dialog
-          ref={drawer}
+        <Drawer
+          open={menuOpen}
+          onClose={() => setMenuOpen(false)}
           id="mobile-navigation"
-          className="mobile-nav-dialog"
-          aria-label="Navigation"
-          onKeyDown={containDialogFocus}
-          onCancel={() => setMenuOpen(false)}
-          onClick={(event) => {
-            if (event.target === event.currentTarget) setMenuOpen(false);
-          }}
+          label="Navigation"
+          closeAtDesktop
         >
           {menuOpen && <SideNav mobile onClose={() => setMenuOpen(false)} onLogout={handleLogout} />}
-        </dialog>
+        </Drawer>
 
         <div className="app-main">
           <DeveloperModeBanner />

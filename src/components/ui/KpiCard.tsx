@@ -5,6 +5,7 @@ interface KpiCardProps {
   /** Already formatted. Pass a string like "Not configured" when there is no value. */
   value: ReactNode;
   foot?: ReactNode;
+  icon?: ReactNode;
   tone?: 'default' | 'brand' | 'warning' | 'danger' | 'unavailable';
   /**
    * Makes the card a control that opens the filtered view it summarises.
@@ -14,7 +15,15 @@ interface KpiCardProps {
   ariaLabel?: string;
 }
 
-export function KpiCard({ label, value, foot, tone = 'default', onClick, ariaLabel }: KpiCardProps) {
+export function KpiCard({
+  label,
+  value,
+  foot,
+  icon,
+  tone = 'default',
+  onClick,
+  ariaLabel,
+}: KpiCardProps) {
   const classes = [
     'kpi-card',
     tone === 'brand' ? 'is-brand' : '',
@@ -27,15 +36,27 @@ export function KpiCard({ label, value, foot, tone = 'default', onClick, ariaLab
 
   const content = (
     <>
-      <p className="kpi-label">{label}</p>
-      <p className="kpi-value">{value}</p>
-      {foot && <p className="kpi-foot">{foot}</p>}
+      <span className="kpi-head">
+        <span className="kpi-label">{label}</span>
+        {icon && (
+          <span className="kpi-icon" aria-hidden="true">
+            {icon}
+          </span>
+        )}
+      </span>
+      <span className="kpi-value">{value}</span>
+      {foot && <span className="kpi-foot">{foot}</span>}
     </>
   );
 
   if (onClick) {
     return (
-      <button type="button" className={classes} onClick={onClick} aria-label={ariaLabel ?? label}>
+      <button
+        type="button"
+        className={classes}
+        onClick={onClick}
+        aria-label={ariaLabel ?? label}
+      >
         {content}
       </button>
     );

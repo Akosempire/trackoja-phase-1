@@ -3,6 +3,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { ReportService } from '../../services/report.service';
 import { Button } from '../../components/ui/Button';
 import { PageLoader } from '../../components/ui/PageLoader';
+import { KpiCard, KpiGrid } from '../../components/ui/KpiCard';
 import { getReportDateRange, REPORT_DATE_RANGE_PRESETS, type ReportDateRangePreset } from '../../utils/report-date-ranges';
 import type {
   SalesSummary,
@@ -107,22 +108,18 @@ export default function ReportsPage() {
       {error && <div className="alert alert-error">{error}</div>}
 
       {quickStats && (
-        <div className="stats-grid">
-          <div className="stat-card">
-            <p className="stat-label">Daily sales</p>
-            <p className="stat-value">₦{quickStats.todayRevenue.toLocaleString()}</p>
-            <p className="page-subtitle" style={{ margin: '4px 0 0' }}>
-              Profit ₦{quickStats.todayProfit.toLocaleString()}
-            </p>
-          </div>
-          <div className="stat-card">
-            <p className="stat-label">Weekly sales</p>
-            <p className="stat-value">₦{quickStats.weekRevenue.toLocaleString()}</p>
-            <p className="page-subtitle" style={{ margin: '4px 0 0' }}>
-              Profit ₦{quickStats.weekProfit.toLocaleString()}
-            </p>
-          </div>
-        </div>
+        <KpiGrid>
+          <KpiCard
+            label="Daily sales"
+            value={`₦${quickStats.todayRevenue.toLocaleString()}`}
+            foot={`Profit ₦${quickStats.todayProfit.toLocaleString()}`}
+          />
+          <KpiCard
+            label="Weekly sales"
+            value={`₦${quickStats.weekRevenue.toLocaleString()}`}
+            foot={`Profit ₦${quickStats.weekProfit.toLocaleString()}`}
+          />
+        </KpiGrid>
       )}
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>

@@ -27,6 +27,14 @@ The target was also audited across authentication, onboarding, merchant navigati
 - Overlays: accessible dialogs, mobile navigation drawers, tooltips, disclosures, and command search.
 - Navigation: merchant and platform sidebars share geometry and states while retaining their own permission-aware information architecture.
 
+### ZIP component mapping
+
+- ZIP `MetricCard` maps to `src/components/ui/KpiCard.tsx`. Its header, optional icon, Forum value, supporting copy, quiet panel, hairline border, hover state, and responsive grid are shared by merchant dashboards, job summaries, reports, and platform billing.
+- ZIP responsive overlay behavior maps to `src/components/ui/Dialog.tsx`; TrackOja keeps the native `<dialog>` implementation because it also provides focus containment and restoration.
+- Mobile side sheets map to `src/components/ui/Drawer.tsx`. Merchant and platform navigation use this single primitive for modality, Escape, backdrop dismissal, focus containment, body scroll locking, responsive desktop cleanup, and reduced-motion behavior.
+- ZIP feedback maps to `StateBlock`, `PageLoader`, inline field errors, and the global `Toast` provider. Action success, error, warning, information, and loading outcomes stay on the toast API.
+- ZIP table, badge, pagination, definition-list, timeline, trend-chart, disclosure, button, and form patterns map to the same-named components under `src/components/ui`.
+
 ## Command search
 
 `src/components/CommandSearch.tsx` is reusable and controlled by the shell that supplies its searchable items. It opens by trigger or `Ctrl/Cmd + K`, supports arrow keys, Enter, Escape, clear, empty results, outside-click dismissal, reduced motion, mobile sizing, and accessible combobox/listbox semantics. Merchant results come from the same permission-filtered navigation model as the sidebar. Platform results pass through `canSeeArea`, including developer-mode restrictions.

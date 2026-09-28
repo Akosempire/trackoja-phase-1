@@ -13,6 +13,7 @@ import { Button } from '../../components/ui/Button';
 import { FormField } from '../../components/ui/FormField';
 import { PageLoader } from '../../components/ui/PageLoader';
 import { useToast } from '../../components/ui/Toast';
+import { KpiCard, KpiGrid } from '../../components/ui/KpiCard';
 
 function formatMoney(value: number): string {
   return `₦${value
@@ -195,26 +196,12 @@ export default function JobsPage() {
       {error && <div className="alert alert-error">{error}</div>}
 
       {summary && (
-        <div className="stats-grid">
-          <div className="stat-card">
-            <p className="stat-label">Due this week</p>
-            <p className="stat-value">{summary.jobsDueSoon}</p>
-          </div>
-          <div className="stat-card">
-            <p className="stat-label">Overdue</p>
-            <p className={`stat-value${summary.jobsOverdue > 0 ? ' dash-value-danger' : ''}`}>
-              {summary.jobsOverdue}
-            </p>
-          </div>
-          <div className="stat-card">
-            <p className="stat-label">Ready for pickup</p>
-            <p className="stat-value">{summary.awaitingPickup}</p>
-          </div>
-          <div className="stat-card">
-            <p className="stat-label">Outstanding balances</p>
-            <p className="stat-value">{formatMoney(summary.outstandingBalances)}</p>
-          </div>
-        </div>
+        <KpiGrid>
+          <KpiCard label="Due this week" value={summary.jobsDueSoon} />
+          <KpiCard label="Overdue" value={summary.jobsOverdue} tone={summary.jobsOverdue > 0 ? 'danger' : 'default'} />
+          <KpiCard label="Ready for pickup" value={summary.awaitingPickup} />
+          <KpiCard label="Outstanding balances" value={formatMoney(summary.outstandingBalances)} />
+        </KpiGrid>
       )}
 
       {showForm && canCreate && (

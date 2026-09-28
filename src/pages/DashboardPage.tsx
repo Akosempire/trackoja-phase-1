@@ -9,6 +9,7 @@ import { AuditService } from '../services/audit.service';
 import { SaleService } from '../services/sale.service';
 import { CustomerService } from '../services/customer.service';
 import { Button } from '../components/ui/Button';
+import { KpiCard, KpiGrid } from '../components/ui/KpiCard';
 import { PageLoader } from '../components/ui/PageLoader';
 import { getBusinessExperience, type DashboardMetric } from '../config/businessExperience';
 import { isResolvableMetric } from '../config/dashboardMetrics';
@@ -249,32 +250,27 @@ export default function DashboardPage() {
           </Link>
         </div>
       ) : (
-        <div className="stats-grid dash-metrics">
+        <KpiGrid>
           {resolved.map(({ metric, value, sub }) => {
-            const toneClass =
+            const tone =
               metric.tone === 'warn'
-                ? ' dash-value-warn'
+                ? 'warning'
                 : metric.tone === 'danger'
-                  ? ' dash-value-danger'
-                  : '';
-            const body = (
-              <>
-                <p className="stat-label">{metric.label}</p>
-                <p className={`stat-value${toneClass}`}>{value}</p>
-                {sub && <p className="dash-metric-sub">{sub}</p>}
-              </>
-            );
-            return metric.linkTo ? (
-              <Link className="stat-card dash-metric" key={metric.key} to={metric.linkTo}>
-                {body}
-              </Link>
-            ) : (
-              <div className="stat-card dash-metric" key={metric.key}>
-                {body}
-              </div>
+                  ? 'danger'
+                  : 'default';
+            return (
+              <KpiCard
+                key={metric.key}
+                label={metric.label}
+                value={value}
+                foot={sub}
+                tone={tone}
+                onClick={metric.linkTo ? () => navigate(metric.linkTo!) : undefined}
+                ariaLabel={metric.linkTo ? `${metric.label}: ${value}. Open details` : undefined}
+              />
             );
           })}
-        </div>
+        </KpiGrid>
       )}
 
       <div className="card">

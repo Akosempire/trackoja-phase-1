@@ -1,10 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { Outlet, useNavigate } from 'react-router-dom';
 import { AuthService } from '../../services/auth.service';
 import { Button } from '../ui/Button';
 import { DeveloperModeBanner } from '../DeveloperModeBanner';
 import { OfflineBanner } from '../OfflineBanner';
-import { containDialogFocus } from '../../utils/dialog-focus';
 import { PlatformSideNav } from './PlatformSideNav';
 import { EnvironmentBadge } from './EnvironmentBadge';
 import { usePlatform } from './PlatformContext';
@@ -12,6 +11,7 @@ import { CommandSearch } from '../CommandSearch';
 import { MenuIcon } from '../icons';
 import { PLATFORM_AREAS, canSeeArea, platformAreaPath } from '../../config/platformAreas';
 import { useToast } from '../ui/Toast';
+import { Drawer } from '../ui/Drawer';
 
 /**
  * Shell for the Platform Owner dashboard.
@@ -25,7 +25,6 @@ export function PlatformLayout() {
   const navigate = useNavigate();
   const toast = useToast();
   const { access, environment } = usePlatform();
-  const drawer = useRef<HTMLDialogElement>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const searchItems = access ? PLATFORM_AREAS.filter((area) => canSeeArea(area, access)).map((area) => ({
@@ -35,23 +34,6 @@ export function PlatformLayout() {
     group: area.group ? 'Platform' : 'Overview',
     to: platformAreaPath(area),
   })) : [];
-
-  useEffect(() => {
-    if (!menuOpen) return;
-    drawer.current?.showModal();
-    const overflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    const desktop = matchMedia('(min-width: 901px)');
-    const closeOnDesktop = () => {
-      if (desktop.matches) setMenuOpen(false);
-    };
-    desktop.addEventListener('change', closeOnDesktop);
-    return () => {
-      drawer.current?.close();
-      document.body.style.overflow = overflow;
-      desktop.removeEventListener('change', closeOnDesktop);
-    };
-  }, [menuOpen]);
 
   async function handleLogout() {
     if (loggingOut) return;
@@ -100,19 +82,15 @@ export function PlatformLayout() {
 
       <PlatformSideNav onLogout={() => void handleLogout()} loggingOut={loggingOut} />
 
-      <dialog
-        ref={drawer}
+      <Drawer
+        open={menuOpen}
+        onClose={() => setMenuOpen(false)}
         id="platform-navigation"
-        className="mobile-nav-dialog"
-        aria-label="Platform navigation"
-        onKeyDown={containDialogFocus}
-        onCancel={() => setMenuOpen(false)}
-        onClick={(event) => {
-          if (event.target === event.currentTarget) setMenuOpen(false);
-        }}
+        label="Platform navigation"
+        closeAtDesktop
       >
         {menuOpen && <PlatformSideNav mobile onClose={() => setMenuOpen(false)} onLogout={() => void handleLogout()} loggingOut={loggingOut} />}
-      </dialog>
+      </Drawer>
 
       <div className="app-main">
         <DeveloperModeBanner />

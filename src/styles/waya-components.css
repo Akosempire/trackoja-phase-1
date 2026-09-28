@@ -727,12 +727,25 @@
 .kpi-card {
   display: flex;
   flex-direction: column;
-  gap: var(--space-6);
-  padding: var(--space-16);
+  gap: var(--space-12);
+  min-height: 152px;
+  padding: var(--space-20);
   border: var(--border-hairline) solid var(--color-border);
-  border-radius: var(--radius-card);
+  border-radius: var(--radius-input);
   background: var(--color-panel);
   text-align: left;
+}
+
+.kpi-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-12);
+}
+
+.kpi-icon {
+  display: inline-flex;
+  color: var(--color-text-muted);
 }
 
 /* A KPI that leads somewhere is a control, not decoration. */
@@ -750,18 +763,22 @@ button.kpi-card:hover {
 
 .kpi-label {
   margin: 0;
-  font-size: var(--text-caption);
-  font-weight: 500;
+  font-size: var(--text-body);
+  font-weight: 600;
   letter-spacing: normal;
   text-transform: none;
   color: var(--color-text-secondary);
 }
 
 .kpi-value {
+  display: block;
   margin: 0;
   color: var(--color-text-strong);
-  /* Size, weight and figures come from the shared .dash-kpi-value rule in
-     waya.css, so a platform metric and a merchant metric are the same size. */
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 400;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
 }
 
 .kpi-foot {
