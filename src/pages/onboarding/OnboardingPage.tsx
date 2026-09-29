@@ -23,6 +23,14 @@ function versionFor(plan: PublishedPlan, cycle: Cycle) {
   return cycle === 'monthly' ? plan.monthlyVersionId : plan.annualVersionId;
 }
 
+function failureMessage(cause: unknown, fallback: string): string {
+  if (cause instanceof Error) return cause.message;
+  if (cause && typeof cause === 'object' && 'message' in cause && typeof cause.message === 'string') {
+    return cause.message;
+  }
+  return fallback;
+}
+
 export default function OnboardingPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -106,16 +114,31 @@ export default function OnboardingPage() {
         businessCategory: selectedCategory,
         billingEmail,
       });
-      await refreshProfile();
-      toast.update(toastId, { variant: 'success', message: 'Business created', description: 'Now choose the commercial terms you want to purchase.' });
-      setStep('plan');
     } catch (cause) {
-      const message = cause instanceof Error ? cause.message : 'Business could not be created.';
+      const message = failureMessage(cause, 'Business could not be created.');
       setError(message);
       toast.update(toastId, { variant: 'error', message: 'Business was not created', description: message });
-    } finally {
       setBusy(false);
+      return;
     }
+
+    // The database has already committed. A profile refresh error cannot
+    // truthfully be reported as a failed business creation.
+    let profileRefreshed = true;
+    try {
+      await refreshProfile();
+    } catch {
+      profileRefreshed = false;
+    }
+    toast.update(toastId, {
+      variant: 'success',
+      message: 'Business created',
+      description: profileRefreshed
+        ? 'Now choose the commercial terms you want to purchase.'
+        : 'Choose a plan. Your account details will refresh when you next sign in.',
+    });
+    setStep('plan');
+    setBusy(false);
   }
 
   function continueFromCategory() {

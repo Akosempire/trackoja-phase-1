@@ -87,4 +87,66 @@ describe('new business category selection', () => {
       businessName: 'Ada Kitchen', storeName: 'Main branch', businessCategory: 'restaurant',
     }));
   });
+
+  it('continues to plans when the business was saved but refreshing the profile fails', async () => {
+    mocks.getOnboarding.mockResolvedValue({ state: 'account_ready', orgId: null, businessCategory: 'restaurant' });
+    mocks.getPublishedPlans.mockResolvedValue([]);
+    mocks.createBusiness.mockResolvedValue({ orgId: 'org-1', storeId: 'store-1', state: 'business_profile_completed', resumed: false });
+    mocks.refreshProfile.mockRejectedValue(new Error('Profile refresh failed'));
+    host = document.createElement('div');
+    document.body.append(host);
+    root = createRoot(host);
+
+    await act(async () => {
+      root?.render(createElement(MemoryRouter, {
+        initialEntries: ['/onboarding'],
+        future: { v7_startTransition: true, v7_relativeSplatPath: true },
+      }, createElement(OnboardingPage)));
+    });
+
+    for (const [id, value] of [['organizationName', 'Ada Kitchen'], ['storeName', 'Main branch']]) {
+      const input = host.querySelector<HTMLInputElement>(`#${id}`);
+      expect(input).not.toBeNull();
+      await act(async () => {
+        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set?.call(input, value);
+        input?.dispatchEvent(new Event('input', { bubbles: true }));
+      });
+    }
+    await act(async () => {
+      host?.querySelector('form')?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    });
+
+    expect(mocks.createBusiness).toHaveBeenCalledOnce();
+    expect(host.textContent).toContain('Choose your TrackOja plan');
+    expect(host.textContent).not.toContain('Business could not be created');
+  });
+
+  it('shows the database error instead of a generic message when creation fails', async () => {
+    mocks.getOnboarding.mockResolvedValue({ state: 'account_ready', orgId: null, businessCategory: 'restaurant' });
+    mocks.getPublishedPlans.mockResolvedValue([]);
+    mocks.createBusiness.mockRejectedValue({ message: 'function gen_random_bytes(integer) does not exist' });
+    host = document.createElement('div');
+    document.body.append(host);
+    root = createRoot(host);
+
+    await act(async () => {
+      root?.render(createElement(MemoryRouter, {
+        initialEntries: ['/onboarding'],
+        future: { v7_startTransition: true, v7_relativeSplatPath: true },
+      }, createElement(OnboardingPage)));
+    });
+    for (const [id, value] of [['organizationName', 'Ada Kitchen'], ['storeName', 'Main branch']]) {
+      const input = host.querySelector<HTMLInputElement>(`#${id}`);
+      await act(async () => {
+        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set?.call(input, value);
+        input?.dispatchEvent(new Event('input', { bubbles: true }));
+      });
+    }
+    await act(async () => {
+      host?.querySelector('form')?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    });
+
+    expect(host.querySelector('[role="alert"]')?.textContent).toContain('gen_random_bytes');
+    expect(host.textContent).toContain('Create your business');
+  });
 });
