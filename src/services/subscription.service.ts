@@ -9,6 +9,18 @@ export interface CheckoutResult {
   reference: string;
 }
 
+export interface BillingAvailability {
+  paymentSystem: 'DISABLED' | 'TEST' | 'LIVE';
+  trialEnabled: boolean;
+  trialDays: number;
+}
+
+export interface TrialActivation {
+  planName: string;
+  trialEndsAt: string;
+  trialDays: number;
+}
+
 export interface CheckoutPreview {
   orgId: string;
   planVersionId: string;
@@ -119,6 +131,31 @@ export interface MyEntitlement {
 }
 
 export class SubscriptionService {
+  static async getBillingAvailability(): Promise<BillingAvailability> {
+    const { data, error } = await supabase.rpc('get_billing_availability');
+    if (error) {
+      console.error('Billing availability failed', error);
+      throw new Error('Plan availability could not be loaded. Please try again.');
+    }
+    return { paymentSystem: ['DISABLED', 'TEST', 'LIVE'].includes(data?.payment_system) ? data.payment_system : 'DISABLED',
+      trialEnabled: data?.trial_enabled === true, trialDays: Number(data?.trial_days ?? 0) };
+  }
+
+  static async startTrial(planVersionId: string): Promise<TrialActivation> {
+    const { data, error } = await supabase.rpc('start_product_trial', { p_plan_version_id: planVersionId });
+    if (error) {
+      console.error('Trial activation failed', error);
+      const message = /already used|existing subscription|payment history|Only the business owner|currently unavailable|not available for a trial/.test(error.message)
+        ? error.message : 'Your trial could not be started. Please try again or contact support.';
+      throw new Error(message);
+    }
+    return { planName: data.plan_name, trialEndsAt: data.trial_ends_at, trialDays: Number(data.trial_days) };
+  }
+
+  private static async requireLivePayments(): Promise<void> {
+    const availability = await this.getBillingAvailability();
+    if (availability.paymentSystem !== 'LIVE') throw new Error('Online subscription payments are not available yet. Start your free trial to continue.');
+  }
   /**
    * The published plan catalogue — the same set the public pricing page and the
    * platform console's plans are built from. This replaced a read of the legacy
@@ -237,6 +274,7 @@ export class SubscriptionService {
     planVersionId: string,
     callbackUrl: string,
   ): Promise<CheckoutResult> {
+    await this.requireLivePayments();
     try {
       const { data: txn, error } = await supabase.rpc('start_plan_version_checkout', {
         p_plan_version_id: planVersionId,
@@ -252,13 +290,16 @@ export class SubscriptionService {
       return { authorizationUrl: data.authorizationUrl, reference: txn.reference };
     } catch (error) {
       console.error('Start plan checkout error:', error);
-      throw error;
+      throw new Error("We couldn't start your payment. No payment has been taken. Please try again.");
     }
   }
 
   static async getCheckoutPreview(planVersionId: string): Promise<CheckoutPreview> {
     const { data, error } = await supabase.rpc('get_checkout_preview', { p_plan_version_id: planVersionId });
-    if (error) throw error;
+    if (error || !data) {
+      console.error('Plan preview failed', error);
+      throw new Error('We could not load this plan. Please choose it again or try later.');
+    }
     return {
       orgId: data.org_id,
       planVersionId: data.plan_version_id,
@@ -306,8 +347,10 @@ export class SubscriptionService {
 
   static async verifyPayment(reference: string) {
     const { data, error } = await supabase.functions.invoke('paystack-verify', { body: { reference } });
-    if (error) throw error;
-    if (data?.error) throw new Error(data.error);
+    if (error || data?.error) {
+      console.error('Payment verification failed', error ?? data.error);
+      throw new Error('We could not confirm your payment yet. Please check again or contact support with your reference.');
+    }
     return data as { settled: boolean; status: string; testData?: boolean; detail?: string };
   }
 
@@ -399,6 +442,7 @@ export class SubscriptionService {
    * Function for a hosted checkout URL to redirect the user to.
    */
   static async initiateCheckout(orgId: string, planId: string, callbackUrl: string): Promise<CheckoutResult> {
+    await this.requireLivePayments();
     try {
       const { data: txn, error: rpcError } = await supabase.rpc('initiate_subscription_checkout', {
         p_org_id: orgId,
@@ -415,7 +459,7 @@ export class SubscriptionService {
       return { authorizationUrl: data.authorizationUrl, reference: txn.reference };
     } catch (error) {
       console.error('Initiate subscription checkout error:', error);
-      throw error;
+      throw new Error("We couldn't start your payment. No payment has been taken. Please try again.");
     }
   }
 

@@ -544,7 +544,7 @@
 }
 
 .search-input-row {
-  max-width: 640px;
+  max-width: var(--content-filter-row);
   margin-bottom: var(--space-12);
 }
 

@@ -4,7 +4,6 @@ import { useAuth } from '../../contexts/AuthContext';
 import { usePermissions } from '../../hooks/usePermissions';
 import { useBusinessContext } from '../../contexts/BusinessContext';
 import { SaleService } from '../../services/sale.service';
-import { Button } from '../../components/ui/Button';
 import { PageLoader } from '../../components/ui/PageLoader';
 import { SectionState } from '../../components/ui/StateBlock';
 import { getBusinessExperience } from '../../config/businessExperience';
@@ -56,9 +55,7 @@ export default function SalesHistoryPage() {
           <p className="page-subtitle">{loading ? 'Loading records…' : `${sales.length} ${experience.terminology.recordPlural.toLowerCase()}`}</p>
         </div>
         {canCheckout && (
-          <Link to="/sales/checkout">
-            <Button className="btn-sm">{category === 'restaurant' ? 'New order' : 'New sale'}</Button>
-          </Link>
+          <Link className="btn btn-primary btn-sm" to="/sales/checkout">{category === 'restaurant' ? 'New order' : 'New sale'}</Link>
         )}
       </div>
 

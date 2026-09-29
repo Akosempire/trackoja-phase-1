@@ -30,7 +30,6 @@ import {
 import { PlatformService } from '../../../services/platform.service';
 import { usePlatform } from '../../../components/platform/PlatformContext';
 import {
-  AreaCoverage,
   PermissionDenied,
   PlatformPageHead,
   RefreshButton,
@@ -76,7 +75,7 @@ const AREA = PLATFORM_AREAS.find((area) => area.id === 'billing')!;
 const PAGE_SIZE = 25;
 
 /** Entitlement statuses the directory endpoint can filter on (organization_products.status). */
-const ENTITLEMENT_STATUSES = ['active', 'pending', 'past_due', 'suspended', 'expired', 'cancelled'] as const;
+const ENTITLEMENT_STATUSES = ['active', 'trialing', 'pending', 'past_due', 'suspended', 'expired', 'cancelled'] as const;
 
 /** Permission key each read or write needs. The server re-checks every one of them. */
 const PERMISSIONS = {
@@ -110,9 +109,9 @@ interface Section {
 
 const SECTIONS: Section[] = [
   { id: 'overview', label: 'Overview', permissions: [PERMISSIONS.view] },
-  { id: 'plans', label: 'Plans & pricing', permissions: [PERMISSIONS.plans] },
+  { id: 'plans', label: 'Plans', permissions: [PERMISSIONS.plans] },
   { id: 'subscriptions', label: 'Subscriptions', permissions: [PERMISSIONS.payments] },
-  { id: 'payments', label: 'Payments & invoices', permissions: [PERMISSIONS.payments] },
+  { id: 'payments', label: 'Payments', permissions: [PERMISSIONS.payments, 'platform:view_payments'] },
   { id: 'activation', label: 'Activation & access', permissions: [PERMISSIONS.activation] },
   { id: 'settings', label: 'Billing settings', permissions: [PERMISSIONS.settings] },
   { id: 'audit', label: 'Audit trail', permissions: [PERMISSIONS.audit, AUDIT_FALLBACK] },
@@ -146,10 +145,6 @@ function resolveSection(requested: string | null, params: URLSearchParams): Sect
  */
 const NOT_BUILT: { title: string; detail: string }[] = [
   {
-    title: 'Invoices and receipts',
-    detail: 'No invoice or receipt table exists.',
-  },
-  {
     title: 'Proration on plan changes',
     detail: 'Plan changes are not prorated: nothing is refunded or charged.',
   },
@@ -164,10 +159,6 @@ const NOT_BUILT: { title: string; detail: string }[] = [
   {
     title: 'Expiry sweep',
     detail: 'Nothing marks a lapsed entitlement expired; it keeps working.',
-  },
-  {
-    title: 'Platform-wide transaction list',
-    detail: 'No endpoint lists individual subscription transactions.',
   },
   {
     title: 'Gateway configuration',
@@ -420,10 +411,7 @@ interface InboundFilter {
 /**
  * Maps the ?filter= values the Overview links with onto real server filters.
  *
- * Three of them cannot be served as written: "trialing" is stored as `pending`,
- * "expiring" and "trials" are windows rather than statuses, and "failed" would
- * need a transaction list that does not exist. Each is translated or stated,
- * never silently dropped.
+ * Explicit trials use trialing. Expiring and trials also apply a date window.
  */
 function resolveInboundFilter(filter: string): InboundFilter {
   switch (filter) {
@@ -435,9 +423,9 @@ function resolveInboundFilter(filter: string): InboundFilter {
     case 'cancelled':
       return { status: filter, window: null, paymentsUnavailable: false };
     case 'trialing':
-      return { status: 'pending', window: null, paymentsUnavailable: false };
+      return { status: 'trialing', window: null, paymentsUnavailable: false };
     case 'trials':
-      return { status: 'pending', window: 'trials', paymentsUnavailable: false };
+      return { status: 'trialing', window: 'trials', paymentsUnavailable: false };
     case 'expiring':
       return { status: 'active', window: 'expiring', paymentsUnavailable: false };
     case 'failed':
@@ -1013,7 +1001,7 @@ function PlanEditDialog({ plan, siblingPlans, onClose, onSaved }: PlanEditDialog
 
   const consequence = [
     changes.length > 0 ? changes.join(' · ') : 'No field changed.',
-    `${formatNumber(storedPlan.subscriberCount)} subscriber${storedPlan.subscriberCount === 1 ? '' : 's'} hold this plan (status active or pending). None is repriced: agreed prices are snapshotted at activation.`,
+    `${formatNumber(storedPlan.subscriberCount)} subscriber${storedPlan.subscriberCount === 1 ? '' : 's'} hold this plan (status active, trialing or pending). None is repriced: agreed prices are snapshotted at activation.`,
     activeDraft.isDefault && otherDefault
       ? `Making this the default also clears the flag on ${otherDefault.name}.`
       : '',
@@ -1785,6 +1773,9 @@ function CommercialTransactionsPanel({ permitted, refreshToken }: { permitted: b
   const [rows, setRows] = useState<CommercialTransaction[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [retry, setRetry] = useState(0);
+  const [query, setQuery] = useState('');
+  const [status, setStatus] = useState('all');
   useEffect(() => {
     if (!permitted) return;
     setLoading(true);
@@ -1793,27 +1784,47 @@ function CommercialTransactionsPanel({ permitted, refreshToken }: { permitted: b
       .then(setRows)
       .catch((cause) => setError(messageOf(cause)))
       .finally(() => setLoading(false));
-  }, [permitted, refreshToken]);
-  if (!permitted) return null;
-  if (loading) return <div className="skeleton-inline" role="status" aria-label="Loading transactions"><span className="skeleton skeleton-text" /><span className="skeleton skeleton-text" /></div>;
-  if (error) return <StateBlock variant="error" title="Transactions unavailable" body={error} />;
-  if (rows.length === 0) return <StateBlock variant="empty" title="No transactions yet" body="Checkout attempts appear here as soon as they are created." />;
+  }, [permitted, refreshToken, retry]);
+  if (!permitted) return <StateBlock variant="denied" title="Payment records are restricted" body="Viewing transactions requires platform:view_payments." />;
+  if (error) return <StateBlock variant="error" title="Transactions unavailable" body={error} actions={<Button variant="outline" className="btn-sm" onClick={() => setRetry((value) => value + 1)}>Try again</Button>} />;
+  const search = query.trim().toLowerCase();
+  const filtered = rows.filter((row) =>
+    (status === 'all' || row.status === status) &&
+    (!search || [row.reference, row.businessName, row.productName, row.planName, row.invoiceNumber, row.receiptNumber]
+      .some((value) => value?.toLowerCase().includes(search))),
+  );
   return (
-    <div className="list" aria-label="Commercial transactions">
-      {rows.map((row) => (
-        <div className="list-item" key={row.reference}>
-          <div>
-            <p className="list-item-title">{row.businessName} · {row.planName ?? 'Unknown plan'} {row.planVersion ? `v${row.planVersion}` : ''}</p>
-            <p className="list-item-subtitle">{row.reference} · {formatDateTime(row.createdAt)} · {row.invoiceNumber ?? 'No invoice'} · {row.receiptNumber ?? 'No receipt'}</p>
-            {row.failureReason && <p className="form-error">{row.failureReason}</p>}
-          </div>
-          <div className="toolbar-group">
-            {row.isTestData && <Badge tone="warning">TEST</Badge>}
-            <StatusBadge status={row.status} />
-            <strong>{row.amountMinor === null ? '—' : formatMoney(row.amountMinor / 100, row.currency)}</strong>
-          </div>
+    <div>
+      <div className="plat-toolbar">
+        <div className="plat-field plat-field-grow">
+          <label className="form-label" htmlFor="billing-transaction-search">Search transactions</label>
+          <input id="billing-transaction-search" className="form-input" type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Reference, business or document" />
         </div>
-      ))}
+        <div className="plat-field">
+          <label className="form-label" htmlFor="billing-transaction-status">Status</label>
+          <select id="billing-transaction-status" className="select-input" value={status} onChange={(event) => setStatus(event.target.value)}>
+            <option value="all">All statuses</option>
+            {[...new Set(rows.map((row) => row.status))].sort().map((value) => <option key={value} value={value}>{humaniseToken(value)}</option>)}
+          </select>
+        </div>
+      </div>
+      <DataTable
+        columns={[
+          { key: 'reference', header: 'Reference', label: '', render: (row) => <><span className="data-table-primary mono">{row.reference}</span>{row.isTestData && <Badge tone="warning">Test</Badge>}</> },
+          { key: 'business', header: 'Business', render: (row) => <><span className="data-table-primary">{row.businessName}</span><span className="data-table-secondary">{row.productName ?? 'Product unavailable'} · {row.planName ?? 'Plan unavailable'}</span></> },
+          { key: 'amount', header: 'Amount', numeric: true, render: (row) => row.amountMinor === null ? '—' : formatMoney(row.amountMinor / 100, row.currency) },
+          { key: 'method', header: 'Method', render: (row) => row.paymentMode ? humaniseToken(row.paymentMode) : '—' },
+          { key: 'status', header: 'Status', render: (row) => <><StatusBadge status={row.status} />{row.failureReason && <span className="data-table-secondary">{row.failureReason}</span>}</> },
+          { key: 'date', header: 'Date', render: (row) => formatDateTime(row.createdAt) },
+          { key: 'document', header: 'Document', render: (row) => row.receiptNumber ?? row.invoiceNumber ?? '—' },
+        ]}
+        rows={filtered}
+        rowKey={(row) => row.reference}
+        caption="Subscription payment transactions"
+        stacked
+        loading={loading}
+        empty={<StateBlock compact variant="empty" title={rows.length ? 'No matching transactions' : 'No transactions yet'} body={rows.length ? 'Change the search or status filter.' : 'Checkout attempts will appear here after a customer starts payment.'} />}
+      />
     </div>
   );
 }
@@ -1821,7 +1832,7 @@ function CommercialTransactionsPanel({ permitted, refreshToken }: { permitted: b
 // ------------------------------------------------------------------- screen
 
 export default function BillingArea() {
-  const { can, settings, environment, access } = usePlatform();
+  const { can, settings, environment } = usePlatform();
   const [searchParams, setSearchParams] = useSearchParams();
 
   // Panel permissions, resolved once. The server re-checks every one of them, so
@@ -1829,6 +1840,7 @@ export default function BillingArea() {
   const mayView = can(PERMISSIONS.view);
   const mayReadEntitlements = can(PERMISSIONS.entitlements);
   const mayManagePayments = can(PERMISSIONS.payments);
+  const mayViewPaymentRecords = can('platform:view_payments');
   const mayManagePlans = can(PERMISSIONS.plans);
   const mayReadAudit = can(PERMISSIONS.audit) || can(AUDIT_FALLBACK);
   const areaReachable = AREA.permissions.some((permission) => can(permission)) || mayView;
@@ -2104,7 +2116,7 @@ export default function BillingArea() {
     let soonestTrial: string | null = null;
     for (const row of watchlist.rows) {
       const trialDays = daysUntil(row.trialEndsAt, now);
-      if (row.entitlementStatus === 'pending' && trialDays !== null && trialDays >= 0 && trialDays <= 30) {
+      if (row.entitlementStatus === 'trialing' && trialDays !== null && trialDays >= 0 && trialDays <= 30) {
         trials += 1;
         if (!soonestTrial || (row.trialEndsAt ?? '') < soonestTrial) soonestTrial = row.trialEndsAt;
       }
@@ -2552,22 +2564,6 @@ export default function BillingArea() {
     });
   }
 
-  // Named in the brief as part of this area; none has a backend, so it is stated
-  // once instead of drawn as an empty list that would read as "none exist".
-  const unmonitored: AttentionItem[] = [
-    {
-      id: 'not-built',
-      tone: 'muted',
-      title: 'Invoices, receipts and a platform-wide payment list do not exist',
-      meta: 'subscription_transactions is real, but the only per-transaction view is the last 20 on one business.',
-      action: (
-        <Button variant="ghost" className="btn-sm" onClick={() => openSection('payments')}>
-          Details
-        </Button>
-      ),
-    },
-  ];
-
   const metrics: Metric[] = [
     {
       id: 'active',
@@ -2580,7 +2576,7 @@ export default function BillingArea() {
       id: 'trialing',
       label: 'On trial',
       value: overview.loading ? '—' : formatNumber(overview.data?.trialingSubscriptions ?? null),
-      foot: 'Status pending, trial not ended',
+      foot: 'Free trials with access',
       onClick: () => openSection('subscriptions', { filter: 'trialing', status: '' }),
     },
     {
@@ -2617,14 +2613,6 @@ export default function BillingArea() {
       onClick: () => openSection('payments'),
     },
     {
-      id: 'unpaid',
-      label: 'Unpaid invoices',
-      value: 'Not built',
-      foot: 'No invoice or receipt table exists',
-      tone: 'muted',
-      onClick: () => openSection('payments'),
-    },
-    {
       id: 'revenue',
       label: 'Revenue',
       value: revenue.loading ? '—' : formatMoneyCompact(revenue.summary?.totalRevenue ?? null),
@@ -2639,17 +2627,13 @@ export default function BillingArea() {
     <>
       <PlatformPageHead
         area={AREA}
-        description={`Signed in as ${
-          access?.isSuperAdmin ? 'platform owner' : 'platform admin'
-        } in ${environment.label.toLowerCase()}.`}
+        description="Manage plans, subscriptions and payments."
         actions={<RefreshButton onClick={refreshAll} loading={catalogue.loading || entitlements.loading} />}
       />
 
-      <AreaCoverage gaps={AREA.gaps} title="What this page cannot show yet" />
-
       {/* ── Section navigation ────────────────────────────────────── */}
       <nav className="chip-row" aria-label="Subscriptions and billing sections">
-        {availableSections.map((option) => (
+        {availableSections.filter((option) => ['overview', 'plans', 'subscriptions', 'payments'].includes(option.id)).map((option) => (
           <button
             key={option.id}
             type="button"
@@ -2661,6 +2645,14 @@ export default function BillingArea() {
           </button>
         ))}
       </nav>
+
+      <Disclosure summary="More billing tools">
+        <div className="btn-row">
+          {availableIds.has('activation') && <Link className="btn btn-ghost btn-sm" to="/platform/activation">Activation keys</Link>}
+          {availableIds.has('settings') && <button className="btn btn-ghost btn-sm" type="button" onClick={() => openSection('settings')}>Billing settings</button>}
+          {availableIds.has('audit') && <Link className="btn btn-ghost btn-sm" to="/platform/audit">Audit trail</Link>}
+        </div>
+      </Disclosure>
 
       {!sectionAllowed ? (
         <PermissionDenied
@@ -2693,7 +2685,6 @@ export default function BillingArea() {
             ) : attention.length > 0 ? (
               <>
                 <AttentionList items={attention} />
-                <AttentionList items={unmonitored} />
               </>
             ) : (
               <>
@@ -2701,7 +2692,6 @@ export default function BillingArea() {
                   Nothing needs attention. No failed payments in the selected period, nothing past due, and no
                   subscription expiring in the next 30 days.
                 </HealthyStrip>
-                <AttentionList items={unmonitored} />
               </>
             )}
           </section>
@@ -2911,7 +2901,7 @@ export default function BillingArea() {
                       term: 'Subscribers',
                       value: `${formatNumber(visiblePlan.subscriberCount)} entitlement${
                         visiblePlan.subscriberCount === 1 ? '' : 's'
-                      } with status active or pending`,
+                      } with status active, trialing or pending`,
                     },
                     {
                       term: 'Description',
@@ -3228,7 +3218,7 @@ export default function BillingArea() {
             actions={periodChips}
           />
 
-          <p className="form-hint">Each attempt is shown with its immutable plan version, exact minor-unit amount, environment, and generated invoice or receipt. Test records are visibly marked and excluded from production revenue.</p>
+          <p className="form-hint">Test transactions are marked and excluded from production revenue.</p>
 
           {!mayView ? (
             <StateBlock
@@ -3240,17 +3230,7 @@ export default function BillingArea() {
             <SectionFailure message={revenue.error} onRetry={revenue.reload} />
           ) : (
             <>
-              {inbound.paymentsUnavailable && (
-                <div className="callout callout-warning">
-                  <div>
-                    <p className="callout-title">Failed payments cannot be listed</p>
-                    <p className="callout-text">
-                      The dashboard link asked for failed payments. Only the aggregate totals below exist, so no list of
-                      individual failures can be shown: the count is real, the rows behind it are not reachable here.
-                    </p>
-                  </div>
-                </div>
-              )}
+              {inbound.paymentsUnavailable && <p className="form-hint">The transaction table shows the newest 100 attempts. The period totals cover the full selected range.</p>}
 
               <KpiGrid>
                 <KpiCard
@@ -3277,7 +3257,7 @@ export default function BillingArea() {
               </KpiGrid>
 
               <SectionHead title="Recent transactions" sub="Newest 100 payment attempts across the platform." />
-              <CommercialTransactionsPanel permitted={mayManagePayments} refreshToken={refreshToken} />
+              <CommercialTransactionsPanel permitted={mayViewPaymentRecords} refreshToken={refreshToken} />
 
               <div className="section-head">
                 <div className="section-head-text">
@@ -3305,68 +3285,9 @@ export default function BillingArea() {
                 </p>
               </Disclosure>
 
-              <Disclosure summary="What is real here, and what is not">
-                <ul className="list">
-                  <li className="list-item">
-                    <div>
-                      <p className="list-item-title">Gateway transactions</p>
-                      <p className="list-item-subtitle">
-                        start_plan_checkout writes the row from a published product plan id — the path the customer
-                        Billing page uses — and initiate_subscription_checkout still writes it from a legacy plan id. The
-                        paystack-initialize Edge Function starts the payment and paystack-webhook maps the terminal
-                        status to activate_subscription. Paystack is the only gateway on this path: opay-initiate-payment
-                        and opay-webhook drive device_transactions for the OPay terminal flow, which is a merchant
-                        payment, not a subscription, so no OPay call writes this table.
-                      </p>
-                    </div>
-                  </li>
-                  <li className="list-item">
-                    <div>
-                      <p className="list-item-title">Pending verification</p>
-                      <p className="list-item-subtitle">
-                        Status pending means a checkout was started and no terminal webhook has arrived — not that money
-                        was received. The stored statuses are pending, success, failed and abandoned.
-                      </p>
-                    </div>
-                  </li>
-                  <li className="list-item">
-                    <div>
-                      <p className="list-item-title">Confirmed payment</p>
-                      <p className="list-item-subtitle">
-                        A successful webhook calls activate_subscription, which writes the entitlement. That is the point
-                        at which money becomes access — see Activation &amp; access.
-                      </p>
-                    </div>
-                  </li>
-                  <li className="list-item">
-                    <div>
-                      <p className="list-item-title">Manual payments</p>
-                      <p className="list-item-subtitle">
-                        Recorded as an activation-key payment_reference (written at issue, and not returned by
-                        list_activation_keys) or as a manual_activation adjustment. Neither creates a transaction row.
-                      </p>
-                    </div>
-                  </li>
-                  <li className="list-item">
-                    <div>
-                      <p className="list-item-title">Refunds and reconciliation</p>
-                      <p className="list-item-subtitle">
-                        No refund path and no reconciliation endpoint exists for subscription payments. The refunds table
-                        belongs to merchant sales, not to platform billing, so a subscription refund has to be handled at
-                        the gateway and then recorded as a cancellation.
-                      </p>
-                    </div>
-                  </li>
-                  <li className="list-item">
-                    <div>
-                      <p className="list-item-title">Receipts</p>
-                      <p className="list-item-subtitle">
-                        Nothing issues a receipt. The reference, amount, currency and paid_at on a transaction are the
-                        only record of a payment.
-                      </p>
-                    </div>
-                  </li>
-                </ul>
+              <Disclosure summary="Payment record notes">
+                <p>Pending means checkout began; only a verified settlement activates access. Invoice and receipt numbers appear in the transaction table when issued.</p>
+                <p>The table shows the newest 100 attempts. Revenue totals use the selected period and exclude sandbox transactions.</p>
               </Disclosure>
             </>
           )}
@@ -3628,7 +3549,7 @@ export default function BillingArea() {
               {
                 term: 'Invoice information',
                 value:
-                  'No invoice, receipt or billing-address record exists. organisations carries a billing_email column, and get_platform_business does not return it, so nothing in this console displays it either.',
+                  'Invoices and receipts are generated for commercial checkout. Open Payments to review their numbers; billing contact details are shown on each business record.',
                 muted: true,
               },
               {

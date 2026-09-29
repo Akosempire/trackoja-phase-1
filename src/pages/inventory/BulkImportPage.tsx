@@ -240,11 +240,7 @@ export default function BulkImportPage() {
       )}
 
       <div className="btn-row" style={{ marginTop: 16 }}>
-        <Link to="/inventory/products">
-          <Button variant="ghost" className="btn-sm">
-            Back to products
-          </Button>
-        </Link>
+        <Link className="btn btn-ghost btn-sm" to="/inventory/products">Back to products</Link>
       </div>
     </div>
   );

@@ -106,9 +106,7 @@ export default function SalesHubPage() {
           <p className="page-subtitle">Today's checkout, payments and recent activity</p>
         </div>
         {canCheckout && (
-          <Link to="/sales/checkout">
-            <Button className="btn-sm">{category === 'restaurant' ? 'New order' : 'New sale'}</Button>
-          </Link>
+          <Link className="btn btn-primary btn-sm" to="/sales/checkout">{category === 'restaurant' ? 'New order' : 'New sale'}</Link>
         )}
       </div>
 
@@ -157,7 +155,7 @@ export default function SalesHubPage() {
             <p className="list-item-title" style={{ margin: 0 }}>
               Pending transactions
             </p>
-            <Link to="/payments" className="btn-ghost" style={{ fontSize: 13 }}>
+            <Link to="/payments" className="btn btn-ghost btn-sm">
               View all
             </Link>
           </div>
@@ -187,7 +185,7 @@ export default function SalesHubPage() {
           <p className="list-item-title" style={{ margin: 0 }}>
             Recent sales
           </p>
-          <Link to="/sales/history" className="btn-ghost" style={{ fontSize: 13 }}>
+          <Link to="/sales/history" className="btn btn-ghost btn-sm">
             View all
           </Link>
         </div>

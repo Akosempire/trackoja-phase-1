@@ -23,16 +23,11 @@ const AREA = PLATFORM_AREAS.find((area) => area.id === 'settings')!;
 
 const TEMPLATE_CHANNELS = ['email', 'sms', 'in_app'] as const;
 
-/**
- * The only seeded key any code reads.
- *
- * Verified by reading the migrations rather than inferred from the key name: it
- * is the guard inside assert_sandbox_override() in
- * 20260926000072_platform_developer_mode_functions.sql. Every other seeded key is
- * written and returned but consulted by nothing, which each row states as a badge
- * rather than as a paragraph.
- */
+/** Settings consumed by server-side access and billing rules. */
 const READ_BY_CODE: Record<string, string> = {
+  'billing.payment_system': 'Controls subscription checkout and trial expiry enforcement.',
+  'billing.trial_enabled': 'Controls whether eligible owners can start a trial.',
+  'billing.default_trial_days': 'Duration of new trials; existing trial dates are preserved.',
   'developer.sandbox_required':
     'assert_sandbox_override(), 20260926000072_platform_developer_mode_functions.sql',
 };

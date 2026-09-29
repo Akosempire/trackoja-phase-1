@@ -4,6 +4,9 @@ import { useAuth } from '../../contexts/AuthContext';
 import { usePermissions } from '../../hooks/usePermissions';
 import { SaleService } from '../../services/sale.service';
 import { Button } from '../../components/ui/Button';
+import { DataTable } from '../../components/ui/DataTable';
+import { Disclosure } from '../../components/ui/Disclosure';
+import { SearchInput } from '../../components/ui/SearchInput';
 import { PageLoader } from '../../components/ui/PageLoader';
 import { SectionHead } from '../../components/ui/SectionHead';
 import { SectionState, StateBlock } from '../../components/ui/StateBlock';
@@ -149,9 +152,9 @@ export default function PaymentsPage() {
           <SectionHead id="pos-transactions-title" title="Moniepoint POS transactions"
             sub="Most recent 100 attempts in this branch. Only provider-verified payments complete a sale."
             actions={<Link className="btn btn-outline btn-sm" to="/settings/payments/moniepoint">POS settings</Link>} />
-          <div className="auth-form-row" style={{ marginBottom: 16 }}>
+          <div className="payment-filter-bar">
             <div className="form-group"><label className="form-label" htmlFor="payment-search">Search reference, terminal, or sale</label>
-              <input id="payment-search" className="form-input" value={attemptSearch}
+              <SearchInput id="payment-search" aria-label="Search payment transactions" value={attemptSearch}
                 onChange={(event) => setAttemptSearch(event.target.value)} /></div>
             <div className="form-group"><label className="form-label" htmlFor="payment-status">Status</label>
               <select id="payment-status" className="select-input" value={attemptStatus}
@@ -161,7 +164,8 @@ export default function PaymentsPage() {
                   <option key={status} value={status}>{status.replaceAll('_', ' ')}</option>)}
               </select></div>
           </div>
-          <div className="auth-form-row" style={{ marginBottom: 16 }}>
+          <Disclosure summary="More payment filters">
+          <div className="payment-advanced-filters">
             <div className="form-group"><label className="form-label" htmlFor="payment-date-from">From</label>
               <input id="payment-date-from" className="form-input" type="date" value={attemptDateFrom}
                 onChange={(event) => setAttemptDateFrom(event.target.value)} /></div>
@@ -196,7 +200,8 @@ export default function PaymentsPage() {
               <input id="payment-max-amount" className="form-input" type="number" min="0" value={attemptMaxAmount}
                 onChange={(event) => setAttemptMaxAmount(event.target.value)} /></div>
           </div>
-          {canReview && filteredAttempts.length > 0 && <div className="btn-row" style={{ marginBottom: 12 }}>
+          </Disclosure>
+          {canReview && filteredAttempts.length > 0 && <div className="btn-row payment-export-actions">
             <Button variant="outline" className="btn-sm" onClick={exportVisible}>Export visible transactions</Button>
           </div>}
           {attemptError ? <StateBlock variant="error" title="POS transactions unavailable" body={attemptError}
@@ -205,29 +210,30 @@ export default function PaymentsPage() {
             body="Moniepoint requests sent from checkout will appear here."
             actions={hasPermission('sales:create') ? <Link className="btn btn-primary" to="/sales/checkout">Record a sale</Link> : undefined} /> :
             filteredAttempts.length === 0 ? <StateBlock title="No matching transactions" body="Try a different reference or status." /> :
-            <div className="list">{filteredAttempts.map((attempt) =>
-              <div className="list-item" key={attempt.id}>
-                <div>
-                  <Link className="list-item-title" to={`/payments/transactions/${attempt.id}`}>{attempt.merchantReference}</Link>
-                  <p className="list-item-subtitle">{formatDateTime(attempt.initiatedAt)} · Terminal ••••{attempt.terminalLastFour}
-                    {attempt.environment === 'sandbox' ? ' · Sandbox' : ''}</p>
-                  {(attempt.saleNumber || attempt.customerName) && <p className="list-item-subtitle">
-                    {attempt.saleNumber ? `Sale #${attempt.saleNumber}` : ''}
-                    {attempt.customerName ? ` · ${attempt.customerName}` : ''}
-                  </p>}
-                  {attempt.providerReference && <p className="list-item-subtitle">Provider ref: {attempt.providerReference}</p>}
-                </div>
-                <div className="list-item-meta">
-                  <span className="list-item-title">{formatMoney(attempt.expectedAmount)}</span>
-                  <span className={`badge ${attempt.status === 'successful' ? 'badge-success' :
-                    ['unresolved', 'reconciliation_required', 'pending'].includes(attempt.status) ? 'badge-warning' : 'badge-default'}`}>
-                    {attempt.status.replaceAll('_', ' ')}
-                  </span>
-                  {['sending', 'pending', 'unresolved', 'reconciliation_required'].includes(attempt.status) &&
-                    <Button variant="ghost" className="btn-sm" loading={actingId === attempt.id}
-                      onClick={() => checkAttempt(attempt.id)}>Check status</Button>}
-                </div>
-              </div>)}</div>}
+            <DataTable
+              caption="Merchant payment attempts"
+              rows={filteredAttempts}
+              rowKey={(attempt) => attempt.id}
+              stacked
+              columns={[
+                { key: 'reference', header: 'Reference', label: '', render: (attempt) => <div>
+                  <Link className="data-table-primary" to={`/payments/transactions/${attempt.id}`}>{attempt.merchantReference}</Link>
+                  {attempt.providerReference && <span className="data-table-secondary">Provider: {attempt.providerReference}</span>}
+                  {attempt.environment === 'sandbox' && <span className="badge badge-warning">Sandbox</span>}
+                </div> },
+                { key: 'sale', header: 'Sale', render: (attempt) => <div>
+                  <span>{attempt.saleNumber ? `#${attempt.saleNumber}` : '—'}</span>
+                  {attempt.customerName && <span className="data-table-secondary">{attempt.customerName}</span>}
+                </div> },
+                { key: 'amount', header: 'Amount', numeric: true, render: (attempt) => formatMoney(attempt.expectedAmount) },
+                { key: 'method', header: 'Method', render: (attempt) => (attempt.actualPaymentMethod ?? attempt.paymentMethod).replaceAll('_', ' ') },
+                { key: 'status', header: 'Status', render: (attempt) => <span className={`badge ${attempt.status === 'successful' ? 'badge-success' : ['unresolved', 'reconciliation_required', 'pending'].includes(attempt.status) ? 'badge-warning' : 'badge-default'}`}>{attempt.status.replaceAll('_', ' ')}</span> },
+                { key: 'date', header: 'Date', render: (attempt) => formatDateTime(attempt.initiatedAt) },
+                { key: 'action', header: 'Action', render: (attempt) => ['sending', 'pending', 'unresolved', 'reconciliation_required'].includes(attempt.status)
+                  ? <Button variant="outline" className="btn-sm" loading={actingId === attempt.id} onClick={() => checkAttempt(attempt.id)}>Check status</Button>
+                  : <Link className="btn btn-ghost btn-sm" to={`/payments/transactions/${attempt.id}`}>View</Link> },
+              ]}
+            />}
         </section>
 
         {canReview && attempts.some((attempt) =>

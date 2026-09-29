@@ -1,3 +1,4 @@
+import { useBillingAvailability } from '../../hooks/useBillingAvailability';
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
@@ -54,6 +55,7 @@ type PricingState =
   | { status: 'unavailable'; cause: 'failed' | 'empty' };
 
 export default function LandingPage() {
+  const { billing: availability } = useBillingAvailability();
   useRevealOnScroll();
 
   const [menuOpen, setMenuOpen] = useState(false);
@@ -540,7 +542,7 @@ export default function LandingPage() {
                         </a>
                       ) : (
                         <Link className="lp-btn lp-btn-primary lp-price-cta" to={plan.ctaHref}>
-                          {plan.ctaLabel}
+                          {availability?.trialEnabled && availability.paymentSystem !== 'LIVE' ? 'Start Free Trial' : plan.ctaLabel}
                         </Link>
                       )}
                     </article>

@@ -5,7 +5,7 @@ import { usePermissions } from '../../hooks/usePermissions';
 import { useBusinessContext } from '../../contexts/BusinessContext';
 import { getBusinessExperience } from '../../config/businessExperience';
 import { CustomerService } from '../../services/customer.service';
-import { Button } from '../../components/ui/Button';
+import { SearchInput } from '../../components/ui/SearchInput';
 import { PageLoader } from '../../components/ui/PageLoader';
 import { SectionState } from '../../components/ui/StateBlock';
 import type { Customer } from '../../types';
@@ -54,14 +54,12 @@ export default function CustomersListPage() {
           <p className="page-subtitle">{loading ? `Loading ${customersLabel}…` : error ? `${customersLabel[0].toUpperCase()}${customersLabel.slice(1)} unavailable` : `${customers.length} ${customerLabel}${customers.length === 1 ? '' : 's'}`}</p>
         </div>
         {canCreate && (
-          <Link to="/customers/new">
-            <Button className="btn-sm">Add {customerLabel}</Button>
-          </Link>
+          <Link className="btn btn-primary btn-sm" to="/customers/new">Add {customerLabel}</Link>
         )}
       </div>
 
-      <input
-        className="form-input search-input"
+      <SearchInput
+        aria-label={`Search ${customersLabel}`}
         placeholder="Search by name, phone, or email"
         value={search}
         onChange={(e) => setSearch(e.target.value)}

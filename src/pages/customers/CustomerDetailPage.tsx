@@ -122,11 +122,7 @@ export default function CustomerDetailPage() {
           <p className="page-subtitle">{customer.phone || customer.email || 'No contact info'}</p>
         </div>
         {canUpdate && (
-          <Link to={`/customers/${customer.id}/edit`}>
-            <Button variant="ghost" className="btn-sm">
-              Edit
-            </Button>
-          </Link>
+          <Link className="btn btn-outline btn-sm" to={`/customers/${customer.id}/edit`}>Edit</Link>
         )}
       </div>
 

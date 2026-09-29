@@ -141,6 +141,34 @@ for (const width of [730, 390]) {
   });
 }
 
+for (const width of [320, 375, 390, 430, 768, 1024, 1280, 1440]) {
+  for (const theme of ['light', 'dark'] as const) {
+    test(`directory controls follow the shared tokens at ${width}px in ${theme}`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 });
+      await page.setContent(`<!doctype html><html data-theme="${theme}"><body>
+        <main class="page"><header class="page-header"><div><h1 class="page-title">Products</h1></div>
+          <div class="btn-row product-page-actions"><a class="btn btn-primary btn-sm" href="#">Add product</a><a class="btn btn-outline btn-sm" href="#">Bulk import</a></div></header>
+          <div class="product-filters"><div class="control-row search-input-row"><input class="form-input search-input" type="search" aria-label="Search products"><button class="btn btn-outline">Scan</button></div>
+            <select class="select-input" aria-label="Category"><option>All categories</option></select><label class="checkbox-row"><input type="checkbox">Low stock only</label></div>
+          <div class="payment-filter-bar"><div class="form-group"><label class="form-label">Search transactions<input class="form-input search-input" type="search"></label></div>
+            <div class="form-group"><label class="form-label">Status<select class="select-input"><option>All statuses</option></select></label></div></div>
+          <nav class="chip-row" aria-label="Billing sections"><button class="chip active">Overview</button><button class="chip">Plans</button><button class="chip">Subscriptions</button><button class="chip">Payments</button></nav>
+        </main></body></html>`);
+      for (const file of styles) await page.addStyleTag({ path: path.join(root, file) });
+      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+      await expect(page.locator('.product-filters .search-input')).toHaveCSS('border-radius', '6px');
+      const primary = await page.locator('.product-page-actions .btn').first().boundingBox();
+      const secondary = await page.locator('.product-page-actions .btn').last().boundingBox();
+      if (width <= 600) {
+        expect(primary!.y).toBeLessThan(secondary!.y);
+        expect(primary!.width).toBeGreaterThanOrEqual(secondary!.width);
+      } else {
+        expect(primary!.y).toBe(secondary!.y);
+      }
+    });
+  }
+}
+
 for (const width of [1440, 820, 390]) {
   test(`landing pricing cards stay centred at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });

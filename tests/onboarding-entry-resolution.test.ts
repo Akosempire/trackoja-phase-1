@@ -68,6 +68,6 @@ describe('resumable new-user onboarding', () => {
   });
   it('uses a concise completion transition', () => {
     expect(onboarding).toMatch(/ready to use TrackOja/);
-    expect(onboarding).toMatch(/Enter TrackOja/);
+    expect(onboarding).toMatch(/Go to Dashboard/);
   });
 });

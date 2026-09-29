@@ -13,6 +13,8 @@ import {
   SubscriptionService,
   type CheckoutPreview,
   type PublishedPlan,
+  type BillingAvailability,
+  type TrialActivation,
 } from '../../services/subscription.service';
 import { formatDate, formatMoney, formatSeatLimit } from '../../utils/format';
 
@@ -45,8 +47,12 @@ export default function OnboardingPage() {
   const [cycle, setCycle] = useState<Cycle>('monthly');
   const [selectedPlan, setSelectedPlan] = useState<PublishedPlan | null>(null);
   const [preview, setPreview] = useState<CheckoutPreview | null>(null);
+  const [billing, setBilling] = useState<BillingAvailability | null>(null);
+  const [trial, setTrial] = useState<TrialActivation | null>(null);
+  const trialFlow = billing?.paymentSystem !== 'LIVE';
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [busy, setBusy] = useState(false);
   const [pendingReference, setPendingReference] = useState<string | null>(null);
 
@@ -54,15 +60,18 @@ export default function OnboardingPage() {
 
   useEffect(() => {
     let alive = true;
-    Promise.all([SubscriptionService.getOnboarding(), SubscriptionService.getPublishedPlans()])
-      .then(([progress, catalogue]) => {
+    setLoading(true);
+    setError(null);
+    Promise.all([SubscriptionService.getOnboarding(), SubscriptionService.getPublishedPlans(), SubscriptionService.getBillingAvailability()])
+      .then(([progress, catalogue, availability]) => {
         if (!alive) return;
         setPlans(catalogue);
+        setBilling(availability);
         if (progress.businessCategory && BUSINESS_CATEGORIES.some((item) => item.value === progress.businessCategory)) {
           setSelectedCategory(progress.businessCategory as BusinessCategory);
         }
         if (callbackReference) setStep('verifying');
-        else if (progress.state === 'payment_pending' && progress.checkoutReference) {
+        else if (availability.paymentSystem === 'LIVE' && progress.state === 'payment_pending' && progress.checkoutReference) {
           setPendingReference(progress.checkoutReference);
           setStep('payment');
         } else if (progress.orgId) setStep('plan');
@@ -71,14 +80,14 @@ export default function OnboardingPage() {
       .catch((cause) => setError(cause instanceof Error ? cause.message : 'Onboarding could not be loaded.'))
       .finally(() => setLoading(false));
     return () => { alive = false; };
-  }, [callbackReference]);
+  }, [callbackReference, loadAttempt]);
 
   useEffect(() => {
     if (!callbackReference || step !== 'verifying') return;
     const toastId = toast.loading('Verifying your payment…', { dedupeKey: 'onboarding-verification' });
     SubscriptionService.verifyPayment(callbackReference)
       .then(async (result) => {
-        if (!result.settled) throw new Error(result.detail ?? 'Payment has not been confirmed yet.');
+        if (!result.settled) throw new Error('Payment has not been confirmed yet. Please try again shortly.');
         toast.update(toastId, {
           variant: 'success',
           message: result.testData ? 'Test payment verified' : 'Payment verified',
@@ -134,7 +143,7 @@ export default function OnboardingPage() {
       variant: 'success',
       message: 'Business created',
       description: profileRefreshed
-        ? 'Now choose the commercial terms you want to purchase.'
+        ? 'Now choose a plan for your business.'
         : 'Choose a plan. Your account details will refresh when you next sign in.',
     });
     setStep('plan');
@@ -153,6 +162,7 @@ export default function OnboardingPage() {
     const planVersionId = versionFor(plan, cycle);
     if (!planVersionId) return;
     setBusy(true);
+    setSelectedPlan(plan);
     setError(null);
     try {
       const value = await SubscriptionService.getCheckoutPreview(planVersionId);
@@ -171,8 +181,16 @@ export default function OnboardingPage() {
   async function startCheckout() {
     if (!preview) return;
     setBusy(true);
-    const toastId = toast.loading('Opening secure checkout…', { dedupeKey: 'onboarding-checkout' });
+    setError(null);
+    const toastId = toast.loading(trialFlow ? 'Starting your free trial…' : 'Opening secure checkout…', { dedupeKey: 'onboarding-checkout' });
     try {
+      if (trialFlow) {
+        setTrial(await SubscriptionService.startTrial(preview.planVersionId));
+        toast.update(toastId, { variant: 'success', message: 'Your free trial has started' });
+        setStep('complete');
+        setBusy(false);
+        return;
+      }
       const result = await SubscriptionService.startPlanCheckout(
         preview.planVersionId,
         `${window.location.origin}/onboarding`,
@@ -194,7 +212,7 @@ export default function OnboardingPage() {
     const toastId = toast.loading('Checking payment…', { dedupeKey: 'onboarding-payment-check' });
     try {
       const result = await SubscriptionService.verifyPayment(pendingReference);
-      if (!result.settled) throw new Error(result.detail ?? 'Payment is still awaiting confirmation.');
+      if (!result.settled) throw new Error('Payment is still awaiting confirmation. Please try again shortly.');
       toast.update(toastId, { variant: 'success', message: 'Payment verified' });
       setStep('complete');
     } catch (cause) {
@@ -206,9 +224,15 @@ export default function OnboardingPage() {
 
   async function enterTrackOja() {
     setBusy(true);
-    await refreshProfile();
-    navigate('/dashboard', { replace: true });
+    try {
+      await refreshProfile();
+      navigate('/dashboard', { replace: true });
+    } catch {
+      setError('Your access is saved. We could not open your workspace. Please try again.');
+    } finally { setBusy(false); }
   }
+
+  if (!loading && !billing) return <div className="onboarding-shell"><p role="alert">{error ?? 'Plan availability could not be loaded.'}</p><Button onClick={() => setLoadAttempt((value) => value + 1)}>Retry</Button></div>;
 
   if (loading || step === 'verifying') return <PageLoader />;
 
@@ -263,7 +287,7 @@ export default function OnboardingPage() {
         <>
           <div className="onboarding-header">
             <h1 className="onboarding-title">Choose your TrackOja plan</h1>
-            <p className="onboarding-subtitle">Every price and limit below comes from the currently published plan version.</p>
+            <p className="onboarding-subtitle">{trialFlow ? `Online subscription payments are not available yet. ${billing?.trialEnabled ? `Start with a ${billing.trialDays}-day free trial. No payment is required.` : 'Please contact support for access.'}` : 'Choose the plan that fits your business.'}</p>
           </div>
           <div className="billing-cycle-control" role="group" aria-label="Billing cycle">
             <button type="button" className={cycle === 'monthly' ? 'active' : ''} onClick={() => setCycle('monthly')}>Monthly</button>
@@ -272,15 +296,14 @@ export default function OnboardingPage() {
           <div className="onboarding-plan-grid">
             {plans.map((plan) => {
               const price = cycle === 'monthly' ? plan.monthlyPrice : plan.annualPrice;
-              const version = cycle === 'monthly' ? plan.monthlyVersion : plan.annualVersion;
               const setup = cycle === 'monthly' ? plan.monthlySetupFee : plan.annualSetupFee;
               return (
                 <article className="card onboarding-plan-card" key={plan.id}>
-                  <div><span className="eyebrow">Version {version ?? '—'}</span><h2>{plan.name}</h2><p>{plan.description}</p></div>
+                  <div><h2>{plan.name}</h2><p>{plan.description}</p></div>
                   <p className="onboarding-plan-price">{price === null ? 'Contact sales' : formatMoney(price, plan.currency)}<small>{price === null ? '' : ` / ${cycle === 'monthly' ? 'month' : 'year'}`}</small></p>
-                  <dl><div><dt>Users</dt><dd>{formatSeatLimit(plan.userLimit)}</dd></div><div><dt>Setup fee</dt><dd>{setup ? formatMoney(setup, plan.currency) : 'None'}</dd></div><div><dt>Trial</dt><dd>Not offered</dd></div></dl>
+                  <dl><div><dt>Users</dt><dd>{formatSeatLimit(plan.userLimit)}</dd></div><div><dt>Setup fee</dt><dd>{setup ? formatMoney(setup, plan.currency) : 'None'}</dd></div>{trialFlow && billing?.trialEnabled && <div><dt>Free trial</dt><dd>{billing.trialDays} days</dd></div>}</dl>
                   <ul>{plan.features.map((feature) => <li key={feature.key}>{feature.label}{feature.upcoming ? ' (coming soon)' : ''}</li>)}</ul>
-                  <Button onClick={() => review(plan)} loading={busy && selectedPlan?.id === plan.id} disabled={!versionFor(plan, cycle) || price === null}>Review billing</Button>
+                  <Button onClick={() => review(plan)} loading={busy && selectedPlan?.id === plan.id} disabled={busy || !versionFor(plan, cycle) || price === null || !billing || (trialFlow && !billing.trialEnabled)}>{trialFlow ? 'Start Free Trial' : 'Review billing'}</Button>
                 </article>
               );
             })}
@@ -292,20 +315,20 @@ export default function OnboardingPage() {
         <>
           <div className="onboarding-header">
             <button type="button" className="onboarding-back" onClick={() => setStep('plan')}>Back to plans</button>
-            <h1 className="onboarding-title">Review your billing</h1>
-            <p className="onboarding-subtitle">This preview is calculated by the same server rules that create the payment attempt.</p>
+            <h1 className="onboarding-title">{trialFlow ? 'Confirm your free trial' : 'Review your billing'}</h1>
+            <p className="onboarding-subtitle">{trialFlow ? `${billing?.trialDays} days to try your plan. No payment or card required.` : 'Check your plan and total before continuing.'}</p>
           </div>
           <section className="card billing-preview-card">
-            <div className="split-head"><div><h2>{preview.planName}</h2><p>{preview.billingCycle} · version {preview.version}</p></div><span className="badge badge-brand">{preview.currency}</span></div>
+            <div className="split-head"><div><h2>{preview.planName}</h2><p>{preview.billingCycle}</p></div><span className="badge badge-brand">{preview.currency}</span></div>
             <dl className="billing-preview-lines">
               <div><dt>Subscription</dt><dd>{formatMoney(preview.recurringAmountMinor / 100, preview.currency)}</dd></div>
               <div><dt>Setup fee</dt><dd>{preview.setupFeeMinor ? formatMoney(preview.setupFeeMinor / 100, preview.currency) : 'None'}</dd></div>
-              <div><dt>Trial</dt><dd>Not offered</dd></div>
-              <div className="billing-preview-total"><dt>Total due now</dt><dd>{formatMoney(preview.amountDueMinor / 100, preview.currency)}</dd></div>
+              {trialFlow && <div><dt>Free trial</dt><dd>{billing?.trialDays} days</dd></div>}
+              <div className="billing-preview-total"><dt>Total due now</dt><dd>{formatMoney(trialFlow ? 0 : preview.amountDueMinor / 100, preview.currency)}</dd></div>
             </dl>
             <p className="page-subtitle">Billing email: {preview.billingEmail ?? 'Not set'}</p>
-            {preview.nextBillingDate && <p className="page-subtitle">Next billing date: {formatDate(preview.nextBillingDate)}</p>}
-            <Button onClick={startCheckout} loading={busy}>Continue to secure payment</Button>
+            {!trialFlow && preview.nextBillingDate && <p className="page-subtitle">Next billing date: {formatDate(preview.nextBillingDate)}</p>}
+            <Button onClick={startCheckout} loading={busy}>{trialFlow ? 'Confirm free trial' : 'Continue to secure payment'}</Button>
           </section>
         </>
       )}
@@ -326,9 +349,10 @@ export default function OnboardingPage() {
       {step === 'complete' && (
         <section className="card billing-preview-card">
           <span className="eyebrow">Setup complete</span>
-          <h1 className="onboarding-title">You’re ready to use TrackOja</h1>
-          <p className="onboarding-subtitle">Your business is set up and your access is active.</p>
-          <Button onClick={() => void enterTrackOja()} loading={busy}>Enter TrackOja</Button>
+          <h1 className="onboarding-title">{trial ? 'Your free trial has started' : 'You’re ready to use TrackOja'}</h1>
+          <p className="onboarding-subtitle">{trial ? `You now have access to ${trial.planName} for ${trial.trialDays} days.` : 'Your business is set up and your access is active.'}</p>
+          {trial && <p className="page-subtitle">Trial ends {formatDate(trial.trialEndsAt)}</p>}
+          <Button onClick={() => void enterTrackOja()} loading={busy}>Go to Dashboard</Button>
         </section>
       )}
     </div>

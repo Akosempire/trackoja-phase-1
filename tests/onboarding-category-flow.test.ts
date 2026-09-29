@@ -19,7 +19,7 @@ vi.mock('../src/components/ui/Toast', () => ({
   useToast: () => ({ loading: () => 'toast-1', update: vi.fn(), error: vi.fn(), dismiss: vi.fn() }),
 }));
 vi.mock('../src/services/subscription.service', () => ({
-  SubscriptionService: { getOnboarding: mocks.getOnboarding, getPublishedPlans: mocks.getPublishedPlans },
+  SubscriptionService: { getBillingAvailability: async () => ({ paymentSystem: 'DISABLED', trialEnabled: true, trialDays: 14 }), getOnboarding: mocks.getOnboarding, getPublishedPlans: mocks.getPublishedPlans },
 }));
 vi.mock('../src/services/organization.service', () => ({
   OrganizationService: { createOnboardingBusiness: mocks.createBusiness },

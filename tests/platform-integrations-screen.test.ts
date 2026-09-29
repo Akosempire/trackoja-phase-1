@@ -1,8 +1,11 @@
 // @vitest-environment jsdom
 import { act, createElement } from 'react';
+import { MemoryRouter } from 'react-router-dom';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import IntegrationsArea from '../src/pages/platform/areas/IntegrationsArea';
+
+vi.mock('../src/hooks/useBillingAvailability', () => ({ useBillingAvailability: () => ({ billing: null, error: null, reload: vi.fn() }) }));
 
 const mocks = vi.hoisted(() => ({ rpc: vi.fn() }));
 
@@ -21,7 +24,7 @@ async function renderScreen() {
   host = document.createElement('div');
   document.body.append(host);
   root = createRoot(host);
-  await act(async () => root?.render(createElement(IntegrationsArea)));
+  await act(async () => root?.render(createElement(MemoryRouter, {}, createElement(IntegrationsArea))));
   return host;
 }
 

@@ -1,3 +1,5 @@
+import { Link } from 'react-router-dom';
+import { useBillingAvailability } from '../../../hooks/useBillingAvailability';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { usePlatform } from '../../../components/platform/PlatformContext';
 import { AreaCoverage, PlatformPageHead } from '../../../components/platform/PlatformPageHead';
@@ -46,6 +48,7 @@ type MoniepointHealth = Record<string, number | string | null>;
 
 export default function IntegrationsArea() {
   const { environment, can } = usePlatform();
+  const { billing, error: billingError, reload: reloadBilling } = useBillingAvailability();
   const canManage = can('platform:manage_integrations');
   const [moniepointHealth, setMoniepointHealth] = useState<MoniepointHealth | null>(null);
   const [moniepointError, setMoniepointError] = useState<string | null>(null);
@@ -90,6 +93,17 @@ export default function IntegrationsArea() {
         description={`Payment and account-email services for ${environment.label.toLowerCase()}. Merchant payment diagnostics are shown below when available.`}
       />
 
+      <section className="card">
+        <SectionHead title="Subscription billing" actions={<Button variant="outline" onClick={reloadBilling}>Refresh status</Button>} />
+        {billingError ? <p role="alert">{billingError}</p> : billing ? <>
+          <DefList rows={[
+            { term: 'Payment system', value: billing.paymentSystem === 'DISABLED' ? 'Not configured ? payments disabled' : billing.paymentSystem === 'TEST' ? 'Test ? authorised sandbox businesses only' : 'Live mode selected ? server credentials required' },
+            { term: 'Free trials', value: billing.trialEnabled ? `${billing.trialDays} days` : 'Disabled' },
+          ]} />
+          <p className="section-sub">Payment credentials stay on the server. A mode setting does not verify a provider connection. Existing paid subscriptions are preserved.</p>
+          {can('platform:manage_settings') && <Link className="btn btn-outline" to="/platform/settings">Manage billing availability</Link>}
+        </> : <p role="status">Loading billing availability?</p>}
+      </section>
       {canManage && (
         <section className="card" aria-labelledby="moniepoint-platform-title">
           <SectionHead

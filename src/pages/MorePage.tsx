@@ -52,7 +52,7 @@ export default function MorePage() {
   if (hasPermission('devices:view')) {
     links.push({ to: '/devices', label: 'Devices', icon: DevicesIcon });
   }
-  if (hasPermission('sales:refund')) {
+  if (hasPermission('sales:view')) {
     links.push({ to: '/payments', label: 'Payments', icon: PaymentsIcon });
   }
   if (hasPermission('store:update')) {

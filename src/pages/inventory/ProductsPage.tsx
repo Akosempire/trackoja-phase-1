@@ -6,6 +6,7 @@ import { useBusinessContext } from '../../contexts/BusinessContext';
 import { ProductService } from '../../services/product.service';
 import { CategoryService } from '../../services/category.service';
 import { Button } from '../../components/ui/Button';
+import { SearchInput } from '../../components/ui/SearchInput';
 import { PageLoader } from '../../components/ui/PageLoader';
 import { SectionState } from '../../components/ui/StateBlock';
 import { getBusinessExperience } from '../../config/businessExperience';
@@ -85,31 +86,33 @@ export default function ProductsPage() {
           <p className="page-subtitle">{loading ? 'Loading inventory…' : `${products.length} ${products.length === 1 ? 'item' : 'items'}`}</p>
         </div>
         {canCreate && (
-          <div className="btn-row">
-            <Link to="/inventory/products/bulk-import">
-              <Button variant="ghost" className="btn-sm btn-outline">
-                Bulk import
-              </Button>
-            </Link>
-            <Link to="/inventory/products/new">
-              <Button className="btn-sm">Add {experience.terminology.lineItem.toLowerCase()}</Button>
-            </Link>
+          <div className="btn-row product-page-actions">
+            <Link className="btn btn-primary btn-sm" to="/inventory/products/new">Add {experience.terminology.lineItem.toLowerCase()}</Link>
+            <Link className="btn btn-outline btn-sm" to="/inventory/products/bulk-import">Bulk import</Link>
           </div>
         )}
       </div>
 
-      <div className="control-row search-input-row">
-        <div>
-          <input
-            className="form-input"
+      <div className="product-filters">
+        <div className="control-row search-input-row">
+          <SearchInput
+            aria-label={`Search ${itemPlural}`}
             placeholder="Search by name, SKU, or barcode"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
+          <Button type="button" variant="outline" onClick={() => setScanning(true)}>Scan</Button>
         </div>
-        <Button type="button" variant="primary" onClick={() => setScanning(true)}>
-          Scan
-        </Button>
+
+        <select className="select-input" aria-label="Filter by category" value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
+          <option value="">All categories</option>
+          {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+        </select>
+
+        <label className="checkbox-row" htmlFor="low-stock-only">
+          <input id="low-stock-only" type="checkbox" checked={lowStockOnly} onChange={(e) => setLowStockOnly(e.target.checked)} />
+          Low stock only
+        </label>
       </div>
 
       {scanning && (
@@ -121,27 +124,6 @@ export default function ProductsPage() {
           onClose={() => setScanning(false)}
         />
       )}
-
-      <div className="form-group">
-        <select className="select-input" value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
-          <option value="">All categories</option>
-          {categories.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <div className="checkbox-row">
-        <input
-          id="low-stock-only"
-          type="checkbox"
-          checked={lowStockOnly}
-          onChange={(e) => setLowStockOnly(e.target.checked)}
-        />
-        <label htmlFor="low-stock-only">Low stock only</label>
-      </div>
 
       <SectionState
         loading={loading}
@@ -185,11 +167,7 @@ export default function ProductsPage() {
 
       {canAdjust && (
         <div className="btn-row" style={{ marginTop: 16 }}>
-          <Link to="/inventory/stock">
-            <Button variant="ghost" className="btn-sm">
-              Adjust stock
-            </Button>
-          </Link>
+          <Link className="btn btn-ghost btn-sm" to="/inventory/stock">Adjust stock</Link>
         </div>
       )}
     </div>

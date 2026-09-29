@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { PlatformAdminService, type ImpersonationInfo } from '../services/platformAdmin.service';
+import { useAuth } from '../contexts/AuthContext';
 
 /**
  * Persistent developer-mode / impersonation indicator.
@@ -10,6 +12,7 @@ import { PlatformAdminService, type ImpersonationInfo } from '../services/platfo
  * an immediate exit control.
  */
 export function DeveloperModeBanner() {
+  const { profile } = useAuth();
   const [developerMode, setDeveloperMode] = useState(false);
   const [impersonation, setImpersonation] = useState<ImpersonationInfo | null>(null);
   const [exiting, setExiting] = useState(false);
@@ -68,9 +71,9 @@ export function DeveloperModeBanner() {
         <div className="dev-banner dev-banner-developer" role="status" data-developer-indicator>
           <span className="dev-banner-dot" aria-hidden="true" />
           <span className="dev-banner-text">
-            <strong>Developer mode active.</strong> Diagnostics and sandbox records only — it does
-            not bypass payment verification, subscription limits, or tenant isolation.
+            <strong>Developer access granted.</strong> Diagnostics and sandbox records only. Customer permissions still apply.
           </span>
+          {profile?.isPlatformAdmin && <Link className="btn btn-outline btn-sm" to="/platform/developer">Manage access</Link>}
         </div>
       )}
 

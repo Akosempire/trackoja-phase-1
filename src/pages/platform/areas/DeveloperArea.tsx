@@ -500,7 +500,7 @@ export default function DeveloperArea() {
 
   const sessionRows: DefRow[] = [
     {
-      term: 'Developer mode',
+      term: 'Developer access grant',
       value: status ? (
         <StatusBadge
           status={status.developerMode ? 'active' : 'inactive'}
@@ -529,7 +529,7 @@ export default function DeveloperArea() {
     <>
       <PlatformPageHead
         area={AREA}
-        description={`Signed in as ${isSuperAdmin ? 'platform owner' : 'developer'} in ${environment.label.toLowerCase()}.`}
+        description="Diagnostics, sandbox testing and developer access grants."
         actions={<RefreshButton onClick={reload} loading={loading} />}
       />
 
@@ -618,7 +618,7 @@ export default function DeveloperArea() {
           <>
             <DefList rows={sessionRows} />
             <p className="section-sub">
-              A session grants nothing and takes nothing away, so neither button is confirmed; only one can be open.
+              Your grant is managed by a platform owner. Starting or ending a session records diagnostic work; it does not change customer access.
             </p>
           </>
         </SectionState>

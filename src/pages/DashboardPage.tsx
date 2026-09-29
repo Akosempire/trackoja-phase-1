@@ -1,3 +1,4 @@
+import { TrialStatus } from '../components/TrialStatus';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -246,6 +247,7 @@ export default function DashboardPage() {
 
   return (
     <div className="page dash">
+      <TrialStatus />
       <div className="page-header">
         <div>
           <h1 className="page-title">{store?.name ?? 'Overview'}</h1>

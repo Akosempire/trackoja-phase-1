@@ -69,6 +69,13 @@ export function useAppNav() {
     return navItem;
   });
 
+  // Payment records are readable with sales:view; approval and refund controls
+  // remain separately gated by sales:refund on the page and in the database.
+  if (!navByKey.has('payments') && !permsLoading && hasPermission('sales:view')) {
+    const payments = { to: '/payments', label: 'Payments', icon: PaymentsIcon };
+    navByKey.set('payments', payments);
+    allItems.push(payments);
+  }
   allItems.push({ to: '/more', label: 'More', icon: MoreIcon });
 
   // The mobile bottom bar is deliberately small and chosen per business type:
@@ -80,9 +87,13 @@ export function useAppNav() {
 
   // Two either side, so Scan holds the exact centre column of the five-slot bar.
   const leftItems: NavItem[] = bottomItems.slice(0, 2);
+  const bottomRoutes = new Set(bottomItems.map((item) => item.to));
+  const additionalItem = navByKey.get('payments') && !bottomRoutes.has('/payments')
+    ? navByKey.get('payments')
+    : allItems.find((item) => item.to !== '/more' && !bottomRoutes.has(item.to));
   const rightItems: NavItem[] = [
     ...bottomItems.slice(2),
-    { to: '/more', label: 'More', icon: MoreIcon },
+    additionalItem ?? { to: '/more', label: 'More', icon: MoreIcon },
   ];
 
   const handleScan = () => {

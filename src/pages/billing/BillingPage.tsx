@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
+import { useBillingAvailability } from '../../hooks/useBillingAvailability';
 import { OrganizationService } from '../../services/organization.service';
 import {
   SubscriptionService,
@@ -39,7 +40,9 @@ type BillingCycle = 'monthly' | 'annual';
  * tiers the rest of the product advertised.
  */
 export default function BillingPage() {
-  const { user, profile } = useAuth();
+  const { user, profile, refreshEntry } = useAuth();
+  const { billing, error: billingError, reload: reloadBilling } = useBillingAvailability();
+  const trialFlow = billing?.paymentSystem !== 'LIVE';
   const toast = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
   const orgId = profile?.currentOrgId;
@@ -108,7 +111,7 @@ export default function BillingPage() {
     const toastId = toast.loading('Verifying payment…', { dedupeKey: 'billing-verification' });
     SubscriptionService.verifyPayment(reference)
       .then((result) => {
-        if (!result.settled) throw new Error(result.detail ?? 'Payment has not been confirmed.');
+        if (!result.settled) throw new Error('Payment has not been confirmed yet. Please try again shortly.');
         toast.update(toastId, { variant: 'success', message: result.testData ? 'Test payment verified' : 'Payment verified' });
         setSearchParams({}, { replace: true });
         void load();
@@ -129,8 +132,15 @@ export default function BillingPage() {
     }
 
     const { status, trialEndsAt, expiresAt, daysRemaining } = entitlement;
-    const date = trialEndsAt ?? expiresAt;
+    const date = status === 'trialing' ? trialEndsAt : expiresAt;
     const lapsed = daysRemaining !== null && daysRemaining < 0;
+
+    if (status === 'trialing') return {
+      headline: lapsed ? (trialFlow ? 'Trial access extended' : 'Trial ended') : 'Free trial',
+      detail: lapsed && trialFlow ? 'You can keep working while online payments are unavailable.' : `${entitlement.planName ?? 'TrackOja'} trial`,
+      tone: lapsed && !trialFlow ? 'warning' as const : 'success' as const,
+      action: 'View plans', nextDate: trialEndsAt, nextDateLabel: 'Trial ends',
+    };
 
     if (status === 'past_due' || status === 'suspended' || lapsed) {
       return {
@@ -178,7 +188,7 @@ export default function BillingPage() {
       nextDate: date,
       nextDateLabel: date ? 'Renews' : null,
     };
-  }, [entitlement]);
+  }, [entitlement, trialFlow]);
 
   const usage = useMemo<MeterItem[]>(() => {
     if (!entitlement) return [];
@@ -237,6 +247,7 @@ export default function BillingPage() {
       const versionId = cycle === 'monthly' ? plan.monthlyVersionId : plan.annualVersionId;
       if (!versionId) throw new Error(`No published ${cycle} version exists for this plan.`);
       setCheckoutPreview(await SubscriptionService.getCheckoutPreview(versionId));
+      setCheckoutPlanId(null);
     } catch (cause) {
       const message = cause && typeof cause === 'object' && 'message' in cause
         ? String((cause as { message: unknown }).message)
@@ -250,8 +261,17 @@ export default function BillingPage() {
     if (!checkoutPreview) return;
     const planId = checkoutPreview.planId;
     setCheckoutPlanId(planId);
-    const toastId = toast.loading('Opening secure checkout…', { dedupeKey: 'billing-checkout' });
+    const toastId = toast.loading(trialFlow ? 'Starting your free trial…' : 'Opening secure checkout…', { dedupeKey: 'billing-checkout' });
     try {
+      if (trialFlow) {
+        const trial = await SubscriptionService.startTrial(checkoutPreview.planVersionId);
+        setCheckoutPreview(null);
+        setCheckoutPlanId(null);
+        toast.update(toastId, { variant: 'success', message: 'Your free trial has started', description: `${trial.planName} · ends ${formatDate(trial.trialEndsAt)}` });
+        await load();
+        await refreshEntry();
+        return;
+      }
       const { authorizationUrl } = await SubscriptionService.startPlanCheckout(
         checkoutPreview.planVersionId,
         `${window.location.origin}/billing`,
@@ -294,6 +314,12 @@ export default function BillingPage() {
       </div>
 
       {error && <div className="alert alert-error" role="alert">{error}</div>}
+      {billingError && <StateBlock variant="error" title="Plan availability could not be loaded" body={billingError} actions={<Button variant="outline" onClick={reloadBilling}>Retry</Button>} />}
+      {billing && trialFlow && <section className="card">
+        <SectionHead title="Payments & subscriptions are coming soon" />
+        <p className="section-sub">{entitlement?.status === 'trialing' ? 'Your trial is active. Keep working while online payments are unavailable.' : billing.trialEnabled ? `Start a ${billing.trialDays}-day free trial. No card or payment is required.` : 'Online payments are unavailable. Contact support for access.'}</p>
+        {entitlement?.status === 'trialing' && <Link className="btn btn-primary" to="/dashboard">Go to dashboard</Link>}
+      </section>}
 
       <section className="card">
         <SectionHead title="Billing contact" />
@@ -423,7 +449,7 @@ export default function BillingPage() {
         ) : (
           <div className="plan-grid">
             {plans.map((plan) => {
-              const isCurrent = plan.id === currentPlanId;
+              const isCurrent = plan.id === currentPlanId && entitlement?.status !== 'pending';
               const price = priceFor(plan, cycle);
               const otherCycle = priceFor(plan, cycle === 'monthly' ? 'annual' : 'monthly');
               const saving =
@@ -465,7 +491,7 @@ export default function BillingPage() {
                   <p className="plan-card-note">
                     Setup fee: {((cycle === 'monthly' ? plan.monthlySetupFee : plan.annualSetupFee) || 0) > 0
                       ? formatMoney(cycle === 'monthly' ? plan.monthlySetupFee : plan.annualSetupFee, plan.currency)
-                      : 'none'} · no trial
+                      : 'none'}{trialFlow && billing?.trialEnabled ? ` · ${billing.trialDays}-day free trial` : ''}
                   </p>
 
                   {isCurrent ? (
@@ -480,9 +506,9 @@ export default function BillingPage() {
                     <Button
                       onClick={() => handleCheckout(plan)}
                       loading={checkoutPlanId === plan.id}
-                      disabled={!isOwner}
+                      disabled={!isOwner || !billing || (trialFlow && (!billing.trialEnabled || (entitlement !== null && entitlement.status !== 'pending')))}
                     >
-                      {entitlement ? 'Switch to this plan' : 'Choose this plan'}
+                      {trialFlow ? 'Start Free Trial' : entitlement ? 'Switch to this plan' : 'Choose this plan'}
                     </Button>
                   )}
                 </div>
@@ -542,18 +568,18 @@ export default function BillingPage() {
       <Dialog
         open={checkoutPreview !== null}
         onClose={() => { setCheckoutPreview(null); setCheckoutPlanId(null); }}
-        title="Review billing"
-        description={checkoutPreview ? `${checkoutPreview.planName} · version ${checkoutPreview.version} · ${checkoutPreview.billingCycle}` : undefined}
-        footer={checkoutPreview && <><Button variant="outline" onClick={() => setCheckoutPreview(null)}>Back</Button><Button onClick={confirmCheckout} loading={checkoutPlanId !== null}>Continue to payment</Button></>}
+        title={trialFlow ? 'Confirm your free trial' : 'Review billing'}
+        description={checkoutPreview ? `${checkoutPreview.planName} · ${checkoutPreview.billingCycle}` : undefined}
+        footer={checkoutPreview && <><Button variant="outline" onClick={() => setCheckoutPreview(null)}>Back</Button><Button onClick={confirmCheckout} loading={checkoutPlanId !== null}>{trialFlow ? 'Confirm free trial' : 'Continue to payment'}</Button></>}
       >
         {checkoutPreview && (
           <dl className="billing-preview-lines">
             <div><dt>Subscription</dt><dd>{formatMoney(checkoutPreview.recurringAmountMinor / 100, checkoutPreview.currency)}</dd></div>
             <div><dt>Setup fee</dt><dd>{checkoutPreview.setupFeeMinor ? formatMoney(checkoutPreview.setupFeeMinor / 100, checkoutPreview.currency) : 'None'}</dd></div>
-            <div><dt>Trial</dt><dd>Not offered</dd></div>
-            <div className="billing-preview-total"><dt>Total due now</dt><dd>{formatMoney(checkoutPreview.amountDueMinor / 100, checkoutPreview.currency)}</dd></div>
+            {trialFlow && <div><dt>Free trial</dt><dd>{billing?.trialDays} days</dd></div>}
+            <div className="billing-preview-total"><dt>Total due now</dt><dd>{formatMoney(trialFlow ? 0 : checkoutPreview.amountDueMinor / 100, checkoutPreview.currency)}</dd></div>
             <div><dt>Billing email</dt><dd>{checkoutPreview.billingEmail ?? 'Not set'}</dd></div>
-            <div><dt>Next billing date</dt><dd>{checkoutPreview.nextBillingDate ? formatDate(checkoutPreview.nextBillingDate) : 'Not scheduled'}</dd></div>
+            {!trialFlow && <div><dt>Next billing date</dt><dd>{checkoutPreview.nextBillingDate ? formatDate(checkoutPreview.nextBillingDate) : 'Not scheduled'}</dd></div>}
           </dl>
         )}
       </Dialog>

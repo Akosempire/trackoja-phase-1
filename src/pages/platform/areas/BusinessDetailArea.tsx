@@ -1,3 +1,4 @@
+import { TrialExtension } from '../../../components/platform/TrialExtension';
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { PlatformAdminService, type BusinessDetail } from '../../../services/platformAdmin.service';
@@ -388,6 +389,8 @@ export default function BusinessDetailArea() {
           />
         )}
 
+        {can('platform:manage_payments') && entitlements.filter((row) => str(row, 'status') === 'trialing' && str(row, 'id')).map((row) =>
+          <TrialExtension key={str(row, 'id')!} entitlementId={str(row, 'id')!} onSaved={load} />)}
         {entitlements.length > 1 && (
           <div>
             <SectionHead title="Other products" />

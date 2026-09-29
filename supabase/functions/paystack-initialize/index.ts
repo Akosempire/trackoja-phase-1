@@ -74,6 +74,13 @@ Deno.serve(async (req) => {
 
   const adminClient = createClient(supabaseUrl, serviceRoleKey);
 
+  // Platform availability is authoritative even when a stale client calls us.
+  const { data: billing, error: billingError } = await userClient.rpc('get_billing_availability');
+  if (billingError || !billing || !['TEST', 'LIVE'].includes(billing.payment_system)) {
+    console.error('Subscription payment initialization disabled', { code: billingError?.code, mode: billing?.payment_system });
+    return json({ error: 'Online subscription payments are not available yet. Start your free trial to continue.', code: 'PAYMENTS_UNAVAILABLE' }, 503);
+  }
+
   // ----------------------------------------------------------
   // 1. What this deployment is allowed to do about money.
   // ----------------------------------------------------------
@@ -94,6 +101,17 @@ Deno.serve(async (req) => {
 
   if (txnError || !txn) {
     return json({ error: 'Transaction not found' }, 404);
+  }
+
+  if (billing.payment_system === 'TEST') {
+    const { data: access } = await userClient.rpc('get_my_developer_status');
+    const { data: org } = await adminClient.from('organizations').select('is_sandbox').eq('id', txn.org_id).single();
+    if (!access?.[0]?.developer_mode || !org?.is_sandbox || config.mode !== 'test') {
+      return json({ error: 'Test checkout is restricted to authorised sandbox testing.' }, 403);
+    }
+  } else if (config.mode !== 'live') {
+    console.error('Billing LIVE setting does not match provider configuration');
+    return json({ error: 'Online subscription payments are temporarily unavailable.', code: 'PAYMENTS_UNAVAILABLE' }, 503);
   }
 
   if (txn.status === 'success') {
@@ -141,7 +159,7 @@ Deno.serve(async (req) => {
     return json({
       error: 'Payments are unavailable on this deployment.',
       code: PAYMENTS_UNAVAILABLE,
-      detail: config.reason,
+
       environment: config.environment,
     }, 503);
   }
