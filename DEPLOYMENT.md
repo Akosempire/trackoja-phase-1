@@ -1,5 +1,36 @@
 # Deployment
 
+## Latest deployment check — 30 September 2026
+
+The merchant dashboard release `945cbec` is pushed to `origin/master`, including
+its production build. A fresh HTTP check of `/` and `/platform` still returned
+`/assets/index-a7e009af.js`; the release expects `/assets/index-a4338344.js`.
+The public service worker also referenced the previous entry. This is a live
+deployment mismatch, not an onboarding SQL or user-role issue.
+
+The server checkout path and SSH connection are not configured in this workspace.
+An operator with server access must update the **actual checkout serving this
+domain**, using `git pull --ff-only origin master`, and confirm that its document
+root serves that checkout's `dist/`. If a hosting panel copies files into another
+document root, its deployment step must also run. Do not assume a GitHub push
+automatically updates that directory.
+
+Verify from the workstation after deployment:
+
+```bash
+node scripts/check-live-build.mjs https://trackoja.cv
+```
+
+The check compares three entry routes, the service-worker bytes and the entry
+JavaScript bytes against the committed build. It exits unsuccessfully if stale.
+The observed server headers cache HTML and `sw.js` for an hour with a further
+day of stale revalidation. Configure the actual serving layer to revalidate
+HTML and `sw.js` (`Cache-Control: no-cache`); hashed `/assets/` files can remain
+long-lived. Check the headers after changing the server configuration.
+
+The dated deployment observations below are historical, not confirmation that
+the latest release is live.
+
 Two independent targets serve this repository. They are updated by different
 mechanisms, and knowing which is which saves a lot of confusion.
 
