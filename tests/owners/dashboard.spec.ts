@@ -1,5 +1,5 @@
 ﻿import { expect, test } from '@playwright/test';
-for (const role of ['merchant', 'platform']) for (const state of ['empty', 'populated']) for (const width of [375, 768, 1440]) for (const theme of ['light', 'dark']) {
+for (const role of ['merchant', 'platform']) for (const state of ['empty', 'populated']) for (const width of [320, 375, 390, 430, 768, 1024, 1440]) for (const theme of ['light', 'dark']) {
   test(`${role} ${state} ${width}px ${theme}`, async ({ page }, info) => {
     const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
     await page.setViewportSize({ width, height: 1000 });

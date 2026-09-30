@@ -1,3 +1,7 @@
+import { BusinessActivity } from '../components/BusinessActivity';
+import { activityTypes, businessActivity, stockState, stockQuantity } from '../utils/business-activity';
+import { routeModule } from '../utils/merchant-experience';
+import { JobService, type JobSummary } from '../services/job.service';
 import { DashboardRevenuePanel, DashboardWelcome } from '../components/ui/DashboardRevenuePanel';
 import type { ReportDateRange } from '../utils/report-date-ranges';
 import { TrialStatus } from '../components/TrialStatus';
@@ -34,16 +38,8 @@ function daysUntil(dateish: string | undefined): number | null {
   return Math.round((then.getTime() - today.getTime()) / 86_400_000);
 }
 
-function timeAgo(iso: string): string {
-  const minutes = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
-  if (minutes < 1) return 'just now';
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  return `${Math.floor(hours / 24)}d ago`;
-}
-
 interface MetricContext {
+  jobs: JobSummary | null;
   summary: SalesSummary | null;
   products: Product[] | null;
   lowStock: Product[] | null;
@@ -72,6 +68,8 @@ function resolveMetric(metric: DashboardMetric, ctx: MetricContext): ResolvedMet
       return left !== null && left >= 0 && left <= days;
     });
 
+  const jobKeys: Record<string, keyof JobSummary> = { jobs_due_soon: 'jobsDueSoon', jobs_overdue: 'jobsOverdue', upcoming_fittings: 'upcomingFittings', awaiting_pickup: 'awaitingPickup', outstanding_balances: 'outstandingBalances', open_jobs: 'openJobs' };
+  if (jobKeys[metric.key]) return ctx.jobs ? { metric, value: metric.key === 'outstanding_balances' ? formatMoney(ctx.jobs[jobKeys[metric.key]]) : String(ctx.jobs[jobKeys[metric.key]]), sub: metric.period } : null;
   switch (metric.key) {
     case 'sales_today': {
       if (!ctx.summary) return null;
@@ -87,7 +85,7 @@ function resolveMetric(metric: DashboardMetric, ctx: MetricContext): ResolvedMet
       return { metric, value: String(ctx.summary.transactionCount) };
     case 'low_stock':
       if (!ctx.lowStock) return null;
-      return { metric, value: String(ctx.lowStock.length) };
+      return { metric, value: String(ctx.lowStock.filter(product => product.stockQty > 0 && product.stockQty <= product.reorderLevel).length) };
     case 'unavailable_items':
       if (!ctx.products) return null;
       return {
@@ -138,16 +136,19 @@ function resolveMetric(metric: DashboardMetric, ctx: MetricContext): ResolvedMet
 export default function DashboardPage() {
   const navigate = useNavigate();
   const { profile } = useAuth();
-  const { category } = useBusinessContext();
+  const { category, modules } = useBusinessContext();
+  const experience = getBusinessExperience(category, modules);
+  const enabled = modules ?? experience.defaultModules;
   const { hasPermission, loading: permissionsLoading } = usePermissions();
   const canReadReports = hasPermission('reports:view');
-  const canReadInventory = hasPermission('inventory:view');
-  const canReadSales = hasPermission('sales:view');
-  const canReadCustomers = hasPermission('customer:view');
-  const experience = getBusinessExperience(category);
+  const canReadInventory = enabled.includes('inventory') && hasPermission('inventory:view');
+  const canReadSales = enabled.includes('sales') && hasPermission('sales:view');
+  const canReadCustomers = enabled.includes('customers') && hasPermission('customer:view');
+  const canReadJobs = enabled.includes('tailoring') && hasPermission('job:view');
   const storeId = profile?.currentStoreId;
   const dashboardRequest = useRef(0);
 
+  const [jobs, setJobs] = useState<JobSummary | null>(null);
   const [store, setStore] = useState<Store | null>(null);
   const [summary, setSummary] = useState<SalesSummary | null>(null);
   const [products, setProducts] = useState<Product[] | null>(null);
@@ -175,6 +176,7 @@ export default function DashboardPage() {
     setLoading(true);
     setError(null);
     setStore(null);
+    setJobs(null);
     setSummary(null);
     setProducts(null);
     setLowStock(null);
@@ -190,22 +192,24 @@ export default function DashboardPage() {
         failed += 1;
         return null;
       });
-      const [storeRow, sales, allProducts, low, logs, orders, refundRows, customers] = await Promise.all([
+      const [storeRow, sales, allProducts, low, logs, orders, refundRows, customers, jobSummary] = await Promise.all([
         StoreService.getStore(storeId),
         canReadReports ? optional(ReportService.getSalesSummary(storeId, todayStart.toISOString(), now.toISOString())) : Promise.resolve(null),
         canReadInventory ? optional(ProductService.getProducts(storeId)) : Promise.resolve(null),
         canReadInventory ? optional(ProductService.getProducts(storeId, { status: 'active', lowStockOnly: true })) : Promise.resolve(null),
-        optional(AuditService.getStoreAuditLogs(storeId, 8)),
+        optional(AuditService.getStoreAuditLogs(storeId, 8, 0, activityTypes(permission => hasPermission(permission) && (permission.startsWith('inventory') ? canReadInventory : permission.startsWith('sales') ? canReadSales : permission.startsWith('customer') ? canReadCustomers : canReadJobs)))),
         category === 'restaurant' && canReadSales ? optional(SaleService.getKitchenOrders(storeId)) : Promise.resolve(null),
         canReadSales ? optional(SaleService.getRefundCount(storeId, todayStart.toISOString(), now.toISOString())) : Promise.resolve(null),
         canReadCustomers ? optional(CustomerService.getCustomers(storeId)) : Promise.resolve(null),
+        canReadJobs ? optional(JobService.summary(storeId)) : Promise.resolve(null),
       ]);
       if (request !== dashboardRequest.current) return;
       setStore(storeRow);
+      setJobs(jobSummary);
       setSummary(sales);
       setProducts(allProducts);
-      setLowStock(low);
-      setActivity(logs);
+      setLowStock(low?.filter(product => product.trackInventory && stockState(product)).sort((a, b) => a.stockQty - b.stockQty) ?? null);
+      setActivity(logs === null ? null : businessActivity(logs, activityTypes(permission => permission.startsWith('inventory') ? canReadInventory : permission.startsWith('sales') ? canReadSales : permission.startsWith('customer') ? canReadCustomers : canReadJobs)));
       setKitchenOrders(orders);
       setRefundCount(refundRows);
       setCustomerCount(customers?.length ?? null);
@@ -215,7 +219,7 @@ export default function DashboardPage() {
     } finally {
       if (request === dashboardRequest.current) setLoading(false);
     }
-  }, [storeId, permissionsLoading, canReadReports, canReadInventory, canReadSales, canReadCustomers, category]);
+  }, [storeId, permissionsLoading, canReadReports, canReadInventory, canReadSales, canReadCustomers, canReadJobs, category]);
 
   useEffect(() => { void loadDashboard(); }, [loadDashboard]);
 
@@ -231,6 +235,7 @@ export default function DashboardPage() {
 
   const resolved = useMemo(() => {
     const ctx: MetricContext = {
+      jobs,
       summary,
       products,
       lowStock,
@@ -242,18 +247,19 @@ export default function DashboardPage() {
       .filter((metric) => metric.implemented)
       .map((metric) => resolveMetric(metric, ctx))
       .filter((entry): entry is ResolvedMetric => entry !== null);
-  }, [experience, summary, products, lowStock, kitchenOrders, refundCount, customerCount]);
+  }, [experience, jobs, summary, products, lowStock, kitchenOrders, refundCount, customerCount]);
 
-  const hasAvailableData = summary !== null || products !== null || customerCount !== null || kitchenOrders !== null;
+  const hasAvailableData = jobs !== null || summary !== null || products !== null || customerCount !== null || kitchenOrders !== null;
   const canUseAction = (route: string) => {
-    if (permissionsLoading) return false;
+    if (permissionsLoading || (routeModule(route) && !enabled.includes(routeModule(route)!))) return false;
     if (route === '/sales/checkout') return hasPermission('sales:create');
     if (route === '/inventory/products/new') return hasPermission('product:create');
     if (route === '/kitchen') return canReadSales;
     if (route.startsWith('/inventory')) return canReadInventory;
     if (route === '/customers/new') return hasPermission('customer:create');
     if (route.startsWith('/customers')) return canReadCustomers;
-    if (route === '/jobs') return hasPermission('job:create');
+    if (route.startsWith('/jobs')) return hasPermission('job:create');
+    if (route === '/settings') return hasPermission('store:update');
     return true;
   };
 
@@ -265,7 +271,8 @@ export default function DashboardPage() {
       <div className="page-header">
         <div>
           <p className="dashboard-greeting">Welcome back{profile?.firstName ? `, ${profile.firstName}` : ''}.</p>
-          <h1 className="page-title">{store?.name ?? 'Overview'}</h1>
+          <h1 className="page-title">Overview</h1>
+          <p className="page-subtitle">{store?.name} · {experience.displayName}</p>
 
         </div>
       </div>
@@ -273,7 +280,7 @@ export default function DashboardPage() {
       {/* Primary action first: it is what this business does most often. */}
       <DashboardWelcome title="Your business at a glance" description={experience.primaryQuestion} actions={<>
         {experience.primaryAction.implemented && canUseAction(experience.primaryAction.route) && (
-          <Button onClick={() => navigate(experience.primaryAction.route)}>
+          <Button onClick={() => navigate(experience.primaryAction.route === '/jobs' ? '/jobs?new=1' : experience.primaryAction.route)}>
             {experience.primaryAction.label}
           </Button>
         )}
@@ -309,33 +316,21 @@ export default function DashboardPage() {
         </div>
       ) : (
         <>
+          <div className="owner-dashboard-snapshot"><h2>Business overview</h2><p>Sales figures are for today in this branch. Stock, customers and job balances are current; deadlines show their stated period.</p></div>
+          <div className="owner-metrics"><KpiGrid>
+            {resolved.map(({ metric, value, sub }) => {
+              const tone = metric.tone === 'warn' ? 'warning' : metric.tone === 'danger' ? 'danger' : 'default';
+              return <KpiCard key={metric.key} label={metric.label} value={value} foot={sub} tone={tone}
+                onClick={metric.linkTo && (metric.linkTo.startsWith('/sales') ? canReadSales : true) ? () => navigate(metric.linkTo!) : undefined}
+                ariaLabel={metric.linkTo ? `${metric.label}: ${value}. Open details` : undefined} />;
+            })}
+          </KpiGrid></div>
           <div className={`owner-dashboard-main${canReadReports ? '' : ' owner-dashboard-no-revenue'}`}>
             {canReadReports && <DashboardRevenuePanel load={loadRevenue} title="Sales revenue" breakdownTitle="Sales by payment method"
               note="Completed sales only. Revenue is after discounts and includes tax; credit sales are not necessarily cash received."
               emptyDescription={experience.emptyStates.dashboard} />}
             <aside className="owner-dashboard-side" aria-label="Business updates">
-            <section className="card dash-panel" aria-labelledby="recent-activity-title">
-              <SectionHead id="recent-activity-title" title="Recent activity" />
-              {activity === null ? (
-                <StateBlock compact variant="error" title="Activity unavailable" body="Recent actions could not be loaded." actions={<Button variant="outline" className="btn-sm" onClick={loadDashboard}>Try again</Button>} />
-              ) : activity.length === 0 ? (
-                <StateBlock compact title="No recent activity" body="Completed changes and actions will appear here." />
-              ) : (
-                <div className="list">
-                  {activity.slice(0, 3).map((log) => (
-                    <div className="list-item" key={log.id}>
-                      <div>
-                        <p className="list-item-title">{log.action.replace(/_/g, ' ').toLowerCase()}</p>
-                        <p className="list-item-subtitle">{log.resourceName ?? log.resourceType ?? 'record'} · {timeAgo(log.createdAt)}</p>
-                      </div>
-                      <span className={`badge ${log.status === 'success' ? 'badge-success' : 'badge-warning'}`}>{log.status}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </section>
-
-            {hasPermission('inventory:view') && (
+            {canReadInventory && (
               <section className="card dash-panel" aria-labelledby="stock-attention-title">
                 <SectionHead
                   id="stock-attention-title"
@@ -352,26 +347,22 @@ export default function DashboardPage() {
                       <Link className="list-item" key={product.id} to={`/inventory/products/${product.id}`}>
                         <div>
                           <p className="list-item-title">{product.name}</p>
-                          <p className="list-item-subtitle">Reorder at {product.reorderLevel.toLocaleString()} {product.unit}</p>
+                          <p className="list-item-subtitle">Available: {stockQuantity(product.stockQty, product.unit)} · Reorder level: {stockQuantity(product.reorderLevel, product.unit)}</p>
                         </div>
-                        <span className="badge badge-warning">{product.stockQty.toLocaleString()} left</span>
+                        <span className={`badge ${product.stockQty <= 0 ? 'badge-danger' : 'badge-warning'}`}>{stockState(product)}</span>
                       </Link>
                     ))}
                   </div>
                 )}
               </section>
             )}
+<section className="card dash-panel" aria-labelledby="recent-activity-title">
+              <SectionHead id="recent-activity-title" title="Recent activity" actions={<Link className="btn btn-ghost btn-sm" to="/activity">View activity</Link>} />
+              {activity === null ? <StateBlock compact variant="error" title="Activity unavailable" actions={<Button variant="outline" onClick={loadDashboard}>Try again</Button>} /> : <BusinessActivity logs={activity.slice(0, 3)} actorId={profile?.id} actorName={profile?.firstName} />}
+            </section>
 </aside>
           </div>
-          <div className="owner-dashboard-snapshot"><h2>Business overview</h2><p>Sales figures are for today. Stock and customer figures reflect the current workspace.</p></div>
-          <div className="owner-metrics"><KpiGrid>
-            {resolved.map(({ metric, value, sub }) => {
-              const tone = metric.tone === 'warn' ? 'warning' : metric.tone === 'danger' ? 'danger' : 'default';
-              return <KpiCard key={metric.key} label={metric.label} value={value} foot={sub} tone={tone}
-                onClick={metric.linkTo ? () => navigate(metric.linkTo!) : undefined}
-                ariaLabel={metric.linkTo ? `${metric.label}: ${value}. Open details` : undefined} />;
-            })}
-          </KpiGrid></div>
+
 
         </>
       )}

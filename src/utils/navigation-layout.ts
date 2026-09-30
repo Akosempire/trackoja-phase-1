@@ -1,12 +1,12 @@
 /** Takes already permission-filtered destinations; never introduces a route. */
 export function mobileDestinations<T extends { to: string }>(preferred: T[], permitted: T[]): T[] {
-  const unique = (items: T[]) => items.filter((item, index) =>
-    item.to !== '/more' && items.findIndex((candidate) => candidate.to === item.to) === index);
-  const choices = unique(preferred);
-  const payments = permitted.find((item) => item.to === '/payments');
-  const first = choices.filter((item) => item.to !== '/payments').slice(0, payments ? 3 : 4);
-  const selected = payments ? [...first, payments] : first;
-  return unique([...selected, ...permitted]).slice(0, 4);
+  const overview = permitted.find(item => item.to === '/dashboard');
+  const more = permitted.find(item => item.to === '/more');
+  const choices = [...preferred, ...permitted].filter((item, index, items) =>
+    item.to !== '/dashboard' && item.to !== '/more' &&
+    permitted.some(candidate => candidate.to === item.to) &&
+    items.findIndex(candidate => candidate.to === item.to) === index).slice(0, 2);
+  return [...(overview ? [overview] : []), ...choices, ...(more ? [more] : [])];
 }
 
 /** Route-owned widths remain stable when a module loads a table or an error. */

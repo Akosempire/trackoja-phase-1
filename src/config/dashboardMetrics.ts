@@ -11,6 +11,7 @@
 export const RESOLVABLE_METRIC_KEYS = [
   /** Completed sales revenue for the business-local day. */
   'sales_today',
+  'jobs_due_soon', 'jobs_overdue', 'upcoming_fittings', 'awaiting_pickup', 'outstanding_balances',
   /** Count of completed sales today. */
   'transactions_today',
   /** Products at or below their reorder level. */

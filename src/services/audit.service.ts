@@ -38,13 +38,17 @@ export class AuditService {
   static async getStoreAuditLogs(
     storeId: string,
     limit: number = 100,
-    offset: number = 0
+    offset: number = 0,
+    resourceTypes?: string[]
   ): Promise<AuditLog[]> {
     try {
-      const { data, error } = await supabase
+      if (resourceTypes?.length === 0) return [];
+      let query = supabase
         .from('audit_logs')
         .select('*')
-        .eq('store_id', storeId)
+        .eq('store_id', storeId);
+      if (resourceTypes) query = query.in('resource_type', resourceTypes);
+      const { data, error } = await query
         .order('created_at', { ascending: false })
         .range(offset, offset + limit - 1);
 

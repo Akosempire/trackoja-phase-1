@@ -213,7 +213,7 @@ function retailLike(overrides: Partial<BusinessExperience> = {}): BusinessExperi
       },
       {
         key: 'transactions_today',
-        label: 'Transactions',
+        label: 'Completed sales',
         source: 'sales',
         calculation: 'COUNT of completed sales today',
         period: 'business-local day',
@@ -224,7 +224,7 @@ function retailLike(overrides: Partial<BusinessExperience> = {}): BusinessExperi
         key: 'low_stock',
         label: 'Low stock',
         source: 'products',
-        calculation: 'Products where track_inventory and stock_qty <= reorder_level',
+        calculation: 'Products where track_inventory and stock_qty > 0 and stock_qty <= reorder_level',
         period: 'current',
         linkTo: '/inventory/products',
         tone: 'warn',
@@ -389,7 +389,7 @@ const RAW_EXPERIENCES: Record<BusinessCategory, BusinessExperience> = {
       wanted('measurements', 'Measurements', '/measurements', 'customers', 'Measurements live as free text on a customer today.'),
       wanted('fittings', 'Fittings', '/fittings', 'reports', 'No fitting schedule exists.'),
       live('materials', 'Materials', '/inventory/products', 'products', 'inventory:view'),
-      live('payments', 'Payments', '/payments', 'payments', 'sales:refund'),
+      live('payments', 'Customer payments', '/payments', 'payments', 'sales:view'),
       live('reports', 'Reports', '/reports', 'reports', 'reports:view'),
     ],
     bottomNav: ['overview', 'clients', 'materials'],
@@ -436,9 +436,9 @@ const RAW_EXPERIENCES: Record<BusinessCategory, BusinessExperience> = {
       },
       {
         key: 'sales_today',
-        label: 'Payments today',
+        label: 'Completed sales today',
         source: 'sales',
-        calculation: 'SUM(total) of completed sales today - deposits and balance payments',
+        calculation: 'SUM(total) of completed sales today; excludes job deposits and balance payments',
         period: 'business-local day',
         linkTo: '/sales/history',
         implemented: true,
@@ -447,7 +447,7 @@ const RAW_EXPERIENCES: Record<BusinessCategory, BusinessExperience> = {
         key: 'low_stock',
         label: 'Materials low',
         source: 'products',
-        calculation: 'Materials where track_inventory and stock_qty <= reorder_level',
+        calculation: 'Materials where track_inventory and stock_qty > 0 and stock_qty <= reorder_level',
         period: 'current',
         linkTo: '/inventory/products',
         tone: 'warn',
@@ -461,7 +461,7 @@ const RAW_EXPERIENCES: Record<BusinessCategory, BusinessExperience> = {
         period: 'next 7 days',
         linkTo: '/jobs',
         tone: 'warn',
-        implemented: false,
+        implemented: true,
       },
       {
         key: 'jobs_overdue',
@@ -471,7 +471,7 @@ const RAW_EXPERIENCES: Record<BusinessCategory, BusinessExperience> = {
         period: 'current',
         linkTo: '/jobs',
         tone: 'danger',
-        implemented: false,
+        implemented: true,
       },
       {
         key: 'upcoming_fittings',
@@ -479,8 +479,8 @@ const RAW_EXPERIENCES: Record<BusinessCategory, BusinessExperience> = {
         source: 'fittings',
         calculation: 'COUNT of fittings scheduled in the next 7 days',
         period: 'next 7 days',
-        linkTo: '/fittings',
-        implemented: false,
+        linkTo: '/jobs',
+        implemented: true,
       },
       {
         key: 'awaiting_pickup',
@@ -489,7 +489,7 @@ const RAW_EXPERIENCES: Record<BusinessCategory, BusinessExperience> = {
         calculation: "COUNT of jobs with status = 'ready_for_pickup'",
         period: 'current',
         linkTo: '/jobs',
-        implemented: false,
+        implemented: true,
       },
       {
         key: 'outstanding_balances',
@@ -498,7 +498,7 @@ const RAW_EXPERIENCES: Record<BusinessCategory, BusinessExperience> = {
         calculation: 'SUM(price - deposit - payments) across undelivered jobs',
         period: 'current',
         linkTo: '/jobs',
-        implemented: false,
+        implemented: true,
       },
     ],
     reports: [
@@ -564,7 +564,7 @@ const RAW_EXPERIENCES: Record<BusinessCategory, BusinessExperience> = {
         key: 'low_stock_variants',
         label: 'Low-stock variants',
         source: 'product_variants',
-        calculation: 'Variants where stock_qty <= reorder_level',
+        calculation: 'Variants where stock_qty > 0 and stock_qty <= reorder_level',
         period: 'current',
         linkTo: '/inventory/products',
         tone: 'warn',
@@ -734,7 +734,7 @@ const RAW_EXPERIENCES: Record<BusinessCategory, BusinessExperience> = {
       },
       {
         key: 'transactions_today',
-        label: 'Transactions',
+        label: 'Completed sales',
         source: 'sales',
         calculation: 'COUNT of completed sales today',
         period: 'business-local day',
@@ -745,7 +745,7 @@ const RAW_EXPERIENCES: Record<BusinessCategory, BusinessExperience> = {
         key: 'low_stock',
         label: 'Low-stock products',
         source: 'products',
-        calculation: 'Products where track_inventory and stock_qty <= reorder_level',
+        calculation: 'Products where track_inventory and stock_qty > 0 and stock_qty <= reorder_level',
         period: 'current',
         linkTo: '/inventory/products',
         tone: 'warn',
@@ -850,7 +850,7 @@ const RAW_EXPERIENCES: Record<BusinessCategory, BusinessExperience> = {
         key: 'low_stock',
         label: 'Low stock',
         source: 'products',
-        calculation: 'Products where track_inventory and stock_qty <= reorder_level',
+        calculation: 'Products where track_inventory and stock_qty > 0 and stock_qty <= reorder_level',
         period: 'current',
         linkTo: '/inventory/products',
         tone: 'warn',
@@ -1018,7 +1018,7 @@ const RAW_EXPERIENCES: Record<BusinessCategory, BusinessExperience> = {
         key: 'low_stock_shades',
         label: 'Low-stock shades',
         source: 'product_variants',
-        calculation: 'Variants where stock_qty <= reorder_level',
+        calculation: 'Variants where stock_qty > 0 and stock_qty <= reorder_level',
         period: 'current',
         linkTo: '/inventory/products',
         tone: 'warn',
@@ -1140,7 +1140,7 @@ const RAW_EXPERIENCES: Record<BusinessCategory, BusinessExperience> = {
         key: 'low_stock',
         label: 'Low stock',
         source: 'products',
-        calculation: 'Products where track_inventory and stock_qty <= reorder_level',
+        calculation: 'Products where track_inventory and stock_qty > 0 and stock_qty <= reorder_level',
         period: 'current',
         linkTo: '/inventory/products',
         tone: 'warn',
@@ -1227,7 +1227,7 @@ const RAW_EXPERIENCES: Record<BusinessCategory, BusinessExperience> = {
         key: 'low_stock',
         label: 'Low stock',
         source: 'products',
-        calculation: 'Products where track_inventory and stock_qty <= reorder_level',
+        calculation: 'Products where track_inventory and stock_qty > 0 and stock_qty <= reorder_level',
         period: 'current',
         linkTo: '/inventory/products',
         tone: 'warn',
@@ -1319,8 +1319,16 @@ export const BUSINESS_EXPERIENCES: Record<BusinessCategory, BusinessExperience> 
 
 // ================================================================ accessors
 
-export function getBusinessExperience(category: BusinessCategory | string): BusinessExperience {
-  return BUSINESS_EXPERIENCES[category as BusinessCategory] ?? BUSINESS_EXPERIENCES[DEFAULT_CATEGORY];
+export function getBusinessExperience(category: BusinessCategory | string, modules?: string[]): BusinessExperience {
+  const base = BUSINESS_EXPERIENCES[category as BusinessCategory] ?? BUSINESS_EXPERIENCES[DEFAULT_CATEGORY];
+  if (category !== 'other' || !modules) return !base.primaryAction.implemented && modules?.includes('sales') ? { ...base, primaryAction: { label: 'Record sale', route: '/sales/checkout', implemented: true } } : base;
+  const jobs = modules.includes('tailoring');
+  return { ...base,
+    primaryAction: jobs ? { label: 'New job', route: '/jobs', implemented: true } : modules.includes('sales') ? { label: 'Record sale', route: '/sales/checkout', implemented: true } : base.primaryAction,
+    primaryQuestion: jobs ? 'Which jobs and customer balances need attention?' : modules.includes('inventory') ? 'What sold today, and which items need attention?' : 'Review your services, sales and customers.',
+    nav: jobs ? [...base.nav, ...BUSINESS_EXPERIENCES.tailor.nav.filter(item => item.key === 'jobs')] : base.nav,
+    dashboard: jobs ? BUSINESS_EXPERIENCES.tailor.dashboard : base.dashboard,
+  };
 }
 
 /** Nav the merchant should actually see: implemented entries only. */

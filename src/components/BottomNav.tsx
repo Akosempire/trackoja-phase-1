@@ -1,6 +1,6 @@
 import { NavLink } from 'react-router-dom';
 import { useAppNav, type NavItem } from '../hooks/useAppNav';
-import { ScanIcon } from './icons';
+import { ScanIcon, SalesIcon } from './icons';
 import { useCartCount } from '../utils/cart-count';
 
 /**
@@ -16,7 +16,7 @@ import { useCartCount } from '../utils/cart-count';
  * off centre, which is what happens when items size themselves.
  */
 export function BottomNav() {
-  const { leftItems, rightItems, handleScan, canScan } = useAppNav();
+  const { leftItems, rightItems, handleScan, canScan, primaryAction } = useAppNav();
   const cartCount = useCartCount();
 
   const renderLink = (item: NavItem, slot: number) => {
@@ -52,15 +52,15 @@ export function BottomNav() {
         className="bottom-nav-scan"
         onClick={handleScan}
         disabled={!canScan}
-        aria-label="Scan a barcode"
+        aria-label={primaryAction.scan ? 'Scan a barcode' : primaryAction.label}
       >
         <span className="bottom-nav-scan-face">
-          <ScanIcon width={26} height={26} />
+          {primaryAction.scan ? <ScanIcon width={26} height={26} /> : <SalesIcon width={26} height={26} />}
         </span>
-        <span className="bottom-nav-label bottom-nav-scan-label">Scan</span>
+        <span className="bottom-nav-label bottom-nav-scan-label">{primaryAction.label}</span>
       </button>
 
-      {rightItems.map((item, index) => renderLink(item, index + 4))}
+      {rightItems.map((item, index) => renderLink(item, item.to === '/more' ? 5 : index + 4))}
     </nav>
   );
 }

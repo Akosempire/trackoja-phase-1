@@ -1,16 +1,17 @@
+import '../styles/owner-dashboard.css';
 ﻿import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useAppNav } from '../hooks/useAppNav';
 import { StoreSwitcher } from './StoreSwitcher';
-import { ArrowLeftIcon, LogoutIcon, ScanIcon, SettingsIcon, SidebarIcon } from './icons';
+import { ArrowLeftIcon, LogoutIcon, ScanIcon, SalesIcon, SettingsIcon, SidebarIcon } from './icons';
 import { ThemeSelect } from './ThemeSelect';
 
 interface SideNavProps { onLogout: () => void; mobile?: boolean; onClose?: () => void; }
 
 export function SideNav({ onLogout, mobile = false, onClose }: SideNavProps) {
   const { profile } = useAuth();
-  const { allItems, handleScan, canScan } = useAppNav();
+  const { allItems, handleScan, canScan, primaryAction } = useAppNav();
   const [collapsed, setCollapsed] = useState(() => {
     try { return localStorage.getItem('trackoja-sidebar-collapsed') === 'true'; } catch { return false; }
   });
@@ -28,7 +29,7 @@ export function SideNav({ onLogout, mobile = false, onClose }: SideNavProps) {
       <div className="side-nav-brand">
         <span className="workspace-mark" aria-label="TrackOja">T</span>
         <span className="side-nav-logo nav-label">TrackOja</span>
-        {mobile && <button type="button" className="icon-button" onClick={onClose} aria-label="Back to current page"><ArrowLeftIcon width={18} height={18} /></button>}
+        {mobile && <button type="button" className="icon-button" onClick={onClose} aria-label="Close navigation"><ArrowLeftIcon width={18} height={18} /></button>}
       </div>
       {!mobile && <button className="sidebar-toggle" aria-label={compact ? 'Expand navigation' : 'Collapse navigation'} aria-expanded={!compact} onClick={() => {
         setCollapsed(!collapsed);
@@ -36,17 +37,19 @@ export function SideNav({ onLogout, mobile = false, onClose }: SideNavProps) {
       }}><SidebarIcon width={17} height={17} /><span className="nav-label">Collapse sidebar</span></button>}
       <div className="side-nav-store nav-label"><StoreSwitcher /></div>
       <nav className="side-nav-items" aria-label="Main navigation">
-        {allItems.map((item) => (
+        {['Business operations', 'Management', 'Payments and connections', 'Account'].map(group => <div key={group} className="side-nav-group">
+        {!compact && <p className="side-nav-group-title">{group}</p>}
+        {allItems.filter(item => (item.group ?? 'Account') === group).map((item) => (
           <span key={item.to} className="nav-tooltip-wrap t-tt-wrap" onMouseEnter={event => setTooltipTop(event.currentTarget.getBoundingClientRect().top)} onFocus={event => setTooltipTop(event.currentTarget.getBoundingClientRect().top)}>
             <NavLink to={item.to} end={item.end} aria-label={item.label} onClick={onClose} className={({ isActive }) => `side-nav-link t-tt-trigger${isActive ? ' active' : ''}`}>
               <item.icon width={17} height={17} /><span className="nav-label">{item.label}</span>
             </NavLink>
             {compact && <span className="t-tt nav-tooltip" role="tooltip" style={{ top: tooltipTop }}>{item.label}</span>}
           </span>
-        ))}
+        ))}</div>)}
       </nav>
-      <button type="button" className="side-nav-scan" aria-label="Scan barcode" title={compact ? 'Scan barcode' : undefined} disabled={!canScan} onClick={() => { handleScan(); onClose?.(); }}>
-        <ScanIcon width={17} height={17} /><span className="nav-label">Scan barcode</span>
+      <button type="button" className="side-nav-scan" aria-label={primaryAction.label} title={compact ? primaryAction.label : undefined} disabled={!canScan} onClick={() => { handleScan(); onClose?.(); }}>
+        {primaryAction.scan ? <ScanIcon width={17} height={17} /> : <SalesIcon width={17} height={17} />}<span className="nav-label">{primaryAction.label}</span>
       </button>
       <div className="side-nav-footer">
         {profile?.isPlatformAdmin && <NavLink to="/platform" aria-label="Platform" title={compact ? 'Platform' : undefined} onClick={onClose} className={({ isActive }) => `side-nav-link${isActive ? ' active' : ''}`}><SettingsIcon width={17} height={17} /><span className="nav-label">Platform</span></NavLink>}

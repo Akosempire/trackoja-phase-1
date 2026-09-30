@@ -44,7 +44,7 @@ describe('shared application layout', () => {
     expect(backBar).toContain("pathname === '/more'");
     expect(backBar).toContain("pathname === '/sales/history'");
     expect(backBar).toContain("pathname === '/inventory/products/new'");
-    expect(sideNav).toContain('aria-label="Back to current page"');
+    expect(sideNav).toContain('aria-label="Close navigation"');
     expect(sideNav).toContain('<ArrowLeftIcon');
   });
 

@@ -60,7 +60,7 @@ export function AppLayout() {
           aria-label="Open navigation"
           aria-expanded={menuOpen}
           aria-controls="mobile-navigation"
-          onClick={() => setMenuOpen(true)}
+          onClick={event => { event.currentTarget.focus(); setMenuOpen(true); }}
         >
           <MenuIcon width={18} height={18} />
         </button>

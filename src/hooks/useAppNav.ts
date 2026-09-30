@@ -1,11 +1,12 @@
 import { mobileDestinations } from '../utils/navigation-layout';
-import { useNavigate } from 'react-router-dom';
+import { merchantPrimaryAction, navigationGroup, routeModule } from '../utils/merchant-experience';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { usePermissions } from './usePermissions';
 import { useBusinessContext } from '../contexts/BusinessContext';
 import {
   HomeIcon, SalesIcon, ScanIcon, ReportsIcon,
   MoreIcon, ProductsIcon, CustomersIcon, StaffIcon,
-  PaymentsIcon, SettingsIcon, KitchenIcon, ExpiryIcon, DevicesIcon,
+  PaymentsIcon, SettingsIcon, KitchenIcon, ExpiryIcon, DevicesIcon, SubscriptionIcon, SupportIcon,
 } from '../components/icons';
 import { getBusinessExperience, visibleNav, type NavIconName } from '../config/businessExperience';
 
@@ -14,6 +15,7 @@ export interface NavItem {
   label: string;
   icon: (props: { width?: number; height?: number }) => JSX.Element;
   end?: boolean;
+  group?: string;
 }
 
 const ICONS: Record<NavIconName, (props: { width?: number; height?: number }) => JSX.Element> = {
@@ -46,24 +48,30 @@ const ICONS: Record<NavIconName, (props: { width?: number; height?: number }) =>
 export function useAppNav() {
   const navigate = useNavigate();
   const { hasPermission, loading: permsLoading } = usePermissions();
-  const { category } = useBusinessContext();
+  const { category, modules, loading: businessLoading } = useBusinessContext();
+  const { pathname } = useLocation();
 
-  const experience = getBusinessExperience(category);
+  const experience = getBusinessExperience(category, modules);
+
+  const enabled = modules ?? experience.defaultModules;
+  const allowed = (permission: string) => !permsLoading && !businessLoading && hasPermission(permission);
+  const primaryAction = merchantPrimaryAction(category, enabled, allowed, pathname);
 
   // Keep public workspace navigation visible while permissions resolve. Do not
   // briefly expose restricted links during a store or role change.
   const permitted = visibleNav(experience).filter(
-    (item) => !item.permission || (!permsLoading && hasPermission(item.permission))
+    (item) => (!item.permission || allowed(item.permission)) && (!routeModule(item.route) || enabled.includes(routeModule(item.route)!))
   );
-  const canScan = !permsLoading && (hasPermission('sales:create') || hasPermission('inventory:view'));
+  const canScan = Boolean(primaryAction.route);
 
   const navByKey = new Map<string, NavItem>();
 
   const allItems: NavItem[] = permitted.map((item) => {
     const navItem: NavItem = {
       to: item.route,
-      label: item.label,
-      icon: ICONS[item.icon],
+      label: item.key === 'checkout' ? 'POS' : item.key === 'sales' && item.label === 'Sales' ? 'Sales history' : item.label,
+      group: navigationGroup(item.route),
+      icon: item.key === 'sales' ? ReportsIcon : ICONS[item.icon],
       end: item.route === '/dashboard' || item.route === '/sales',
     };
     navByKey.set(item.key, navItem);
@@ -72,11 +80,21 @@ export function useAppNav() {
 
   // Payment records are readable with sales:view; approval and refund controls
   // remain separately gated by sales:refund on the page and in the database.
-  if (!navByKey.has('payments') && !permsLoading && hasPermission('sales:view')) {
-    const payments = { to: '/payments', label: 'Payments', icon: PaymentsIcon };
+  if (!navByKey.has('payments') && allowed('sales:view') && enabled.includes('sales')) {
+    const payments = { to: '/payments', label: 'Customer payments', icon: PaymentsIcon, group: 'Payments and connections' };
     navByKey.set('payments', payments);
     allItems.push(payments);
   }
+  const extras = [
+    { to: '/staff', label: 'Staff', icon: StaffIcon, permission: 'member:manage' },
+    { to: '/devices', label: 'Devices', icon: DevicesIcon, permission: 'devices:view' },
+    { to: '/settings', label: 'Settings', icon: SettingsIcon, permission: 'store:update' },
+    { to: '/billing', label: 'Subscription', icon: SubscriptionIcon, permission: 'store:update' },
+    { to: '/support', label: 'Support', icon: SupportIcon },
+  ];
+  extras.filter(item => !item.permission || allowed(item.permission)).forEach(item => {
+    if (!allItems.some(existing => existing.to === item.to)) allItems.push({ ...item, group: navigationGroup(item.to) });
+  });
   allItems.push({ to: '/more', label: 'More', icon: MoreIcon });
 
   // The mobile bottom bar is deliberately small and chosen per business type:
@@ -86,19 +104,12 @@ export function useAppNav() {
     .map((key) => navByKey.get(key))
     .filter((item): item is NavItem => Boolean(item));
 
-  // Selection only uses permitted items, with Payments in the four available slots.
+  // Overview and More anchor the bar; the two middle destinations follow the category.
   const mobileItems = mobileDestinations(bottomItems, allItems);
   const leftItems = mobileItems.slice(0, 2);
   const rightItems = mobileItems.slice(2, 4);
 
-  const handleScan = () => {
-    if (!canScan) return;
-    if (hasPermission('sales:create')) {
-      navigate('/sales/checkout?scan=1');
-    } else {
-      navigate('/inventory/products?scan=1');
-    }
-  };
+  const handleScan = () => { if (primaryAction.route) navigate(primaryAction.route); };
 
-  return { leftItems, rightItems, allItems, handleScan, canScan, ScanIcon, experience };
+  return { leftItems, rightItems, allItems, handleScan, canScan, ScanIcon, experience, primaryAction };
 }

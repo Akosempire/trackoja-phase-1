@@ -1,3 +1,11 @@
+import { useState } from 'react';
+import { Routes, Route } from 'react-router-dom';
+import { SideNav } from '../../src/components/SideNav';
+import { BottomNav } from '../../src/components/BottomNav';
+import { Drawer } from '../../src/components/ui/Drawer';
+import MorePage from '../../src/pages/MorePage';
+import { ToastProvider } from '../../src/components/ui/Toast';
+import { JobService } from '../../src/services/job.service';
 ﻿import { createRoot } from 'react-dom/client';
 import { MemoryRouter } from 'react-router-dom';
 import DashboardPage from '../../src/pages/DashboardPage';
@@ -25,12 +33,13 @@ const params = new URLSearchParams(location.search);
 const populated = params.get('state') === 'populated';
 const methods = populated ? [{ method: 'cash', amount: 22500, transactionCount: 3 }, { method: 'transfer', amount: 45000, transactionCount: 5 }] : [];
 // All service calls are replaced before rendering either actual dashboard page.
-for (const service of [StoreService, ReportService, ProductService, AuditService, SaleService, CustomerService, PlatformAdminService, PlatformService]) {
+for (const service of [JobService, StoreService, ReportService, ProductService, AuditService, SaleService, CustomerService, PlatformAdminService, PlatformService]) {
   for (const key of Object.getOwnPropertyNames(service)) if (typeof (service as unknown as Record<string, unknown>)[key] === 'function') {
     Object.defineProperty(service, key, { configurable: true, value: async () => [] });
   }
 }
 const mock = (service: object, key: string, value: unknown) => Object.defineProperty(service, key, { configurable: true, value: async () => value });
+mock(JobService, 'summary', { jobsDueSoon: 2, jobsOverdue: 1, upcomingFittings: 3, awaitingPickup: 4, outstandingBalances: 12000, openJobs: 5 });
 mock(StoreService, 'getStore', { name: 'Ada’s store', id: 'fixture-store' });
 mock(ReportService, 'getSalesSummary', { totalRevenue: populated ? 67500 : 0, transactionCount: populated ? 8 : 0, averageSale: populated ? 8437.5 : 0, taxTotal: 0, discountTotal: 0, voidedCount: 0 });
 mock(ReportService, 'getSalesByPaymentMethod', methods);
@@ -42,8 +51,14 @@ mock(PlatformAdminService, 'listAuditLogs', { entries: [] });
 mock(PlatformService, 'getOverview', {});
 mock(PlatformService, 'getRevenueSummary', { totalRevenue: populated ? 67500 : 0, transactionCount: populated ? 3 : 0, successfulCount: populated ? 3 : 0, failedCount: 0 });
 mock(PlatformService, 'getRevenueByPlan', populated ? [{ planId: 'standard', planName: 'Standard', revenue: 67500, transactionCount: 3 }] : []);
-const activity = populated ? [{ id: 'event', action: 'SALE_COMPLETED', status: 'success', resourceName: 'Sale recorded', createdAt: new Date().toISOString() }] : [];
+const activity = populated ? [{ id: 'event', resourceType: 'sale', action: 'SALE_COMPLETED', status: 'success', resourceName: 'Sale recorded', createdAt: new Date().toISOString() }] : [];
 mock(AuditService, 'getStoreAuditLogs', activity);
 mock(PlatformAdminService, 'listAuditLogs', { entries: activity });
 document.documentElement.dataset.theme = params.get('theme') ?? 'light';
-createRoot(document.getElementById('root')!).render(<MemoryRouter>{params.get('role') === 'platform' ? <PlatformProvider><main className="page plat-page"><OverviewArea /></main></PlatformProvider> : <DashboardPage />}</MemoryRouter>);
+function MerchantShell() {
+ const [open, setOpen] = useState(false);
+ return <ToastProvider><div className="app-shell"><header className="app-header"><button onClick={event => { event.currentTarget.focus(); setOpen(true); }}>Open navigation</button></header><SideNav onLogout={() => {}} />
+ <Drawer open={open} onClose={() => setOpen(false)} label="Navigation" closeAtDesktop>{open && <SideNav mobile onClose={() => setOpen(false)} onLogout={() => {}} />}</Drawer>
+ <div className="app-main"><main className="app-content"><Routes><Route path="/more" element={<MorePage />} /><Route path="*" element={<DashboardPage />} /></Routes></main><BottomNav /></div></div></ToastProvider>;
+}
+createRoot(document.getElementById('root')!).render(<MemoryRouter>{params.get('role') === 'platform' ? <PlatformProvider><main className="page plat-page"><OverviewArea /></main></PlatformProvider> : params.get('shell') === 'true' ? <MerchantShell /> : <DashboardPage />}</MemoryRouter>);

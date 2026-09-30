@@ -44,6 +44,7 @@ const MoniepointSettingsPage = lazyPage('./pages/payments/MoniepointSettingsPage
 const MerchantTransactionPage = lazyPage('./pages/payments/MerchantTransactionPage');
 const ReconciliationPage = lazyPage('./pages/payments/ReconciliationPage');
 const ExpensesPage = lazyPage('./pages/expenses/ExpensesPage');
+const BusinessActivityPage = lazyPage('./pages/BusinessActivityPage');
 const JobsPage = lazyPage('./pages/jobs/JobsPage');
 const DevicesPage = lazyPage('./pages/devices/DevicesPage');
 const DeviceDetailPage = lazyPage('./pages/devices/DeviceDetailPage');
@@ -152,6 +153,7 @@ export default function App() {
           <Route path="/payments/reconciliation" element={<ReconciliationPage />} />
           <Route path="/settings/payments/moniepoint" element={<MoniepointSettingsPage />} />
           <Route path="/expenses" element={<ExpensesPage />} />
+          <Route path="/activity" element={<BusinessActivityPage />} />
           <Route path="/jobs" element={<JobsPage />} />
           <Route path="/devices" element={<DevicesPage />} />
           <Route path="/devices/:deviceId" element={<DeviceDetailPage />} />

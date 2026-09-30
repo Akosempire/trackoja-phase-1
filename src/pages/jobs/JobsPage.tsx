@@ -1,3 +1,4 @@
+import { useSearchParams } from 'react-router-dom';
 import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { usePermissions } from '../../hooks/usePermissions';
@@ -37,6 +38,7 @@ const MEASUREMENT_FIELDS = ['chest', 'waist', 'hip', 'length'] as const;
 
 export default function JobsPage() {
   const toast = useToast();
+  const [search, setSearch] = useSearchParams();
   const { profile } = useAuth();
   const { hasPermission, loading: permsLoading } = usePermissions();
   const storeId = profile?.currentStoreId;
@@ -50,6 +52,12 @@ export default function JobsPage() {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [showForm, setShowForm] = useState(false);
+  useEffect(() => {
+    if (!permsLoading && canCreate && search.get('new') === '1') {
+      setShowForm(true);
+      setSearch(previous => { const next = new URLSearchParams(previous); next.delete('new'); return next; }, { replace: true });
+    }
+  }, [permsLoading, canCreate, search, setSearch]);
   const [payingId, setPayingId] = useState<string | null>(null);
   const [payAmount, setPayAmount] = useState('');
   const [reasonFor, setReasonFor] = useState<string | null>(null);

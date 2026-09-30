@@ -1,99 +1,47 @@
+import '../styles/owner-dashboard.css';
+import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
-import { usePermissions } from '../hooks/usePermissions';
-import { useBusinessContext } from '../contexts/BusinessContext';
+import { useAppNav } from '../hooks/useAppNav';
 import { AuthService } from '../services/auth.service';
 import { InstallAppAction } from '../components/InstallAppAction';
-import {
-  ProductsIcon,
-  CustomersIcon,
-  StaffIcon,
-  DevicesIcon,
-  PaymentsIcon,
-  SettingsIcon,
-  SubscriptionIcon,
-  SupportIcon,
-  ChevronRightIcon,
-  ExpiryIcon,
-  DownloadIcon,
-} from '../components/icons';
-
-interface MoreLink {
-  to: string;
-  label: string;
-  icon: (props: { width?: number; height?: number }) => JSX.Element;
-}
+import { ThemeSelect } from '../components/ThemeSelect';
+import { useToast } from '../components/ui/Toast';
+import { ChevronRightIcon, DownloadIcon, LogoutIcon } from '../components/icons';
 
 export default function MorePage() {
   const navigate = useNavigate();
-  const { profile } = useAuth();
-  const { hasPermission, loading } = usePermissions();
-  const { category } = useBusinessContext();
-
-  const handleLogout = async () => {
-    await AuthService.logout();
-    navigate('/login', { replace: true });
-  };
-
-  if (loading) return null;
-
-  const links: MoreLink[] = [{ to: '/inventory/products', label: 'Products', icon: ProductsIcon }];
-
-  if (category === 'pharmacy') {
-    links.push({ to: '/pharmacy/expiry', label: 'Expiry Alerts', icon: ExpiryIcon });
+  const toast = useToast();
+  const { allItems } = useAppNav();
+  const [busy, setBusy] = useState(false);
+  async function logout() {
+    if (busy) return;
+    setBusy(true);
+    try { await AuthService.logout(); navigate('/login', { replace: true }); }
+    catch { toast.error('Could not log out. Please try again.'); }
+    finally { setBusy(false); }
   }
-
-  if (hasPermission('customer:view')) {
-    links.push({ to: '/customers', label: 'Customers', icon: CustomersIcon });
-  }
-  if (hasPermission('member:manage')) {
-    links.push({ to: '/staff', label: 'Staff', icon: StaffIcon });
-  }
-  if (hasPermission('devices:view')) {
-    links.push({ to: '/devices', label: 'Devices', icon: DevicesIcon });
-  }
-  if (hasPermission('sales:view')) {
-    links.push({ to: '/payments', label: 'Payments', icon: PaymentsIcon });
-  }
-  if (hasPermission('store:update')) {
-    links.push({ to: '/settings', label: 'Settings', icon: SettingsIcon });
-    links.push({ to: '/billing', label: 'Subscription', icon: SubscriptionIcon });
-  }
-  links.push({ to: '/support', label: 'Support', icon: SupportIcon });
-
-  return (
-    <div className="page">
-      <div className="page-header">
-        <div>
-          <h1 className="page-title">More</h1>
-          <p className="page-subtitle">{profile?.firstName ? `Signed in as ${profile.firstName}` : 'More options'}</p>
-        </div>
-      </div>
-
-      <div className="list">
-        {links.map((link) => (
-          <Link key={link.to} to={link.to} className="list-item">
-            <div className="list-item-leading">
-              <link.icon width={20} height={20} />
-              <p className="list-item-title">{link.label}</p>
-            </div>
-            <ChevronRightIcon width={18} height={18} style={{ color: 'var(--t2)' }} />
-          </Link>
-        ))}
-        <InstallAppAction
-          className="list-item"
-          label="Install TrackOja"
-          labelClassName="list-item-title"
-          icon={<DownloadIcon width={20} height={20} />}
-          trailing={<ChevronRightIcon width={18} height={18} style={{ color: 'var(--t2)' }} />}
-        />
-      </div>
-
-      <div className="card" style={{ marginTop: 'var(--space-12)' }}>
-        <button type="button" className="btn btn-ghost btn-sm" onClick={handleLogout}>
-          Log out
-        </button>
-      </div>
+  return <div className="page more-page">
+    <div className="page-header"><h1 className="page-title">More</h1></div>
+    <div className="more-groups">
+      {['Business operations', 'Management', 'Payments and connections', 'Account'].map(group => {
+        const links = allItems.filter(item => item.group === group && !['/dashboard', '/more'].includes(item.to));
+        if (!links.length && group !== 'Account') return null;
+        return <section className="card" key={group} aria-label={group}>
+          <h2>{group}</h2><div className="list">
+            {links.map(item => <Link key={item.to} to={item.to} className="list-item">
+              <span className="list-item-leading"><item.icon width={20} height={20} /><span>{item.label}</span></span>
+              <ChevronRightIcon width={18} height={18} />
+            </Link>)}
+            {group === 'Account' && <>
+              <div className="list-item"><span>Appearance</span><ThemeSelect /></div>
+              <InstallAppAction onlyWhenAvailable className="list-item" label="Install TrackOja" icon={<DownloadIcon width={20} height={20} />} />
+              <button type="button" className="list-item" disabled={busy} onClick={() => void logout()}>
+                <span className="list-item-leading"><LogoutIcon width={20} height={20} />{busy ? 'Logging out...' : 'Log out'}</span>
+              </button>
+            </>}
+          </div>
+        </section>;
+      })}
     </div>
-  );
+  </div>;
 }

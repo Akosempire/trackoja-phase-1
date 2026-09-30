@@ -10,6 +10,7 @@ interface InstallAppActionProps {
   labelClassName?: string;
   icon?: ReactNode;
   trailing?: ReactNode;
+  onlyWhenAvailable?: boolean;
 }
 
 export function InstallAppAction({
@@ -18,6 +19,7 @@ export function InstallAppAction({
   labelClassName,
   icon,
   trailing,
+  onlyWhenAvailable = false,
 }: InstallAppActionProps) {
   const { installed, canPrompt } = useInstallApp();
   const toast = useToast();
@@ -25,7 +27,7 @@ export function InstallAppAction({
   const [busy, setBusy] = useState(false);
   const appleMobile = isAppleMobileBrowser();
 
-  if (installed) return null;
+  if (installed || (onlyWhenAvailable && !canPrompt && !(appleMobile && window.isSecureContext))) return null;
 
   async function handleClick() {
     if (!canPrompt) {
