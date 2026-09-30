@@ -139,3 +139,31 @@ A phase is complete only after its implementation and relevant checks pass. This
   fallback checks, plus production cache fallback with a stopped local server.
 - After the focus fix, all 606 unit tests, lint, TypeScript, production build and
   static PWA checks passed. No database or entitlement changes were needed.
+
+## Owner dashboard reference layout
+
+- Store and platform dashboards now use a welcome/action band, a prominent revenue
+  panel with compact supporting panels, and grouped overview metrics below.
+  Existing Waya blue accents, Inter/Forum typography, borders, radii, spacing,
+  content width, sidebar and mobile navigation are preserved.
+- The shared revenue panel uses Today, Last 7 days, Last 30 days and This month.
+  Date labels and server query ranges change together; obsolete responses are
+  ignored. Store snapshots remain explicitly labelled as today's sales/current stock.
+- Store revenue uses completed sales and the payment-method breakdown. Platform
+  revenue uses successful subscription payments and the existing recorded-plan
+  breakdown, excluding sandbox transactions. No wallet, foreign-currency switch,
+  withdrawal capability or daily trend is implied by these existing sources.
+- Loading does not show zero figures; failures offer retry. A failed breakdown
+  preserves a successfully loaded total. Store actions remain business-specific
+  and permission-checked, including kitchen, jobs and customer creation.
+- Added 28 unit checks (12 business categories with/without report access, period
+  queries, stale responses, loading/error/empty handling and retry). The existing
+  606 tests also passed; one new assertion was corrected to inspect the total
+  rather than a valid breakdown amount, then passed on rerun.
+- 32 checks of the actual React pages passed in Edge, Firefox and WebKit, with
+  empty/populated data and light/dark themes. Twelve additional Edge checks passed
+  after the final panel grouping and metric-width adjustment. Run `npm run test:owners`.
+  Identity hooks and services are replaced only in the isolated test server.
+- Fixture previews are in `artifacts/owner-dashboards`; they contain sample data,
+  not customer records. No database migration is required. Existing limits on
+  platform plan grouping and capped business lists still apply.

@@ -1,3 +1,5 @@
+import { DashboardRevenuePanel, DashboardWelcome } from '../components/ui/DashboardRevenuePanel';
+import type { ReportDateRange } from '../utils/report-date-ranges';
 import { TrialStatus } from '../components/TrialStatus';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -217,6 +219,16 @@ export default function DashboardPage() {
 
   useEffect(() => { void loadDashboard(); }, [loadDashboard]);
 
+  const loadRevenue = useCallback(async ({ from, to }: ReportDateRange) => {
+    if (!storeId || !canReadReports) throw new Error('Reports access required');
+    const [sales, methods] = await Promise.all([
+      ReportService.getSalesSummary(storeId, from, to),
+      ReportService.getSalesByPaymentMethod(storeId, from, to).catch(() => null),
+    ]);
+    return { total: sales.totalRevenue, count: sales.transactionCount,
+      rows: methods?.map(row => ({ key: row.method, label: row.method.replace(/_/g, ' '), amount: row.amount })) ?? null };
+  }, [storeId, canReadReports]);
+
   const resolved = useMemo(() => {
     const ctx: MetricContext = {
       summary,
@@ -232,14 +244,16 @@ export default function DashboardPage() {
       .filter((entry): entry is ResolvedMetric => entry !== null);
   }, [experience, summary, products, lowStock, kitchenOrders, refundCount, customerCount]);
 
-  // A business with no records at all gets guidance, not zeroes.
-  const hasAnyRecords =
-    (summary?.transactionCount ?? 0) > 0 || (products?.length ?? 0) > 0 || (customerCount ?? 0) > 0;
   const hasAvailableData = summary !== null || products !== null || customerCount !== null || kitchenOrders !== null;
   const canUseAction = (route: string) => {
     if (permissionsLoading) return false;
     if (route === '/sales/checkout') return hasPermission('sales:create');
     if (route === '/inventory/products/new') return hasPermission('product:create');
+    if (route === '/kitchen') return canReadSales;
+    if (route.startsWith('/inventory')) return canReadInventory;
+    if (route === '/customers/new') return hasPermission('customer:create');
+    if (route.startsWith('/customers')) return canReadCustomers;
+    if (route === '/jobs') return hasPermission('job:create');
     return true;
   };
 
@@ -250,14 +264,14 @@ export default function DashboardPage() {
       <TrialStatus />
       <div className="page-header">
         <div>
+          <p className="dashboard-greeting">Welcome back{profile?.firstName ? `, ${profile.firstName}` : ''}.</p>
           <h1 className="page-title">{store?.name ?? 'Overview'}</h1>
-          {/* The question this business opens the app to answer. */}
-          <p className="page-subtitle">{experience.primaryQuestion}</p>
+
         </div>
       </div>
 
       {/* Primary action first: it is what this business does most often. */}
-      <div className="btn-row dash-actions">
+      <DashboardWelcome title="Your business at a glance" description={experience.primaryQuestion} actions={<>
         {experience.primaryAction.implemented && canUseAction(experience.primaryAction.route) && (
           <Button onClick={() => navigate(experience.primaryAction.route)}>
             {experience.primaryAction.label}
@@ -271,7 +285,7 @@ export default function DashboardPage() {
               {action.label}
             </Button>
           ))}
-      </div>
+      </>} />
 
       {partialFailures > 0 && !error && (
         <div className="alert alert-warning" role="status">
@@ -293,29 +307,13 @@ export default function DashboardPage() {
         <div className="card">
           <StateBlock variant="unavailable" title="Dashboard data unavailable" body="Your role has no accessible dashboard data, or the available sources did not answer." actions={partialFailures > 0 && <Button variant="outline" className="btn-sm" onClick={loadDashboard}>Try again</Button>} />
         </div>
-      ) : !hasAnyRecords ? (
-        <div className="card">
-          <StateBlock
-            variant={partialFailures > 0 ? 'error' : 'empty'}
-            title={partialFailures > 0 ? 'Dashboard is incomplete' : `No ${experience.terminology.recordPlural.toLowerCase()} to show yet`}
-            body={partialFailures > 0 ? 'Some data did not load, so an empty result cannot be confirmed.' : experience.emptyStates.dashboard}
-            actions={partialFailures > 0 ? (
-              <Button variant="outline" className="btn-sm" onClick={loadDashboard}>Try again</Button>
-            ) : null}
-          />
-        </div>
       ) : (
         <>
-          <KpiGrid>
-            {resolved.map(({ metric, value, sub }) => {
-              const tone = metric.tone === 'warn' ? 'warning' : metric.tone === 'danger' ? 'danger' : 'default';
-              return <KpiCard key={metric.key} label={metric.label} value={value} foot={sub} tone={tone}
-                onClick={metric.linkTo ? () => navigate(metric.linkTo!) : undefined}
-                ariaLabel={metric.linkTo ? `${metric.label}: ${value}. Open details` : undefined} />;
-            })}
-          </KpiGrid>
-
-          <div className="dash-panels">
+          <div className={`owner-dashboard-main${canReadReports ? '' : ' owner-dashboard-no-revenue'}`}>
+            {canReadReports && <DashboardRevenuePanel load={loadRevenue} title="Sales revenue" breakdownTitle="Sales by payment method"
+              note="Completed sales only. Revenue is after discounts and includes tax; credit sales are not necessarily cash received."
+              emptyDescription={experience.emptyStates.dashboard} />}
+            <aside className="owner-dashboard-side" aria-label="Business updates">
             <section className="card dash-panel" aria-labelledby="recent-activity-title">
               <SectionHead id="recent-activity-title" title="Recent activity" />
               {activity === null ? (
@@ -324,7 +322,7 @@ export default function DashboardPage() {
                 <StateBlock compact title="No recent activity" body="Completed changes and actions will appear here." />
               ) : (
                 <div className="list">
-                  {activity.slice(0, 5).map((log) => (
+                  {activity.slice(0, 3).map((log) => (
                     <div className="list-item" key={log.id}>
                       <div>
                         <p className="list-item-title">{log.action.replace(/_/g, ' ').toLowerCase()}</p>
@@ -350,7 +348,7 @@ export default function DashboardPage() {
                   <HealthyStrip>No low-stock {experience.terminology.lineItem.toLowerCase()} need attention.</HealthyStrip>
                 ) : (
                   <div className="list">
-                    {lowStock.slice(0, 5).map((product) => (
+                    {lowStock.slice(0, 3).map((product) => (
                       <Link className="list-item" key={product.id} to={`/inventory/products/${product.id}`}>
                         <div>
                           <p className="list-item-title">{product.name}</p>
@@ -363,7 +361,18 @@ export default function DashboardPage() {
                 )}
               </section>
             )}
+</aside>
           </div>
+          <div className="owner-dashboard-snapshot"><h2>Business overview</h2><p>Sales figures are for today. Stock and customer figures reflect the current workspace.</p></div>
+          <div className="owner-metrics"><KpiGrid>
+            {resolved.map(({ metric, value, sub }) => {
+              const tone = metric.tone === 'warn' ? 'warning' : metric.tone === 'danger' ? 'danger' : 'default';
+              return <KpiCard key={metric.key} label={metric.label} value={value} foot={sub} tone={tone}
+                onClick={metric.linkTo ? () => navigate(metric.linkTo!) : undefined}
+                ariaLabel={metric.linkTo ? `${metric.label}: ${value}. Open details` : undefined} />;
+            })}
+          </KpiGrid></div>
+
         </>
       )}
     </div>
