@@ -106,14 +106,14 @@ export default function SalesHubPage() {
           <p className="page-subtitle">Today's checkout, payments and recent activity</p>
         </div>
         {canCheckout && (
-          <Link className="btn btn-primary btn-sm" to="/sales/checkout">{category === 'restaurant' ? 'New order' : 'New sale'}</Link>
+          <Link className="btn btn-primary btn-sm" to="/sales/checkout">{recordSaleAction(category)}</Link>
         )}
       </div>
 
       {pendingOfflineSales.length > 0 && (
         <div className="card">
-          <div className="page-header" style={{ marginBottom: 8 }}>
-            <p className="list-item-title" style={{ margin: 0 }}>
+          <div className="section-head">
+            <p className="section-title">
               Pending sync
             </p>
             {online && (
@@ -135,7 +135,7 @@ export default function SalesHubPage() {
               </div>
             ))}
           </div>
-          {!online && <p className="scanner-hint" style={{ marginTop: 8 }}>Will sync automatically when you're back online.</p>}
+          {!online && <p className="scanner-hint" style={{ marginTop: 'var(--space-8)' }}>Will sync automatically when you're back online.</p>}
         </div>
       )}
 
@@ -151,8 +151,8 @@ export default function SalesHubPage() {
 
       {canVerifyPayments && (
         <div className="card">
-          <div className="page-header" style={{ marginBottom: 8 }}>
-            <p className="list-item-title" style={{ margin: 0 }}>
+          <div className="section-head">
+            <p className="section-title">
               Pending transactions
             </p>
             <Link to="/payments" className="btn btn-ghost btn-sm">
@@ -181,9 +181,9 @@ export default function SalesHubPage() {
       )}
 
       <div className="card">
-        <div className="page-header" style={{ marginBottom: 8 }}>
-          <p className="list-item-title" style={{ margin: 0 }}>
-            Recent sales
+        <div className="section-head">
+          <p className="section-title">
+            Recent {experience.terminology.recordPlural.toLowerCase()}
           </p>
           <Link to="/sales/history" className="btn btn-ghost btn-sm">
             View all
@@ -191,8 +191,7 @@ export default function SalesHubPage() {
         </div>
         {recentSales.length === 0 ? (
           <StateBlock title={`No ${experience.terminology.recordPlural.toLowerCase()} yet today`}
-            body={experience.emptyStates.primaryList}
-            actions={canCheckout ? <Link className="btn btn-primary btn-sm" to="/sales/checkout">{recordSaleAction(category)}</Link> : null} />
+            body={experience.emptyStates.primaryList} />
         ) : (
           <div className="list">
             {recentSales.map((sale) => (

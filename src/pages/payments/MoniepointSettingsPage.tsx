@@ -113,7 +113,7 @@ export default function MoniepointSettingsPage() {
         <p className="page-subtitle">Customer payments collected on this business's Moniepoint terminals</p>
       </div></div>
 
-      <div className="card" style={{ marginBottom: 16 }}>
+      <div className="card" style={{ marginBottom: 'var(--space-16)' }}>
         <h2 className="list-item-title">Connection</h2>
         <p className="page-subtitle">Status: {connection?.status === 'connected' ? 'Credentials verified' :
           connection?.status === 'configured' ? 'Credentials stored; terminal not verified' :
@@ -130,7 +130,7 @@ export default function MoniepointSettingsPage() {
         </div>}
       </div>
 
-      {canManage && <form className="card" onSubmit={save} style={{ marginBottom: 16, maxWidth: 680 }}>
+      {canManage && <form className="card" onSubmit={save} style={{ marginBottom: 'var(--space-16)', maxWidth: 'var(--content-form)' }}>
         <h2 className="list-item-title">{connection?.status === 'disconnected' ? 'Connect Moniepoint' : 'Replace credentials'}</h2>
         <p className="page-subtitle">Only the business owner can save provider credentials. Saved secrets cannot be viewed again.</p>
         <div className="form-group"><label className="form-label" htmlFor="moniepoint-auth-mode">Credential type</label>
@@ -144,7 +144,7 @@ export default function MoniepointSettingsPage() {
           <FormField id="moniepoint-api-key" label="API key" type="password" value={apiKey} onChange={setApiKey} required autoComplete="off" /> :
           <><FormField id="moniepoint-client-id" label="Client ID" value={clientId} onChange={setClientId} required autoComplete="off" />
             <FormField id="moniepoint-client-secret" label="Client secret" type="password" value={clientSecret} onChange={setClientSecret} required autoComplete="off" /></>}
-        <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+        <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-8)', marginBottom: 'var(--space-16)' }}>
           <input type="checkbox" checked={erpEnabled} onChange={(event) => setErpEnabled(event.target.checked)} />
           I enabled ERP integration in Moniepoint for the terminals I will use.
         </label>
@@ -157,7 +157,7 @@ export default function MoniepointSettingsPage() {
         {terminals.length ? <div className="list">{terminals.map((terminal) => <div className="list-item" key={terminal.id}>
           <div><p className="list-item-title">{terminal.name}{terminal.isDefault ? ' · Default' : ''}</p>
             <p className="list-item-subtitle">Terminal ••••{terminal.serialLastFour} · {terminal.status} · {terminal.verifiedAt ? 'Verified by payment' : 'Not tested'}</p>
-            {canManageDevices && <div className="form-group" style={{ marginTop: 8 }}>
+            {canManageDevices && <div className="form-group" style={{ marginTop: 'var(--space-8)' }}>
               <label className="form-label" htmlFor={`terminal-register-${terminal.id}`}>Checkout register</label>
               <select id={`terminal-register-${terminal.id}`} className="select-input" value={terminal.registerId ?? ''}
                 disabled={saving} onChange={async (event) => {
@@ -185,7 +185,7 @@ export default function MoniepointSettingsPage() {
         </div>)}</div> : <StateBlock title="No Moniepoint terminals" body="Add and activate a Moniepoint payment terminal for this branch." />}
         {canManageDevices && <div className="btn-row"><Link className="btn btn-outline" to="/devices">Manage terminals</Link></div>}
       </div>
-      {canManageDevices && <form className="card" onSubmit={addRegister} style={{ marginTop: 16, maxWidth: 680 }}>
+      {canManageDevices && <form className="card" onSubmit={addRegister} style={{ marginTop: 'var(--space-16)', maxWidth: 'var(--content-form)' }}>
         <h2 className="list-item-title">Checkout registers</h2>
         <p className="page-subtitle">Group terminals by counter or checkout within this branch.</p>
         <FormField id="register-name" label="New register name" value={registerName} onChange={setRegisterName} required />

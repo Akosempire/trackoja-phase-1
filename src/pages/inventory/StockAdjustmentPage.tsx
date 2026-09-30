@@ -1,3 +1,4 @@
+import { SectionHead } from '../../components/ui/SectionHead';
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
@@ -152,7 +153,7 @@ export default function StockAdjustmentPage() {
             </div>
 
             {selectedProduct && (
-              <p className="page-subtitle" style={{ marginBottom: 16 }}>
+              <p className="page-subtitle" style={{ marginBottom: 'var(--space-16)' }}>
                 Current stock: <strong style={{ color: 'var(--t1)' }}>{selectedProduct.stockQty} {selectedProduct.unit}</strong>
               </p>
             )}
@@ -208,9 +209,7 @@ export default function StockAdjustmentPage() {
           </form>
 
           <div className="card">
-            <p className="list-item-title" style={{ marginBottom: 8 }}>
-              Recent movements
-            </p>
+            <SectionHead title={<>Recent movements</>} />
             {movements.length === 0 ? (
               <p className="page-subtitle">No movements recorded yet.</p>
             ) : (

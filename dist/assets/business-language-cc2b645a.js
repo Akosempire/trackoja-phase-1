@@ -1,1 +1,0 @@
-const r={Product:"products","Menu item":"menu items",Garment:"garments",Variant:"variants",Fabric:"fabrics",Medicine:"medicines",Unit:"units",Shade:"shades",Material:"materials",Item:"items","Item or service":"items and services"};function t(e){return r[e]??`${e.toLowerCase()}s`}function a(e){return e==="restaurant"?"Record an order":"Record a sale"}export{t as l,a as r};

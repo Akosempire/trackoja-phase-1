@@ -189,7 +189,7 @@ export default function JobsPage() {
         </div>
         {canCreate && (
           <Button onClick={() => setShowForm((open) => !open)}>
-            {showForm ? 'Cancel' : 'Create job'}
+            {showForm ? 'Cancel' : 'New job'}
           </Button>
         )}
       </div>
@@ -237,13 +237,13 @@ export default function JobsPage() {
           </div>
           <div className="auth-form-row">
             <FormField
-              id="job-price"
+              id="job-price" type="number" min={0} step="0.01" inputMode="decimal"
               label="Agreed price (NGN)"
               value={form.price}
               onChange={(v) => setForm({ ...form, price: v })}
             />
             <FormField
-              id="job-deposit"
+              id="job-deposit" type="number" min={0} step="0.01" inputMode="decimal"
               label="Deposit taken (NGN)"
               value={form.deposit}
               onChange={(v) => setForm({ ...form, deposit: v })}
@@ -309,7 +309,6 @@ export default function JobsPage() {
           <StateBlock
             title="No tailoring jobs yet"
             body="Add a client and record their measurements to get started."
-            actions={canCreate ? <Button className="btn-sm" onClick={() => setShowForm(true)}>Create job</Button> : undefined}
           />
         ) : (
           <div className="list">

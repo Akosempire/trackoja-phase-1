@@ -301,10 +301,6 @@ export default function DashboardPage() {
             body={partialFailures > 0 ? 'Some data did not load, so an empty result cannot be confirmed.' : experience.emptyStates.dashboard}
             actions={partialFailures > 0 ? (
               <Button variant="outline" className="btn-sm" onClick={loadDashboard}>Try again</Button>
-            ) : canUseAction(experience.primaryAction.route) ? (
-              <Link className="btn btn-primary btn-sm" to={experience.primaryAction.route}>
-                {experience.primaryAction.label}
-              </Link>
             ) : null}
           />
         </div>

@@ -88,7 +88,7 @@ export default function KitchenPage() {
 
       {byStatus.map(({ status, cfg, orders: statusOrders }) =>
         statusOrders.length === 0 ? null : (
-          <div key={status} style={{ marginBottom: 20 }}>
+          <div key={status} style={{ marginBottom: 'var(--space-20)' }}>
             <p className="kitchen-section-label">
               {cfg.emoji} {cfg.label} ({statusOrders.length})
             </p>
@@ -130,7 +130,7 @@ export default function KitchenPage() {
       )}
 
       {served.length > 0 && (
-        <div style={{ marginTop: 8 }}>
+        <div style={{ marginTop: 'var(--space-8)' }}>
           <p className="kitchen-section-label" style={{ opacity: 0.5 }}>
             🍽️ Served today ({served.length})
           </p>

@@ -16,10 +16,8 @@ import { Badge } from '../../../components/ui/Badge';
 import { Button } from '../../../components/ui/Button';
 import { DefList } from '../../../components/ui/DefList';
 import { Dialog } from '../../../components/ui/Dialog';
-import { Disclosure } from '../../../components/ui/Disclosure';
 import { SectionHead } from '../../../components/ui/SectionHead';
 import { StateBlock } from '../../../components/ui/StateBlock';
-import { StatusBadge } from '../../../components/ui/StatusBadge';
 import { Timeline, type TimelineEntry } from '../../../components/ui/Timeline';
 import { useToast } from '../../../components/ui/Toast';
 import { PLATFORM_AREAS } from '../../../config/platformAreas';
@@ -45,98 +43,6 @@ const NOTE_TYPES = [
 ] as const;
 
 /**
- * The exact schema the ticket capability needs. None of it exists: no
- * `support_tickets` or `support_ticket_messages` table and no ticket RPC in any
- * migration in this repository.
- */
-const TICKET_SCHEMA_SQL = `-- NOT PRESENT IN THIS REPOSITORY. Specification only.
-CREATE TABLE public.support_tickets (
-  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  reference         TEXT NOT NULL UNIQUE,   -- quotable, e.g. SUP-2026-00041
-  org_id            UUID NOT NULL REFERENCES public.organizations(id) ON DELETE CASCADE,
-  product_id        UUID REFERENCES public.platform_products(id) ON DELETE SET NULL,
-  requester_user_id UUID REFERENCES public.users(id) ON DELETE SET NULL,
-  requester_email   TEXT NOT NULL,          -- kept even if the user is deleted
-  subject           TEXT NOT NULL,
-  category          TEXT NOT NULL DEFAULT 'other'
-    CHECK (category IN ('billing','account','bug','how_to','feature_request','other')),
-  severity          TEXT NOT NULL DEFAULT 'normal'
-    CHECK (severity IN ('low','normal','high','urgent')),
-  status            TEXT NOT NULL DEFAULT 'new'
-    CHECK (status IN ('new','open','pending_customer','pending_internal','resolved','closed')),
-  assignee_user_id  UUID REFERENCES public.users(id) ON DELETE SET NULL,
-  first_response_at TIMESTAMPTZ,            -- set on the first customer-visible reply
-  resolved_at       TIMESTAMPTZ,
-  is_sandbox        BOOLEAN NOT NULL DEFAULT FALSE,
-  created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at        TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-CREATE INDEX idx_support_tickets_queue
-  ON public.support_tickets(status, severity, created_at DESC);
-CREATE INDEX idx_support_tickets_org
-  ON public.support_tickets(org_id, created_at DESC);
-
-CREATE TABLE public.support_ticket_messages (
-  id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  ticket_id      UUID NOT NULL REFERENCES public.support_tickets(id) ON DELETE CASCADE,
-  author_user_id UUID REFERENCES public.users(id) ON DELETE SET NULL,
-  author_email   TEXT,
-  -- 'internal' must never leave the server for a business-side caller.
-  visibility     TEXT NOT NULL DEFAULT 'internal'
-    CHECK (visibility IN ('internal','customer')),
-  body           TEXT NOT NULL,
-  attachments    JSONB NOT NULL DEFAULT '[]'::jsonb,
-  created_at     TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-CREATE INDEX idx_support_ticket_messages_thread
-  ON public.support_ticket_messages(ticket_id, created_at);`;
-
-const TICKET_RPCS: { term: string; value: string }[] = [
-  {
-    term: 'create_support_ticket',
-    value:
-      'p_org_id, p_subject, p_body, p_category, p_severity, p_requester_email → support_tickets. ' +
-      'The only path by which a business owner can open a conversation.',
-  },
-  {
-    term: 'list_support_tickets',
-    value:
-      'p_status, p_severity, p_assignee_user_id, p_org_id, p_limit, p_offset → queue rows with ' +
-      'reference, subject, category, severity, status, assignee, age and first_response_at.',
-  },
-  {
-    term: 'get_support_ticket',
-    value:
-      'p_ticket_id → the ticket plus its messages, filtered by caller: a platform admin sees ' +
-      'internal and customer rows, a business-side caller sees only visibility = customer.',
-  },
-  {
-    term: 'assign_support_ticket',
-    value: 'p_ticket_id, p_assignee_user_id → sets the assignee and writes an audit row.',
-  },
-  {
-    term: 'set_support_ticket_status',
-    value:
-      'p_ticket_id, p_status → one-way transitions validated server-side; stamps resolved_at when ' +
-      'moving to resolved, and requires a note when closing without a customer-visible reply.',
-  },
-  {
-    term: 'add_ticket_message',
-    value:
-      'p_ticket_id, p_body, p_visibility, p_attachments → appends to the thread; sets ' +
-      'first_response_at on the first customer-visible reply.',
-  },
-  {
-    term: 'support_ticket_stats',
-    value:
-      'p_from, p_to → counts by category, unresolved counts by severity, median first-response ' +
-      'time and a resolved-per-day series.',
-  },
-];
-
-/**
  * Real support data, read from the two RPCs that exist.
  *
  * `listBusinesses` feeds the picker; `listSupportNotes` reads the notes for the
@@ -144,13 +50,14 @@ const TICKET_RPCS: { term: string; value: string }[] = [
  * because a support surface that swallows a permission error is worse than one
  * that shows it.
  */
-function useSupportData(search: string) {
+function useSupportData(search: string, allowed: boolean) {
   const [businesses, setBusinesses] = useState<ProductBusiness[]>([]);
   const [selected, setSelected] = useState<ProductBusiness | null>(null);
   const [directoryLoading, setDirectoryLoading] = useState(true);
   const [directoryError, setDirectoryError] = useState<string | null>(null);
 
   const loadDirectory = useCallback(async () => {
+    if (!allowed) return;
     setDirectoryLoading(true);
     setDirectoryError(null);
     try {
@@ -173,7 +80,7 @@ function useSupportData(search: string) {
     } finally {
       setDirectoryLoading(false);
     }
-  }, [search]);
+  }, [search, allowed]);
 
   useEffect(() => {
     void loadDirectory();
@@ -239,7 +146,7 @@ export default function SupportArea() {
     notesLoading,
     notesError,
     reloadNotes,
-  } = useSupportData(search);
+  } = useSupportData(search, allowed);
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [noteType, setNoteType] = useState<string>(NOTE_TYPES[0]);
@@ -287,7 +194,7 @@ export default function SupportArea() {
     if (!selected) return;
     const body = noteBody.trim();
     if (body.length === 0) {
-      setNoteError('A support note needs a body: add_support_note rejects an empty one.');
+      setNoteError('Enter a note before saving.');
       return;
     }
     setSaving(true);
@@ -325,7 +232,7 @@ export default function SupportArea() {
     <>
       <PlatformPageHead
         area={AREA}
-        description="Notes recorded against a business, and the ticket backend this area has none of."
+        description="Find a business and record internal support notes."
         actions={
           <RefreshButton
             onClick={() => {
@@ -339,88 +246,13 @@ export default function SupportArea() {
 
       <AreaCoverage gaps={AREA.gaps} title="What this page cannot do yet" />
 
-      {/* ── Tickets: the contract, not a placeholder ──────────────── */}
-      <section className="card" aria-labelledby="support-tickets">
-        <SectionHead id="support-tickets" title="Support tickets" />
-
-        <StateBlock
-          variant="unavailable"
-          title="Not configured"
-          body={
-            <>
-              There is no support ticket backend: no <span className="mono">support_tickets</span> table, no
-              ticket RPC and no inbound channel, so a business owner cannot open a conversation and an
-              operator has nothing to queue.
-            </>
-          }
-        />
-
-        <Disclosure summary="What the backend would need">
-          <pre className="code-panel">{TICKET_SCHEMA_SQL}</pre>
-          <DefList
-            rows={TICKET_RPCS.map((rpc) => ({
-              term: rpc.term,
-              value: rpc.value,
-            }))}
-          />
-          <p className="plat-note">
-            <span className="mono">support_ticket_messages.visibility</span> must be applied in SQL by{' '}
-            <span className="mono">get_support_ticket</span>: sending internal rows to the browser and hiding
-            them with CSS leaves the text in the network response. <span className="mono">list_support_notes</span>{' '}
-            already decides access before it selects anything.
-          </p>
-        </Disclosure>
-
-        <Disclosure summary="Ticket vocabulary already agreed">
-          <DefList
-            rows={[
-              {
-                term: 'Ticket status',
-                value: (
-                  <>
-                    <StatusBadge status="new" /> <StatusBadge status="open" />{' '}
-                    <StatusBadge status="pending_customer" /> <StatusBadge status="resolved" />{' '}
-                    <StatusBadge status="closed" />
-                  </>
-                ),
-              },
-              {
-                term: 'Severity',
-                value: (
-                  <>
-                    <StatusBadge status="low" /> <StatusBadge status="normal" />{' '}
-                    <StatusBadge status="high" /> <StatusBadge status="urgent" />
-                  </>
-                ),
-              },
-              {
-                term: 'Category',
-                value: (
-                  <>
-                    <StatusBadge status="billing" /> <StatusBadge status="account" />{' '}
-                    <StatusBadge status="bug" /> <StatusBadge status="how_to" />{' '}
-                    <StatusBadge status="feature_request" /> <StatusBadge status="other" />
-                  </>
-                ),
-              },
-            ]}
-          />
-        </Disclosure>
-
-        <p className="form-hint">
-          Ticket actions would require <span className="mono">platform:manage_tickets</span> — declared, but
-          nothing consumes it — so this page requires only <span className="mono">platform:support</span>.
-        </p>
-      </section>
-
-      {/* ── Notes: real reads and a real write ────────────────────── */}
       <section className="card" aria-labelledby="support-notes">
         <SectionHead
           id="support-notes"
           title="Support notes"
-          sub="The only support record that exists, and it is append-only."
+          sub="Internal history for the selected business."
           actions={
-            <Button variant="outline" className="btn-sm" onClick={openDialog} disabled={!selected}>
+            <Button className="btn-sm" onClick={openDialog} disabled={!selected}>
               Add note
             </Button>
           }
@@ -439,8 +271,6 @@ export default function SupportArea() {
             </label>
             <SearchInput aria-label="Search businesses"
               id="support-business-search"
-
-
               value={searchDraft}
               placeholder="Name, owner email or slug"
               onChange={(event) => setSearchDraft(event.target.value)}
@@ -517,8 +347,7 @@ export default function SupportArea() {
                 ))}
               </select>
               <p className="form-hint">
-                {formatNumber(businesses.length)} business{businesses.length === 1 ? '' : 'es'} listed by{' '}
-                <span className="mono">list_product_businesses</span>
+                {formatNumber(businesses.length)} business{businesses.length === 1 ? '' : 'es'} found
                 {search ? ' for this search' : ''}.
               </p>
             </div>
@@ -538,7 +367,7 @@ export default function SupportArea() {
                 },
                 {
                   term: 'Notes on record',
-                  value: notesLoading ? '—' : formatNumber(notes.length),
+                  value: notesError ? 'Unavailable' : notesLoading ? '—' : formatNumber(notes.length),
                 },
               ]}
             />
@@ -587,51 +416,11 @@ export default function SupportArea() {
         )}
       </section>
 
-      {/* ── Triage and trend: not measurable, said plainly ────────── */}
-      <section className="card" aria-labelledby="support-triage">
-        <SectionHead id="support-triage" title="Frequent issues and urgent backlog" />
-
-        <StateBlock
-          variant="unavailable"
-          title="Not configured"
-          body={
-            <>
-              Neither figure is measurable: there are no tickets, so there is no category, severity, status
-              or assignee to count. An empty chart here would read as &quot;zero urgent issues&quot;, which
-              is a claim this application cannot make.
-            </>
-          }
-        />
-
-        <Disclosure summary="What the backend would need">
-          <pre className="code-panel">{`-- NOT PRESENT IN THIS REPOSITORY. Specification only.
-support_ticket_stats(p_from TIMESTAMPTZ, p_to TIMESTAMPTZ) RETURNS TABLE (
-  category              TEXT,     -- billing | account | bug | how_to | feature_request | other
-  opened                BIGINT,   -- opened inside the window
-  resolved              BIGINT,   -- resolved inside the window
-  unresolved            BIGINT,   -- still new/open/pending_* at p_to
-  unresolved_urgent     BIGINT,   -- unresolved AND severity IN ('high','urgent')
-  median_first_response INTERVAL, -- created_at -> first_response_at, customer-visible only
-  day                   DATE      -- one row per day, so the trend is a series not a total
-);`}</pre>
-          <p className="plat-note">
-            Until that function exists, the only support figures on this page are the note counts above, which
-            count administrative notes and not customer issues.
-          </p>
-        </Disclosure>
-      </section>
-
-      <p className="section-sub">
-        The business directory is read through <span className="mono">list_product_businesses</span> and lists
-        only businesses that hold an entitlement row. Notes shown are the 100 most recent for the selected
-        business.
-      </p>
-
       <Dialog
         open={dialogOpen}
         onClose={() => setDialogOpen(false)}
         title={selected ? `Add a support note to ${selected.name}` : 'Add a support note'}
-        description="Written to platform_support_notes and attributed to you in the audit trail."
+        description="Visible to platform staff and recorded in the audit trail."
         footer={
           <>
             <Button variant="outline" onClick={() => setDialogOpen(false)} disabled={saving}>
@@ -660,7 +449,7 @@ support_ticket_stats(p_from TIMESTAMPTZ, p_to TIMESTAMPTZ) RETURNS TABLE (
               </option>
             ))}
           </select>
-          <p className="form-hint">Stored as written; there is no update path.</p>
+          <p className="form-hint">Choose the reason for this note.</p>
         </div>
 
         <div className="form-group">

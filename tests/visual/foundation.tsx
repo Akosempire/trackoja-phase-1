@@ -1,3 +1,4 @@
+import { ImportPreview } from '../../src/components/ImportPreview';
 import { useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Button } from '../../src/components/ui/Button';
@@ -35,6 +36,10 @@ function Foundation() {
       <DataTable caption="Transactions" stacked loading={state === 'loading'} rows={state === 'empty' ? [] : [{ id: 'TRK-123', amount: '₦22,500' }]}
         columns={[{ key: 'id', header: 'Reference', label: '', render: (row) => row.id }, { key: 'amount', header: 'Amount', numeric: true, render: (row) => row.amount }]}
         rowKey={(row) => row.id} empty={<StateBlock title="No payments yet" body="Verified payments will appear here." />} />}
+    <section className="card"><h2 className="section-title">Product import</h2><ImportPreview rows={[
+      { rowNumber: 2, name: 'A product with a deliberately long name for a narrow screen', sku: 'LONGREFERENCEWITHOUTSPACES012345678901234567890123456789', unit: 'kg', costPrice: 120, sellingPrice: 22500, taxRate: 0, trackInventory: true, stockQty: 4.5, reorderLevel: 1, errors: [] },
+      { rowNumber: 3, name: '', sku: '', unit: 'unit', costPrice: 0, sellingPrice: 0, taxRate: 0, trackInventory: false, stockQty: 0, reorderLevel: 0, errors: ['Name is required', 'SKU is required'] },
+    ]} /></section>
     <Dialog open={open} onClose={() => setOpen(false)} title="Billing contact" footer={<Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>}>
       <FormField id="contact" label="Billing email" type="email" value={email} onChange={setEmail} hint="Used for receipts." />
     </Dialog>

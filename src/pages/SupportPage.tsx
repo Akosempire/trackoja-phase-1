@@ -1,7 +1,7 @@
 const FAQS = [
   {
     question: 'How do I record a sale?',
-    answer: 'Tap the Scan button on the bottom bar, or go to Sales → New sale, add items to the cart, choose a payment method and complete checkout.',
+    answer: 'Tap the Scan button on the bottom bar, or go to Sales → Record sale, add items to the cart, choose a payment method and complete checkout.',
   },
   {
     question: 'How do I add or update stock?',
@@ -32,10 +32,10 @@ export default function SupportPage() {
       </div>
 
       <div className="card">
-        <p className="list-item-title" style={{ marginBottom: 8 }}>
+        <p className="list-item-title" style={{ marginBottom: 'var(--space-8)' }}>
           Need help?
         </p>
-        <p className="page-subtitle" style={{ marginBottom: 12 }}>
+        <p className="page-subtitle" style={{ marginBottom: 'var(--space-12)' }}>
           Reach our support team and we'll get back to you as soon as possible.
         </p>
         <div className="btn-row" style={{ flexWrap: 'wrap' }}>
@@ -46,7 +46,7 @@ export default function SupportPage() {
       </div>
 
       <div className="card">
-        <p className="list-item-title" style={{ marginBottom: 8 }}>
+        <p className="list-item-title" style={{ marginBottom: 'var(--space-8)' }}>
           Frequently asked questions
         </p>
         <div className="list">

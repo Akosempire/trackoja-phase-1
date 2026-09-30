@@ -1,3 +1,5 @@
+import { ImportPreview } from '../../components/ImportPreview';
+import { SectionHead } from '../../components/ui/SectionHead';
 import { useEffect, useRef, useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
@@ -147,27 +149,23 @@ export default function BulkImportPage() {
       {error && <div className="alert alert-error">{error}</div>}
 
       <div className="card">
-        <p className="list-item-title" style={{ marginBottom: 8 }}>
-          1. Download the template
-        </p>
-        <p className="page-subtitle" style={{ marginBottom: 12 }}>
+        <SectionHead title={<>1. Download the template</>} />
+        <p className="page-subtitle" style={{ marginBottom: 'var(--space-12)' }}>
           Fill in one row per product. Required columns are Name, SKU, and Selling Price. Category names that don't
           exist yet will be created automatically.
         </p>
-        <Button type="button" variant="ghost" className="btn-sm btn-outline" onClick={handleDownloadTemplate}>
+        <Button type="button" variant="outline" className="btn-sm" onClick={handleDownloadTemplate}>
           Download Excel template
         </Button>
       </div>
 
       <div className="card">
-        <p className="list-item-title" style={{ marginBottom: 8 }}>
-          2. Upload your file
-        </p>
-        <p className="page-subtitle" style={{ marginBottom: 12 }}>
+        <SectionHead title={<>2. Upload your file</>} />
+        <p className="page-subtitle" style={{ marginBottom: 'var(--space-12)' }}>
           Accepts .xlsx, .xls, or .csv files exported from the template above.
         </p>
         <div className="btn-row">
-          <Button type="button" variant="ghost" className="btn-sm btn-outline" onClick={() => fileInputRef.current?.click()}>
+          <Button type="button" variant="outline" className="btn-sm" onClick={() => fileInputRef.current?.click()}>
             Choose file
           </Button>
           {fileName && <span className="page-subtitle">{fileName}</span>}
@@ -185,10 +183,8 @@ export default function BulkImportPage() {
 
       {!parsing && rows.length > 0 && (
         <div className="card">
-          <p className="list-item-title" style={{ marginBottom: 8 }}>
-            3. Review and import
-          </p>
-          <div className="btn-row" style={{ marginBottom: 12, flexWrap: 'wrap', gap: 6 }}>
+          <SectionHead title={<>3. Review and import</>} />
+          <div className="btn-row" style={{ marginBottom: 'var(--space-12)', flexWrap: 'wrap', gap: 'var(--space-6)' }}>
             <span className="badge badge-success">{validRows.length} ready</span>
             {invalidRows.length > 0 && <span className="badge badge-danger">{invalidRows.length} with errors</span>}
             {newCategoryNames.length > 0 && (
@@ -196,42 +192,7 @@ export default function BulkImportPage() {
             )}
           </div>
 
-          <div style={{ overflowX: 'auto', marginBottom: 12 }}>
-            <table className="import-table">
-              <thead>
-                <tr>
-                  <th scope="col">Row</th>
-                  <th scope="col">Name</th>
-                  <th scope="col">SKU</th>
-                  <th scope="col">Category</th>
-                  <th scope="col">Price</th>
-                  <th scope="col">Stock</th>
-                  <th scope="col">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((row) => (
-                  <tr key={row.rowNumber}>
-                    <td data-label="Row">{row.rowNumber}</td>
-                    <td data-label="Name">{row.name || '—'}</td>
-                    <td data-label="SKU">{row.sku || '—'}</td>
-                    <td data-label="Category">{row.categoryName || '—'}</td>
-                    <td data-label="Price">₦{row.sellingPrice.toLocaleString()}</td>
-                    <td data-label="Stock">{row.trackInventory ? row.stockQty : '—'}</td>
-                    <td data-label="Status">
-                      {row.errors.length === 0 ? (
-                        <span className="badge badge-success">OK</span>
-                      ) : (
-                        <span className="badge badge-danger" title={row.errors.join(', ')}>
-                          {row.errors[0]}
-                        </span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <ImportPreview rows={rows} />
 
           <Button type="button" loading={importing} disabled={validRows.length === 0} onClick={handleImport}>
             Import {validRows.length} product{validRows.length === 1 ? '' : 's'}
@@ -239,7 +200,7 @@ export default function BulkImportPage() {
         </div>
       )}
 
-      <div className="btn-row" style={{ marginTop: 16 }}>
+      <div className="btn-row" style={{ marginTop: 'var(--space-16)' }}>
         <Link className="btn btn-ghost btn-sm" to="/inventory/products">Back to products</Link>
       </div>
     </div>

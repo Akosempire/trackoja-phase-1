@@ -61,11 +61,11 @@ Use all 12 entries of `BUSINESS_CATEGORIES` with `getBusinessExperience`, not on
 ## Phase status and acceptance
 
 1. Foundation: COMPLETE. Shared width, field-row geometry, search adoption, navigation slots, pagination honesty, field constraints and data-state accessibility fixed and tested.
-2. Platform owner: remaining structure/copy and billing consolidation pending.
-3. Merchant foundation: duplicate actions, terminology and navigation verification pending.
-4. Operations: remaining field/spacing and detail consistency pending.
-5. Mobile: exercise 320, 375, 390, 430, 768, 1024, 1280 and 1440px in both themes. Render actual shared React components for foundation interaction checks; distinguish these from authenticated route tests.
-6. Final consistency: review side-by-side and document removed/merged/redesigned/refined components and remaining product decisions.
+2. Platform owner: implementation complete. Billing has four canonical sections, contextual plan details, canonical destinations for secondary tools and corrected pagination. Support prioritises real notes; secondary operational reference sections are collapsed.
+3. Merchant foundation: implementation complete. One permission-aware checkout action per sales view, consistent retail/order language, accessible checkout customer search and truthful sales error counts. Navigation remains covered by the Phase 1 permission matrix.
+4. Operations: implementation complete for existing routes. Removed duplicate creation actions, adopted the shared import table and section headings, tokenised local spacing, constrained payment settings forms and corrected decimal field constraints.
+5. Mobile: implementation and fixture verification complete at 320, 375, 390, 430, 768, 1024, 1280 and 1440px in both themes. Import records stack and expose all validation messages; mobile segmented controls meet the existing touch target. These are component and selected route fixtures, not authenticated production sessions.
+6. Final consistency: implementation complete. Shared currency formatting, permission-aware receipt actions, truthful loading/error summaries and URL filter handling reviewed. Final build and regression results are recorded below.
 
 A phase is complete only after its implementation and relevant checks pass. This file does not claim that all routes or real payment flows have been verified in production.
 
@@ -78,4 +78,52 @@ A phase is complete only after its implementation and relevant checks pass. This
 - Table loading is announced; table scroll regions are keyboard-focusable and named; error states announce their message. FormField accepts native constraints without bypassing its existing label/error associations.
 - Verified 578 unit tests, including 12 business categories across four permission sets, loading permissions, truthful pagination and shared table semantics. Production TypeScript/Vite build and lint passed.
 - Browser verification: 33 existing layout checks passed, plus 17 checks of actual React components at every requested width in both themes. The initial component checks found and drove fixes for the 12px search/action misalignment. Checks cover overflow, stable widths across four data states, mobile Scan geometry, radio keyboard navigation, dialog/drawer Escape and focus restoration, and retry recovery. Screenshots were visually reviewed.
-- Verification uses isolated data and permission fixtures. It does not certify every authenticated production route. Platform restructuring remains Phase 2; the complete product audit is not yet marked finished.
+- Verification uses isolated data and permission fixtures. It does not certify every authenticated production route. This was the Phase 1 checkpoint; subsequent deliveries follow below.
+
+## Phases 2-6 delivery
+
+### Removed
+
+- Duplicate activation/settings/audit implementations inside Billing. Old billing URLs redirect to the corresponding canonical screen.
+- Support ticket schema proposals and unsupported backlog specifications from the operational Support page.
+- Repeated empty-state checkout, add-product, add-customer, invite-staff, create-job and add-category buttons when the same action is already visible above.
+- Empty plan-detail panels and contradictory billing documentation about unsupported trials/expiry.
+
+### Merged and redesigned
+
+- Billing uses the existing keyboard-accessible segmented control for Overview, Plans, Subscriptions and Payments. Plan details, publishing actions and history open in the existing modal.
+- Three admin lists share URL-filter handling. Pagination previously deleted its own page parameter and stayed on page 1. Changing a real filter still resets pagination.
+- Bulk import uses `ImportPreview` and the canonical `DataTable`, including mobile row labels, numeric alignment and full row validation messages. It does not change import writes.
+- Developer environment details, activation reference material, audit coverage, health incident references and settings constraints use disclosure. Working controls and consequential warnings remain visible.
+
+### Refined
+
+- Merchant overview, sales hub/history, checkout and receipts: one main action, restaurant-specific order wording, consistent retail sale wording, labelled customer search/table-number/refund-quantity controls.
+- Products, categories, customers, jobs and staff: single entry action, existing permissions retained. Product numeric fields accept fractional prices/stock and reject negative values; tax is bounded to 100 percent.
+- Customer/device/import/stock detail sections use canonical headings. Kitchen, expiry, account, payment settings, auth and support spacing uses existing tokens.
+- Currency displays in checkout, receipts, customers and imports use `formatMoney`, preserving fractional naira and using the same grouping and missing-value handling as reports.
+- Receipt checkout actions require sales creation access. Support avoids directory reads for callers without support permission. Backend/RLS checks remain unchanged.
+- Errors no longer masquerade as zero sales or zero support notes. Billing does not declare a healthy state when the relevant overview, watchlist or revenue request fails; loading revenue no longer shows an empty-sales message.
+
+### Verification scope
+
+- Automated unit coverage includes all 12 business categories with permitted/restricted sale actions, navigation permission subsets, support denial/retry behavior and existing financial/access rules.
+- Browser checks cover shared states, import long identifiers/errors, mobile Scan placement, keyboard focus/escape/retry, Billing tab width, plan detail dialogs, retained-filter navigation, and pagination on Businesses, Subscriptions and Audit.
+- Platform route fixtures intercept services before rendering; they cannot send changes to a customer account. Browser matrix covers both themes and all eight requested widths. Existing layout fixtures remain part of the suite.
+- No schema migration, payment enforcement change, entitlement bypass or production-data mutation is introduced by this refactor.
+
+### Remaining product and rollout work
+
+- No independent suppliers, purchasing or accounting workflow exists in the current route inventory. Those need product/backend scope rather than placeholder screens.
+- Support tickets, automated provider monitoring and some notification delivery features remain unavailable; the UI does not claim they work.
+- Privacy and terms need approved legal content. TrackOja Works features/prices remain a separate product decision.
+- Deploy the generated build and perform authenticated smoke tests against the actual environment. Local fixtures do not prove every role, tenant, subscription state or live payment provider journey in production.
+- Existing admin revenue grouping uses legacy plan references, and some business/expiry filters operate on capped pages. The UI retains those limitations; this pass does not fabricate MRR or change financial calculations.
+
+## Final local verification
+
+- 606 tests passed across 43 unit-test files.
+- 73 browser checks passed. Six screenshot baselines were reviewed and refreshed for the intended admin heading sizes and mobile touch-target heights.
+- TypeScript, production Vite/PWA build and ESLint passed.
+- Generated `dist` is included because this repository deploys its checked-in build output.
+- Production deployment and authenticated real-tenant smoke testing are not claimed by these results.

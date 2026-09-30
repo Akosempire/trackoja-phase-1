@@ -1,3 +1,4 @@
+import { formatMoney } from '../../utils/format';
 import { SearchInput } from '../../components/ui/SearchInput';
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -403,12 +404,12 @@ export default function CheckoutPage() {
 
   return (
     <div className="checkout-page">
-      {posAttempt && <div className="card" role="status" style={{ marginBottom: 16 }}>
+      {posAttempt && <div className="card" role="status" style={{ marginBottom: 'var(--space-16)' }}>
         <h2 className="list-item-title">{posAttempt.status === 'successful' ? 'Payment verified' :
           posAttempt.status === 'reconciliation_required' ? 'Payment needs review' :
           posAttempt.status === 'failed' || posAttempt.status === 'cancelled' ? 'POS payment did not complete' :
           'Waiting for Moniepoint payment'}</h2>
-        <p className="page-subtitle">₦{Number(posAttempt.expectedAmount).toLocaleString()} · Terminal ••••{posAttempt.terminalLastFour} · {posAttempt.merchantReference}</p>
+        <p className="page-subtitle">{formatMoney(Number(posAttempt.expectedAmount))} · Terminal ••••{posAttempt.terminalLastFour} · {posAttempt.merchantReference}</p>
         <p className="page-subtitle">Status: {posAttempt.status.replaceAll('_', ' ')}{posChecking ? ' · Checking…' : ''}</p>
         <p className="page-subtitle">{describeAttempt(posAttempt)}</p>
         {['sending', 'pending', 'unresolved', 'reconciliation_required'].includes(posAttempt.status) &&
@@ -436,7 +437,7 @@ export default function CheckoutPage() {
           onClick={() => document.getElementById('checkout-receipt')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
         >
           <span className="cart-sticky-bar-count">{cart.length} item{cart.length === 1 ? '' : 's'}</span>
-          <span className="cart-sticky-bar-total">₦{total.toLocaleString()}</span>
+          <span className="cart-sticky-bar-total">{formatMoney(total)}</span>
           <span className="cart-sticky-bar-action">View cart ↓</span>
         </button>
       )}
@@ -514,7 +515,7 @@ export default function CheckoutPage() {
                     )}
                     <span className="product-card-name">{product.name}</span>
                     <span className="product-card-price">
-                      {outOfStock ? 'Out of stock' : `₦${product.sellingPrice.toLocaleString()}`}
+                      {outOfStock ? 'Out of stock' : `${formatMoney(product.sellingPrice)}`}
                     </span>
                   </button>
                 );
@@ -542,7 +543,7 @@ export default function CheckoutPage() {
                   <div key={line.productId} className="co-line">
                     <div className="co-line-top">
                       <span className="co-line-name">{line.name}</span>
-                      <span className="co-line-total">₦{(line.unitPrice * line.quantity).toLocaleString()}</span>
+                      <span className="co-line-total">{formatMoney((line.unitPrice * line.quantity))}</span>
                     </div>
                     <div className="co-line-bottom">
                       <div className="qty-stepper">
@@ -550,7 +551,7 @@ export default function CheckoutPage() {
                         <span aria-live="polite" aria-label={`${line.quantity} ${line.unit}`}>{line.quantity}</span>
                         <button type="button" onClick={() => updateQuantity(line.productId, 1)} disabled={line.trackInventory && line.quantity >= line.stockQty} aria-label={`Increase ${line.name} quantity`}>+</button>
                       </div>
-                      <span className="co-line-unit">₦{line.unitPrice.toLocaleString()} ea.</span>
+                      <span className="co-line-unit">{formatMoney(line.unitPrice)} ea.</span>
                       <button type="button" className="co-line-remove" onClick={() => removeLine(line.productId)}>✕</button>
                     </div>
                   </div>
@@ -574,7 +575,7 @@ export default function CheckoutPage() {
                     })}
                   </div>
                   {orderType === 'dine_in' && (
-                    <input className="form-input" style={{ marginTop: 8 }} placeholder="Table number (optional)" value={tableNumber} onChange={(e) => setTableNumber(e.target.value)} />
+                    <input className="form-input" style={{ marginTop: 'var(--space-8)' }} aria-label="Table number (optional)" placeholder="Table number (optional)" value={tableNumber} onChange={(e) => setTableNumber(e.target.value)} />
                   )}
                 </div>
               )}
@@ -586,23 +587,23 @@ export default function CheckoutPage() {
                     <div>
                       <p className="co-customer-name">{selectedCustomer.name}</p>
                       <p className="co-customer-sub">
-                        {selectedCustomer.phone || selectedCustomer.email || 'No contact'} · ₦{remainingCredit.toLocaleString()} credit
+                        {selectedCustomer.phone || selectedCustomer.email || 'No contact'} · {formatMoney(remainingCredit)} credit
                       </p>
                       {loyaltyPreview > 0 && <p className="co-customer-sub">+{loyaltyPreview} loyalty pts</p>}
                     </div>
-                    <button type="button" className="co-line-remove" onClick={clearCustomer}>✕</button>
+                    <button type="button" className="co-line-remove" aria-label="Remove customer" onClick={clearCustomer}>✕</button>
                   </div>
                 ) : (showCustomerSearch || requireCustomer) ? (
                   <>
                     <p className="co-section-label">Customer {requireCustomer ? '(required)' : ''}</p>
-                    <input
-                      className="form-input"
+                    <SearchInput
+                      aria-label="Search customers"
                       placeholder="Search by name or phone"
                       value={customerSearch}
                       onChange={(e) => setCustomerSearch(e.target.value)}
                     />
                     {filteredCustomers.length > 0 && (
-                      <div className="list" style={{ marginTop: 4 }}>
+                      <div className="list" style={{ marginTop: 'var(--space-4)' }}>
                         {filteredCustomers.map((c) => (
                           <button key={c.id} type="button" className="list-item" style={{ width: '100%', cursor: 'pointer', font: 'inherit' }} onClick={() => selectCustomer(c)}>
                             <div>
@@ -614,7 +615,7 @@ export default function CheckoutPage() {
                       </div>
                     )}
                     {!requireCustomer && (
-                      <button type="button" className="co-add-btn" style={{ marginTop: 6 }} onClick={() => setShowCustomerSearch(false)}>Cancel</button>
+                      <button type="button" className="co-add-btn" style={{ marginTop: 'var(--space-6)' }} onClick={() => setShowCustomerSearch(false)}>Cancel</button>
                     )}
                   </>
                 ) : (
@@ -635,10 +636,10 @@ export default function CheckoutPage() {
 
               {/* Totals */}
               <div className="co-totals">
-                <div className="co-total-row"><span>Subtotal</span><span>₦{subtotal.toLocaleString()}</span></div>
-                {discount > 0 && <div className="co-total-row"><span>Discount</span><span>−₦{discount.toLocaleString()}</span></div>}
-                {taxTotal > 0 && <div className="co-total-row"><span>Tax</span><span>₦{taxTotal.toLocaleString()}</span></div>}
-                <div className="co-total-row grand"><span>Total</span><span>₦{total.toLocaleString()}</span></div>
+                <div className="co-total-row"><span>Subtotal</span><span>{formatMoney(subtotal)}</span></div>
+                {discount > 0 && <div className="co-total-row"><span>Discount</span><span>−{formatMoney(discount)}</span></div>}
+                {taxTotal > 0 && <div className="co-total-row"><span>Tax</span><span>{formatMoney(taxTotal)}</span></div>}
+                <div className="co-total-row grand"><span>Total</span><span>{formatMoney(total)}</span></div>
               </div>
 
               <div className="receipt-divider" />
@@ -661,7 +662,7 @@ export default function CheckoutPage() {
                 {paymentMethod === 'cash' ? (
                   <FormField id="amount-tendered" label="Amount tendered (₦)" type="number" value={amountTendered} onChange={setAmountTendered} placeholder={String(total)} />
                 ) : paymentMethod === 'credit' ? (
-                  <p className="page-subtitle" style={{ marginTop: 8 }}>₦{total.toLocaleString()} added to {selectedCustomer?.name}'s balance.</p>
+                  <p className="page-subtitle" style={{ marginTop: 'var(--space-8)' }}>{formatMoney(total)} added to {selectedCustomer?.name}'s balance.</p>
                 ) : paymentMethod === 'moniepoint_pos' ? (
                   <div className="form-group">
                     <label className="form-label" htmlFor="moniepoint-terminal">Terminal</label>
@@ -679,16 +680,16 @@ export default function CheckoutPage() {
                 )}
 
                 {paymentMethod !== 'moniepoint_pos' && VERIFIABLE_METHODS.includes(paymentMethod) && (
-                  <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
+                  <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-8)', marginTop: 'var(--space-8)' }}>
                     <input type="checkbox" checked={pendingVerification} onChange={(e) => setPendingVerification(e.target.checked)} />
                     Awaiting confirmation
                   </label>
                 )}
 
                 {paymentMethod === 'cash' && (
-                  <div className="co-total-row" style={{ marginTop: 10, fontWeight: 600 }}>
+                  <div className="co-total-row" style={{ marginTop: 'var(--space-10)', fontWeight: 600 }}>
                     <span>Change due</span>
-                    <span>₦{changeDue.toLocaleString()}</span>
+                    <span>{formatMoney(changeDue)}</span>
                   </div>
                 )}
               </div>
@@ -696,8 +697,8 @@ export default function CheckoutPage() {
               <Button onClick={handleCompleteSale} loading={saving}
                 disabled={!canSubmit || (paymentMethod === 'moniepoint_pos' && (!posTerminalId || !posConnection?.erpEnabled ||
                   !['configured', 'connected'].includes(posConnection.status) || !posConnection.amountUnitConfirmed || !posConnection.approvalCodesConfirmed))}
-                style={{ width: '100%', marginTop: 8 }}>
-                {paymentMethod === 'moniepoint_pos' ? `Send ₦${total.toLocaleString()} to POS` : `Complete sale — ₦${total.toLocaleString()}`}
+                style={{ width: '100%', marginTop: 'var(--space-8)' }}>
+                {paymentMethod === 'moniepoint_pos' ? `Send ${formatMoney(total)} to POS` : `Complete sale — ${formatMoney(total)}`}
               </Button>
             </>
           )}

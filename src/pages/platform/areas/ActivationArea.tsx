@@ -1023,7 +1023,7 @@ export default function ActivationArea() {
       </section>
 
       {/* ── How a key becomes access ──────────────────────────────── */}
-      <section className="card" aria-labelledby="activation-model">
+      <Disclosure summary="How activation interacts with subscription status"><section className="card" aria-labelledby="activation-model">
         <SectionHead id="activation-model" title="How activation interacts with subscription status" />
         <Disclosure summary="How a key becomes access">
           <ul className="list">
@@ -1077,9 +1077,10 @@ export default function ActivationArea() {
           </ul>
         </Disclosure>
       </section>
+      </Disclosure>
 
       {/* ── Failure states ────────────────────────────────────────── */}
-      <section className="card" aria-labelledby="activation-failures">
+      <Disclosure summary="When a redemption fails"><section className="card" aria-labelledby="activation-failures">
         <SectionHead id="activation-failures" title="When a redemption fails" />
         <Disclosure summary="The exact sentences a customer sees">
           <ul className="list">
@@ -1095,9 +1096,10 @@ export default function ActivationArea() {
         </Disclosure>
         <p className="form-hint">The issue form above refuses the same conditions.</p>
       </section>
+      </Disclosure>
 
       {/* ── Not built yet ─────────────────────────────────────────── */}
-      <section className="card" aria-labelledby="activation-not-built">
+      <Disclosure summary="Not built yet"><section className="card" aria-labelledby="activation-not-built">
         <SectionHead
           id="activation-not-built"
           title="Not built yet"
@@ -1119,6 +1121,7 @@ export default function ActivationArea() {
           control. The audit trail records only the last four characters.
         </p>
       </section>
+      </Disclosure>
 
       <IssueKeyDialog
         open={issueOpen}

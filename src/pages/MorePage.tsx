@@ -89,7 +89,7 @@ export default function MorePage() {
         />
       </div>
 
-      <div className="card" style={{ marginTop: 12 }}>
+      <div className="card" style={{ marginTop: 'var(--space-12)' }}>
         <button type="button" className="btn btn-ghost btn-sm" onClick={handleLogout}>
           Log out
         </button>

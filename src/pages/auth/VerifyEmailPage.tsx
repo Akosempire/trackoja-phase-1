@@ -79,7 +79,7 @@ export default function VerifyEmailPage() {
         </Button>
       </form>
 
-      <div className="form-row-end" style={{ marginTop: 16, justifyContent: 'center' }}>
+      <div className="form-row-end" style={{ marginTop: 'var(--space-16)', justifyContent: 'center' }}>
         <Button type="button" variant="ghost" onClick={handleResend} loading={resending} disabled={!email}>
           Resend verification email
         </Button>

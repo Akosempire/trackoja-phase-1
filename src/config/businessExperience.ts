@@ -172,7 +172,7 @@ function retailLike(overrides: Partial<BusinessExperience> = {}): BusinessExperi
     defaultModules: ['inventory', 'sales', 'customers'],
     nav: [OVERVIEW(), ...GENERAL_RETAIL_NAV],
     bottomNav: ['overview', 'products', 'checkout'],
-    primaryAction: { label: 'New sale', route: '/sales/checkout', implemented: true },
+    primaryAction: { label: 'Record sale', route: '/sales/checkout', implemented: true },
     secondaryActions: [
       { label: 'Add product', route: '/inventory/products/new', implemented: true },
       { label: 'Record expense', route: '/expenses', implemented: false, gap: 'No expense records yet.' },
@@ -393,7 +393,7 @@ const RAW_EXPERIENCES: Record<BusinessCategory, BusinessExperience> = {
       live('reports', 'Reports', '/reports', 'reports', 'reports:view'),
     ],
     bottomNav: ['overview', 'clients', 'materials'],
-    primaryAction: { label: 'Create job', route: '/jobs', implemented: true },
+    primaryAction: { label: 'New job', route: '/jobs', implemented: true },
     secondaryActions: [
       { label: 'Add client', route: '/customers/new', implemented: true },
       { label: 'Add material', route: '/inventory/products/new', implemented: true },
@@ -534,7 +534,7 @@ const RAW_EXPERIENCES: Record<BusinessCategory, BusinessExperience> = {
       live('reports', 'Reports', '/reports', 'reports', 'reports:view'),
     ],
     bottomNav: ['overview', 'products', 'checkout'],
-    primaryAction: { label: 'New sale', route: '/sales/checkout', implemented: true },
+    primaryAction: { label: 'Record sale', route: '/sales/checkout', implemented: true },
     terminology: {
       record: 'Sale',
       recordPlural: 'Sales',
@@ -622,7 +622,7 @@ const RAW_EXPERIENCES: Record<BusinessCategory, BusinessExperience> = {
     ],
     // Rolls are not a screen yet, so the bar exposes implemented areas only.
     bottomNav: ['overview', 'sales', 'fabrics'],
-    primaryAction: { label: 'Sell fabric', route: '/sales/checkout', implemented: true },
+    primaryAction: { label: 'Record sale', route: '/sales/checkout', implemented: true },
     secondaryActions: [
       { label: 'Add fabric', route: '/inventory/products/new', implemented: true },
       { label: 'Receive a roll', route: '/inventory/rolls', implemented: false, gap: 'No roll receiving screen yet.' },
@@ -706,7 +706,7 @@ const RAW_EXPERIENCES: Record<BusinessCategory, BusinessExperience> = {
       live('reports', 'Reports', '/reports', 'reports', 'reports:view'),
     ],
     bottomNav: ['overview', 'products', 'checkout'],
-    primaryAction: { label: 'Start checkout', route: '/sales/checkout', implemented: true },
+    primaryAction: { label: 'Record sale', route: '/sales/checkout', implemented: true },
     terminology: {
       record: 'Sale',
       recordPlural: 'Sales',
@@ -798,7 +798,7 @@ const RAW_EXPERIENCES: Record<BusinessCategory, BusinessExperience> = {
       live('reports', 'Reports', '/reports', 'reports', 'reports:view'),
     ],
     bottomNav: ['overview', 'sales', 'expiry'],
-    primaryAction: { label: 'New sale', route: '/sales/checkout', implemented: true },
+    primaryAction: { label: 'Record sale', route: '/sales/checkout', implemented: true },
     terminology: {
       record: 'Sale',
       recordPlural: 'Sales',
@@ -908,7 +908,7 @@ const RAW_EXPERIENCES: Record<BusinessCategory, BusinessExperience> = {
     ],
     // A unit register is not a screen yet, so the bar exposes implemented areas only.
     bottomNav: ['overview', 'sales', 'products'],
-    primaryAction: { label: 'New sale', route: '/sales/checkout', implemented: true },
+    primaryAction: { label: 'Record sale', route: '/sales/checkout', implemented: true },
     terminology: {
       record: 'Sale',
       recordPlural: 'Sales',
@@ -987,7 +987,7 @@ const RAW_EXPERIENCES: Record<BusinessCategory, BusinessExperience> = {
       live('reports', 'Reports', '/reports', 'reports', 'reports:view'),
     ],
     bottomNav: ['overview', 'sales', 'products'],
-    primaryAction: { label: 'New sale', route: '/sales/checkout', implemented: true },
+    primaryAction: { label: 'Record sale', route: '/sales/checkout', implemented: true },
     terminology: {
       record: 'Sale',
       recordPlural: 'Sales',
@@ -1187,7 +1187,7 @@ const RAW_EXPERIENCES: Record<BusinessCategory, BusinessExperience> = {
       live('reports', 'Reports', '/reports', 'reports', 'reports:view'),
     ],
     bottomNav: ['overview', 'products', 'checkout'],
-    primaryAction: { label: 'New sale', route: '/sales/checkout', implemented: true },
+    primaryAction: { label: 'Record sale', route: '/sales/checkout', implemented: true },
     terminology: {
       record: 'Sale',
       recordPlural: 'Sales',

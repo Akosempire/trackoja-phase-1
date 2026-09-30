@@ -1,3 +1,6 @@
+import { formatMoney } from '../../utils/format';
+import { useBusinessContext } from '../../contexts/BusinessContext';
+import { recordSaleAction } from '../../utils/business-language';
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { usePermissions } from '../../hooks/usePermissions';
@@ -27,6 +30,7 @@ const VERIFY_CLASS: Record<string, string> = {
 export default function ReceiptPage() {
   const { saleId } = useParams<{ saleId: string }>();
   const navigate = useNavigate();
+  const { category } = useBusinessContext();
   const { hasPermission } = usePermissions();
 
   const [sale, setSale] = useState<Sale | null>(null);
@@ -149,20 +153,20 @@ export default function ReceiptPage() {
           <p className="rp-status-sub">Receipt #{sale.saleNumber} · {new Date(sale.createdAt).toLocaleString()}</p>
         </div>
         <div className="rp-status-amount">
-          ₦{sale.total.toLocaleString()}
+          {formatMoney(sale.total)}
         </div>
       </div>
 
       {/* Action bar */}
       <div className="rp-actions no-print">
-        <Button variant="primary" style={{ flex: 1 }} onClick={() => navigate('/sales/checkout')}>
-          + New sale
-        </Button>
-        <Button variant="ghost" className="btn-outline" disabled={isPending} onClick={() => window.print()}>
+        {hasPermission('sales:create') && <Button onClick={() => navigate('/sales/checkout')}>
+          {recordSaleAction(category)}
+        </Button>}
+        <Button variant="outline" disabled={isPending} onClick={() => window.print()}>
           Print
         </Button>
         {canRefund && !isVoided && !isPending && remainingBalance > 0 && (
-          <Button variant="ghost" className="btn-outline" onClick={() => setShowRefund((v) => !v)}>
+          <Button variant="outline" onClick={() => setShowRefund((v) => !v)}>
             {showRefund ? 'Cancel' : 'Refund'}
           </Button>
         )}
@@ -225,7 +229,7 @@ export default function ReceiptPage() {
               </div>
               <div className="rp-item-right">
                 <span className="rp-item-qty">×{item.quantity}</span>
-                <span className="rp-item-total">₦{item.lineTotal.toLocaleString()}</span>
+                <span className="rp-item-total">{formatMoney(item.lineTotal)}</span>
               </div>
             </div>
           ))}
@@ -237,29 +241,29 @@ export default function ReceiptPage() {
         <div className="rp-totals">
           <div className="rp-total-row">
             <span>Subtotal</span>
-            <span>₦{sale.subtotal.toLocaleString()}</span>
+            <span>{formatMoney(sale.subtotal)}</span>
           </div>
           {sale.discountTotal > 0 && (
             <div className="rp-total-row">
               <span>Discount</span>
-              <span>−₦{sale.discountTotal.toLocaleString()}</span>
+              <span>−{formatMoney(sale.discountTotal)}</span>
             </div>
           )}
           {sale.taxTotal > 0 && (
             <div className="rp-total-row">
               <span>Tax</span>
-              <span>₦{sale.taxTotal.toLocaleString()}</span>
+              <span>{formatMoney(sale.taxTotal)}</span>
             </div>
           )}
           {sale.refundedAmount > 0 && (
             <div className="rp-total-row rp-row-refunded">
               <span>Refunded</span>
-              <span>−₦{sale.refundedAmount.toLocaleString()}</span>
+              <span>−{formatMoney(sale.refundedAmount)}</span>
             </div>
           )}
           <div className="rp-grand-total">
             <span>Total</span>
-            <span>₦{sale.total.toLocaleString()}</span>
+            <span>{formatMoney(sale.total)}</span>
           </div>
         </div>
 
@@ -276,14 +280,14 @@ export default function ReceiptPage() {
                   {payment.verificationStatus}
                 </span>
               </div>
-              <span className="rp-payment-amount">₦{payment.amount.toLocaleString()}</span>
+              <span className="rp-payment-amount">{formatMoney(payment.amount)}</span>
               {payment.provider && payment.reference && <span className="rp-payment-note">Ref: {payment.reference}</span>}
             </div>
           ))}
           {sale.changeDue > 0 && (
             <div className="rp-payment-row">
               <span className="rp-payment-method rp-change">Change given</span>
-              <span className="rp-payment-amount">₦{sale.changeDue.toLocaleString()}</span>
+              <span className="rp-payment-amount">{formatMoney(sale.changeDue)}</span>
             </div>
           )}
           {sale.loyaltyPointsEarned > 0 && (
@@ -308,7 +312,7 @@ export default function ReceiptPage() {
                     <span className="rp-payment-method" style={{ textTransform: 'capitalize' }}>{refund.method}</span>
                     <span className="rp-payment-note"> · {refund.reason} · {new Date(refund.createdAt).toLocaleDateString()}</span>
                   </div>
-                  <span className="rp-payment-amount" style={{ color: 'var(--danger)' }}>−₦{refund.amount.toLocaleString()}</span>
+                  <span className="rp-payment-amount" style={{ color: 'var(--danger)' }}>−{formatMoney(refund.amount)}</span>
                 </div>
               ))}
             </div>
@@ -332,13 +336,13 @@ export default function ReceiptPage() {
 
       {/* Verify pending payments */}
       {canRefund && pendingPayments.length > 0 && (
-        <div className="card no-print" style={{ marginTop: 16 }}>
-          <p className="list-item-title" style={{ marginBottom: 8 }}>Verify payments</p>
+        <div className="card no-print" style={{ marginTop: 'var(--space-16)' }}>
+          <p className="list-item-title" style={{ marginBottom: 'var(--space-8)' }}>Verify payments</p>
           {pendingPayments.map((payment) => (
-            <div key={payment.id} className="list-item" style={{ padding: '8px 0' }}>
+            <div key={payment.id} className="list-item" style={{ padding: 'var(--space-8) 0' }}>
               <div>
                 <p className="list-item-title" style={{ textTransform: 'capitalize' }}>
-                  {payment.method} · ₦{payment.amount.toLocaleString()}
+                  {payment.method} · {formatMoney(payment.amount)}
                 </p>
                 {payment.reference && <p className="list-item-subtitle">Ref: {payment.reference}</p>}
               </div>
@@ -353,19 +357,19 @@ export default function ReceiptPage() {
 
       {/* Refund form */}
       {showRefund && canRefund && !isVoided && !isPending && remainingBalance > 0 && (
-        <div className="card no-print" style={{ marginTop: 16 }}>
-          <p className="list-item-title" style={{ marginBottom: 4 }}>Process refund</p>
-          <p className="page-subtitle" style={{ marginBottom: 12 }}>₦{remainingBalance.toLocaleString()} available</p>
+        <div className="card no-print" style={{ marginTop: 'var(--space-16)' }}>
+          <p className="list-item-title" style={{ marginBottom: 'var(--space-4)' }}>Process refund</p>
+          <p className="page-subtitle" style={{ marginBottom: 'var(--space-12)' }}>{formatMoney(remainingBalance)} available</p>
 
           {refundableItems.length > 0 && (
-            <div style={{ marginBottom: 12 }}>
+            <div style={{ marginBottom: 'var(--space-12)' }}>
               <p className="form-label">Items to return (optional)</p>
               {refundableItems.map((item) => {
                 const max = item.quantity - item.refundedQuantity;
                 return (
-                  <div key={item.id} className="rp-payment-row" style={{ padding: '6px 0' }}>
+                  <div key={item.id} className="rp-payment-row" style={{ padding: 'var(--space-6) 0' }}>
                     <span>{item.productName} (max {max})</span>
-                    <input className="form-input" style={{ width: 80 }} type="number" min={0} max={max}
+                    <input className="form-input" style={{ width: 'var(--space-80)' }} aria-label={`Return quantity for ${item.productName}`} type="number" min={0} max={max}
                       value={refundItems[item.id] ?? ''} onChange={(e) => setRefundItemQty(item.id, Number(e.target.value) || 0, max)} />
                   </div>
                 );

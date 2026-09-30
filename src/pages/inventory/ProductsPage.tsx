@@ -132,7 +132,6 @@ export default function ProductsPage() {
         empty={products.length === 0}
         emptyTitle={search || categoryId || lowStockOnly ? 'No matching inventory' : `No ${itemPlural} yet`}
         emptyBody={search || categoryId || lowStockOnly ? 'Clear or change the filters to see more results.' : `Add the first ${experience.terminology.lineItem.toLowerCase()} to start tracking ${experience.terminology.stock.toLowerCase()}.`}
-        emptyActions={!search && !categoryId && !lowStockOnly && canCreate ? <Link className="btn btn-primary btn-sm" to="/inventory/products/new">Add {experience.terminology.lineItem.toLowerCase()}</Link> : null}
       >
         <div className="list">
           {products.map((product) => {
@@ -166,7 +165,7 @@ export default function ProductsPage() {
       </SectionState>
 
       {canAdjust && (
-        <div className="btn-row" style={{ marginTop: 16 }}>
+        <div className="btn-row" style={{ marginTop: 'var(--space-16)' }}>
           <Link className="btn btn-ghost btn-sm" to="/inventory/stock">Adjust stock</Link>
         </div>
       )}

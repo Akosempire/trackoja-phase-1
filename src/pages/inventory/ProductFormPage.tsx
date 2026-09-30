@@ -221,7 +221,7 @@ export default function ProductFormPage() {
           <FormField id="product-barcode" label="Barcode" value={barcode} onChange={setBarcode} placeholder="Optional" />
         </div>
         {!readOnly && (
-          <div className="btn-row" style={{ marginBottom: 12 }}>
+          <div className="btn-row" style={{ marginBottom: 'var(--space-12)' }}>
             <Button type="button" variant="ghost" className="btn-sm" onClick={() => setScanning(true)}>
               Scan barcode
             </Button>
@@ -264,11 +264,11 @@ export default function ProductFormPage() {
         </div>
 
         <div className="auth-form-row">
-          <FormField id="product-cost-price" label="Cost price" type="number" value={costPrice} onChange={setCostPrice} />
+          <FormField id="product-cost-price" label="Cost price" type="number" min={0} step="any" value={costPrice} onChange={setCostPrice} />
           <FormField
             id="product-selling-price"
             label="Selling price"
-            type="number"
+            type="number" min={0} step="any"
             value={sellingPrice}
             onChange={setSellingPrice}
             required
@@ -292,7 +292,7 @@ export default function ProductFormPage() {
               )}
             </select>
           </div>
-          <FormField id="product-tax-rate" label="Tax rate (%)" type="number" value={taxRate} onChange={setTaxRate} />
+          <FormField id="product-tax-rate" label="Tax rate (%)" type="number" max={100} min={0} step="any" value={taxRate} onChange={setTaxRate} />
         </div>
 
         {config.attributeFields.length > 0 && (
@@ -348,12 +348,12 @@ export default function ProductFormPage() {
         {trackInventory && (
           <div className="auth-form-row">
             {isNew && (
-              <FormField id="product-stock-qty" label="Initial stock" type="number" value={stockQty} onChange={setStockQty} />
+              <FormField id="product-stock-qty" label="Initial stock" type="number" min={0} step="any" value={stockQty} onChange={setStockQty} />
             )}
             <FormField
               id="product-reorder-level"
               label="Reorder level"
-              type="number"
+              type="number" min={0} step="any"
               value={reorderLevel}
               onChange={setReorderLevel}
             />

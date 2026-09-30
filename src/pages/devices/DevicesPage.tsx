@@ -1,3 +1,4 @@
+import { SectionHead } from '../../components/ui/SectionHead';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
@@ -149,9 +150,7 @@ export default function DevicesPage() {
 
       {canManage && (
         <form className="card" onSubmit={handleSubmit}>
-          <p className="list-item-title" style={{ marginBottom: 8 }}>
-            {editingId ? 'Edit device' : 'Register device'}
-          </p>
+          <SectionHead title={<>{editingId ? 'Edit device' : 'Register device'}</>} />
           <FormField id="device-name" label="Name" value={name} onChange={setName} required />
           <div className="form-group">
             <label className="form-label" htmlFor="device-type">

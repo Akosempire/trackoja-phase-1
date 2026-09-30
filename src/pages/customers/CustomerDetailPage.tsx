@@ -1,3 +1,5 @@
+import { formatMoney } from '../../utils/format';
+import { SectionHead } from '../../components/ui/SectionHead';
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { usePermissions } from '../../hooks/usePermissions';
@@ -131,15 +133,15 @@ export default function CustomerDetailPage() {
       <div className="card">
         <div className="total-row">
           <span>Balance owed</span>
-          <span>₦{customer.balance.toLocaleString()}</span>
+          <span>{formatMoney(customer.balance)}</span>
         </div>
         <div className="total-row">
           <span>Credit limit</span>
-          <span>₦{customer.creditLimit.toLocaleString()}</span>
+          <span>{formatMoney(customer.creditLimit)}</span>
         </div>
         <div className="total-row grand">
           <span>Remaining credit</span>
-          <span>₦{remainingCredit.toLocaleString()}</span>
+          <span>{formatMoney(remainingCredit)}</span>
         </div>
         <div className="total-row">
           <span>Loyalty points</span>
@@ -149,9 +151,7 @@ export default function CustomerDetailPage() {
 
       {canManageCredit && (
         <div className="card">
-          <p className="list-item-title" style={{ marginBottom: 8 }}>
-            Record payment
-          </p>
+          <SectionHead title={<>Record payment</>} />
           <FormField id="payment-amount" label="Amount (₦)" type="number" value={paymentAmount} onChange={setPaymentAmount} />
           <FormField id="payment-notes" label="Notes" value={paymentNotes} onChange={setPaymentNotes} placeholder="Optional" />
           <Button className="btn-sm" loading={recordingPayment} onClick={handleRecordPayment}>
@@ -162,9 +162,7 @@ export default function CustomerDetailPage() {
 
       {canManageCredit && (
         <div className="card">
-          <p className="list-item-title" style={{ marginBottom: 8 }}>
-            Adjust loyalty points
-          </p>
+          <SectionHead title={<>Adjust loyalty points</>} />
           <div className="form-group">
             <label className="form-label" htmlFor="loyalty-type">
               Type
@@ -195,9 +193,7 @@ export default function CustomerDetailPage() {
       )}
 
       <div className="card">
-        <p className="list-item-title" style={{ marginBottom: 8 }}>
-          Credit history
-        </p>
+        <SectionHead title={<>Credit history</>} />
         {creditTxns.length === 0 ? (
           <p className="page-subtitle">No credit transactions yet.</p>
         ) : (
@@ -209,7 +205,7 @@ export default function CustomerDetailPage() {
               </div>
               <div style={{ textAlign: 'right' }}>
                 <div style={{ color: t.amount >= 0 ? 'var(--red)' : 'var(--green)' }}>
-                  {t.amount >= 0 ? '+' : ''}₦{t.amount.toLocaleString()}
+                  {t.amount >= 0 ? '+' : ''}{formatMoney(t.amount)}
                 </div>
                 <div className="page-subtitle">{new Date(t.createdAt).toLocaleString()}</div>
               </div>
@@ -219,9 +215,7 @@ export default function CustomerDetailPage() {
       </div>
 
       <div className="card">
-        <p className="list-item-title" style={{ marginBottom: 8 }}>
-          Loyalty history
-        </p>
+        <SectionHead title={<>Loyalty history</>} />
         {loyaltyTxns.length === 0 ? (
           <p className="page-subtitle">No loyalty transactions yet.</p>
         ) : (

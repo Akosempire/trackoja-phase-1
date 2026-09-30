@@ -1452,7 +1452,7 @@ button.kpi-card:hover {
 .plat-page-title {
   margin: 0;
   font-family: var(--font-display);
-  font-size: var(--text-title);
+  font-size: var(--text-display-mobile);
   font-weight: 400;
   letter-spacing: -.02em;
   color: var(--color-text-strong);
@@ -1476,7 +1476,7 @@ button.kpi-card:hover {
 
 @media (min-width: 901px) {
   .plat-page-title {
-    font-size: var(--text-display-mobile);
+    font-size: var(--text-display);
   }
 }
 

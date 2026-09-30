@@ -555,7 +555,7 @@ export default function HealthArea() {
       </section>
 
       {/* ── Incidents ─────────────────────────────────────────────── */}
-      <section className="card" aria-labelledby="health-incidents">
+      <Disclosure summary="Incidents"><section className="card" aria-labelledby="health-incidents">
         <SectionHead id="health-incidents" title="Incidents" />
 
         <StateBlock
@@ -620,6 +620,7 @@ CREATE INDEX idx_platform_incidents_open
           />
         </Disclosure>
       </section>
+      </Disclosure>
 
       {/* ── Scheduler: a real operational gap ─────────────────────── */}
       <section className="card" aria-labelledby="health-scheduler">

@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useBusinessContext } from '../../contexts/BusinessContext';
+import { recordSaleAction } from '../../utils/business-language';
 import { useAuth } from '../../contexts/AuthContext';
 import { usePermissions } from '../../hooks/usePermissions';
 import { SaleService } from '../../services/sale.service';
@@ -17,6 +19,7 @@ import type { PendingSalePayment, RecentRefund } from '../../types';
 
 export default function PaymentsPage() {
   const { profile } = useAuth();
+  const { category } = useBusinessContext();
   const { loading: permsLoading, hasPermission } = usePermissions();
   const storeId = profile?.currentStoreId;
   const toast = useToast();
@@ -208,7 +211,7 @@ export default function PaymentsPage() {
             actions={<Button variant="outline" onClick={load}>Try again</Button>} /> :
           attempts.length === 0 ? <StateBlock title="No POS attempts yet"
             body="Moniepoint requests sent from checkout will appear here."
-            actions={hasPermission('sales:create') ? <Link className="btn btn-primary" to="/sales/checkout">Record a sale</Link> : undefined} /> :
+            actions={hasPermission('sales:create') ? <Link className="btn btn-primary" to="/sales/checkout">{recordSaleAction(category)}</Link> : undefined} /> :
             filteredAttempts.length === 0 ? <StateBlock title="No matching transactions" body="Try a different reference or status." /> :
             <DataTable
               caption="Merchant payment attempts"
@@ -238,7 +241,7 @@ export default function PaymentsPage() {
 
         {canReview && attempts.some((attempt) =>
           ['unresolved', 'reconciliation_required'].includes(attempt.status)) &&
-          <section className="card" aria-label="POS reconciliation" style={{ marginTop: 16 }}>
+          <section className="card" aria-label="POS reconciliation" style={{ marginTop: 'var(--space-16)' }}>
             <SectionHead title="Reconciliation needed" sub="These requests need a provider status check or an authorised review. Do not take a second payment while the outcome is unknown." />
             <p className="page-subtitle">Use Check status above. If Moniepoint confirms a charge but the sale remains pending, contact support with the TrackOja and provider references.</p>
           </section>}

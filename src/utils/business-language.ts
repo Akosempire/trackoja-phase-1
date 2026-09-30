@@ -19,5 +19,5 @@ export function lineItemPlural(lineItem: string): string {
 }
 
 export function recordSaleAction(category: BusinessCategory): string {
-  return category === 'restaurant' ? 'Record an order' : 'Record a sale';
+  return category === 'restaurant' ? 'New order' : 'Record sale';
 }

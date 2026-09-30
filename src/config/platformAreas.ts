@@ -109,7 +109,7 @@ export const PLATFORM_AREAS: PlatformArea[] = [
   {
     id: 'billing',
     path: 'billing',
-    label: 'Subscriptions & billing',
+    label: 'Billing',
     short: 'Billing',
     description: 'Plans and prices, entitlements, payments and subscription changes.',
     icon: SubscriptionIcon,

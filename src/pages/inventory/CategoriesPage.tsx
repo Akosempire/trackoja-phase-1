@@ -155,7 +155,6 @@ export default function CategoriesPage() {
         <StateBlock
           title="No categories yet"
           body="Create a category above to make products easier to find and report on."
-          actions={canCreate ? <Button className="btn-sm" onClick={() => document.getElementById('category-name')?.focus()}>Add a category</Button> : undefined}
         />
       ) : (
         <div className="list">

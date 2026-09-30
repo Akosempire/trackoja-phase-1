@@ -1,3 +1,4 @@
+import { updateListFilter } from '../../../utils/list-filters';
 import { SearchInput } from '../../../components/ui/SearchInput';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
@@ -94,10 +95,7 @@ export default function BusinessesArea() {
 
   /** Applies a filter and resets to page one, since offsets shift under it. */
   function setFilter(key: string, value: string) {
-    const next = new URLSearchParams(searchParams);
-    if (value) next.set(key, value);
-    else next.delete(key);
-    next.delete('page');
+    const next = updateListFilter(searchParams, key, value);
     setSearchParams(next, { replace: true });
   }
 

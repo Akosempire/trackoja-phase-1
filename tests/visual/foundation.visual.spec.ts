@@ -22,6 +22,8 @@ for (const width of [320, 375, 390, 430, 768, 1024, 1280, 1440]) {
       const search = await page.getByRole('button', { name: 'Search', exact: true }).boundingBox();
       if (width > 600) expect(Math.abs(field!.y + field!.height - search!.y - search!.height)).toBeLessThan(2);
       if (width <= 900) {
+        const option = await page.getByRole('radio', { name: 'populated', exact: true }).boundingBox();
+        expect(option!.height).toBeGreaterThanOrEqual(44);
         const scan = await page.getByRole('button', { name: 'Scan', exact: true }).boundingBox();
         expect(Math.abs(scan!.x + scan!.width / 2 - width / 2)).toBeLessThan(2);
         const labelSize = await page.locator('.bottom-nav-label').first().evaluate((node) => parseFloat(getComputedStyle(node).fontSize));

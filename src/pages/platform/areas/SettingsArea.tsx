@@ -508,8 +508,8 @@ export default function SettingsArea() {
         area={AREA}
         description={
           canManage
-            ? 'Existing settings only: the server refuses a new key, a new object key and anything credential-shaped.'
-            : 'Read-only: this account does not hold platform:manage_settings.'
+            ? 'Manage platform settings and notification templates.'
+            : 'View platform settings. Ask a platform owner for editing access.'
         }
         actions={<RefreshButton onClick={load} loading={loading} />}
       />
@@ -517,6 +517,7 @@ export default function SettingsArea() {
       <AreaCoverage gaps={AREA.gaps} title="What this screen cannot do" />
 
       {/* ── How these settings behave ───────────────────────────────── */}
+      <Disclosure summary="Setting constraints and reference">
       <section className="card" aria-labelledby="settings-rules">
         <SectionHead
           id="settings-rules"
@@ -535,9 +536,8 @@ export default function SettingsArea() {
           </p>
 
           <p className="section-sub">
-            One seeded key is read — <span className="mono">developer.sandbox_required</span>, inside{' '}
-            <span className="mono">{READ_BY_CODE['developer.sandbox_required']}</span>. Every other key this build
-            declares is read by nothing:
+            Billing availability, trial rules and sandbox restrictions use the operational settings shown above.
+            The legacy keys below are retained for compatibility and do not control those rules.
           </p>
           <ul className="list">
             {INERT_NOTES.map((entry) => (
@@ -570,6 +570,7 @@ export default function SettingsArea() {
           configured&rdquo;.
         </p>
       </section>
+      </Disclosure>
 
       {/* ── Settings by category ────────────────────────────────────── */}
       {error && (

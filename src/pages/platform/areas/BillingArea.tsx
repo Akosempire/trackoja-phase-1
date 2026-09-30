@@ -1,26 +1,14 @@
+import { updateListFilter } from '../../../utils/list-filters';
+import { SegmentedControl } from '../../../components/ui/SegmentedControl';
 import { SearchInput } from '../../../components/ui/SearchInput';
-// Platform → Subscriptions & billing.
-//
-// Seven sections, one visible at a time. The chip row writes ?section=, so a
-// view can be linked and handed to someone else exactly as the Businesses
-// filters already are. A section this account cannot read is left out of the
-// chip row and refused if it is reached by URL — and every read behind it is
-// gated on the server, so the chip row is navigation, never access control.
-//
-//   overview       what needs a decision, and the counts behind it
-//   plans          the catalogue, the editor, publishing and the pricing history
-//   subscriptions  who is on what, and the authorised changes to it
-//   payments       the payment data that exists, and the gaps stated once
-//   activation     how money becomes access, and the activation-key lifecycle
-//   settings       the one settings surface there is, and what is inert
-//   audit          who changed a price, a payment, a subscription, a key or a setting
+// Four billing sections share URL filters and one stable shell. Legacy secondary
+// section links redirect to their canonical areas; server checks enforce access.
 
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, Navigate, useSearchParams } from 'react-router-dom';
 import {
   PlatformAdminService,
   type PlanRevision,
-  type PlatformAuditLog,
   type PlatformOverviewV2,
   type PlatformProduct,
   type ProductBusiness,
@@ -136,99 +124,6 @@ function resolveSection(requested: string | null, params: URLSearchParams): Sect
   }
   return 'overview';
 }
-
-/**
- * Capabilities this area has no backend for.
- *
- * Each is a named, verifiable absence rather than a placeholder: the console
- * states what is missing instead of drawing a figure that looks healthy. Listed
- * once here, and stated again in the one line beside the data each one affects.
- */
-const NOT_BUILT: { title: string; detail: string }[] = [
-  {
-    title: 'Proration on plan changes',
-    detail: 'Plan changes are not prorated: nothing is refunded or charged.',
-  },
-  {
-    title: 'Grace period and dunning',
-    detail: 'No grace window, no retry schedule, no failure-to-cancel path.',
-  },
-  {
-    title: 'Renewal automation',
-    detail: 'Nothing renews an entitlement; renewal is a manual extend_expiry adjustment.',
-  },
-  {
-    title: 'Expiry sweep',
-    detail: 'Nothing marks a lapsed entitlement expired; it keeps working.',
-  },
-  {
-    title: 'Gateway configuration',
-    detail: 'Paystack and OPay credentials live only in Edge Function environment variables.',
-  },
-];
-
-/**
- * The audit actions this area writes.
- *
- * `list_platform_audit_logs` matches p_action with ILIKE '%…%', so one filter
- * cannot cover all four families and the section merges four reads instead. The
- * call sites are create_audit_log() in
- * 20260926000069_platform_products_functions.sql (plans) and
- * 20260927000089_platform_owner_hardening.sql (keys, adjustments, settings).
- */
-const AUDIT_ACTION_FILTERS = ['PLAN', 'SUBSCRIPTION', 'ACTIVATION_KEY', 'PLATFORM_SETTING'] as const;
-
-/** Rows read per family, and the merged cap. */
-const AUDIT_LIMIT = 25;
-
-const AUDIT_ACTIONS: { action: string; means: string }[] = [
-  { action: 'PLAN_CREATED', means: 'A plan was added (upsert_product_plan).' },
-  {
-    action: 'PLAN_UPDATED',
-    means: 'A price, seat limit, feature list or status changed. The previous values are in the row.',
-  },
-  {
-    action: 'PLAN_PUBLISHED',
-    means: 'A plan was published, with the before/after pair of its publication state and prices. Platform-scoped, so it carries no business.',
-  },
-  {
-    action: 'SUBSCRIPTION_ADJUSTED',
-    means: 'A plan change, extension, suspension, cancellation or reactivation, with its reason and a before/after snapshot.',
-  },
-  {
-    action: 'ACTIVATION_KEY_ISSUED',
-    means: 'A key was issued. The code is stored masked to its last four characters.',
-  },
-  {
-    action: 'ACTIVATION_KEY_REVOKED',
-    means: 'A key was revoked, with the reason when one was given.',
-  },
-  {
-    action: 'PLATFORM_SETTING_UPDATED',
-    means: 'A setting changed. This is the only place its previous value survives.',
-  },
-];
-
-/**
- * Why the billing settings are inert.
- *
- * Verified by reading the migrations rather than inferred from the key name: no
- * function or policy reads any of the three, which is what the row says.
- */
-const INERT_SETTINGS: { key: string; note: string }[] = [
-  {
-    key: 'billing.trial_days',
-    note: 'No code grants a trial from this value. Trial length reaches an entitlement through trial_ends_at, written when access is granted.',
-  },
-  {
-    key: 'billing.annual_months_free',
-    note: 'Nothing computes an annual price from it. The annual figure is product_plans.annual_price as entered; the catalogue compares the two and reports a disagreement.',
-  },
-  {
-    key: 'billing.currency',
-    note: 'Plans carry their own currency column, which is what billing uses.',
-  },
-];
 
 // ------------------------------------------------------------------ helpers
 
@@ -675,42 +570,6 @@ function useAdjustments(permitted: boolean, refreshToken: number) {
  * other three on screen: the failure is reported beside them rather than
  * replacing them with an error, because a partial history is still evidence.
  */
-function useBillingAudit(permitted: boolean, refreshToken: number) {
-  const [entries, setEntries] = useState<PlatformAuditLog[]>([]);
-  const [loading, setLoading] = useState(permitted);
-  const [error, setError] = useState<string | null>(null);
-
-  const load = useCallback(async () => {
-    if (!permitted) return;
-    setLoading(true);
-    setError(null);
-    const results = await Promise.allSettled(
-      AUDIT_ACTION_FILTERS.map((action) => PlatformAdminService.listAuditLogs({ action, limit: AUDIT_LIMIT })),
-    );
-    const merged = new Map<string, PlatformAuditLog>();
-    let failure: string | null = null;
-    for (const result of results) {
-      if (result.status === 'fulfilled') {
-        for (const entry of result.value.entries) merged.set(entry.id, entry);
-      } else {
-        failure = messageOf(result.reason);
-      }
-    }
-    setEntries(
-      Array.from(merged.values())
-        .sort((left, right) => right.createdAt.localeCompare(left.createdAt))
-        .slice(0, AUDIT_LIMIT * 2),
-    );
-    setError(failure);
-    setLoading(false);
-  }, [permitted, refreshToken]);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
-
-  return { entries, loading, error, reload: load };
-}
 
 // ------------------------------------------------------------ plan revisions
 
@@ -1833,7 +1692,7 @@ function CommercialTransactionsPanel({ permitted, refreshToken }: { permitted: b
 // ------------------------------------------------------------------- screen
 
 export default function BillingArea() {
-  const { can, settings, environment } = usePlatform();
+  const { can, settings } = usePlatform();
   const [searchParams, setSearchParams] = useSearchParams();
 
   // Panel permissions, resolved once. The server re-checks every one of them, so
@@ -1843,7 +1702,6 @@ export default function BillingArea() {
   const mayManagePayments = can(PERMISSIONS.payments);
   const mayViewPaymentRecords = can('platform:view_payments');
   const mayManagePlans = can(PERMISSIONS.plans);
-  const mayReadAudit = can(PERMISSIONS.audit) || can(AUDIT_FALLBACK);
   const areaReachable = AREA.permissions.some((permission) => can(permission)) || mayView;
 
   // A section is offered only when the account holds one of its permissions, and
@@ -1885,7 +1743,6 @@ export default function BillingArea() {
   const overview = useBillingOverview(mayView && section === 'overview', refreshToken);
   const revenue = useRevenue(mayView, preset, refreshToken);
   const adjustments = useAdjustments(mayManagePayments, refreshToken);
-  const audit = useBillingAudit(mayReadAudit && section === 'audit', refreshToken);
 
   const { plans, products } = catalogue;
   const visiblePlan = useMemo(
@@ -1925,8 +1782,7 @@ export default function BillingArea() {
    */
   function openSection(id: SectionId, filters: Record<string, string> = {}) {
     const next = new URLSearchParams(searchParams);
-    if (id === 'overview') next.delete('section');
-    else next.set('section', id);
+    next.set('section', id);
     for (const [key, value] of Object.entries(filters)) {
       if (value) next.set(key, value);
       else next.delete(key);
@@ -1937,10 +1793,7 @@ export default function BillingArea() {
 
   /** Applies a URL filter and returns to page one, since offsets shift under it. */
   function setFilter(key: string, value: string) {
-    const next = new URLSearchParams(searchParams);
-    if (value) next.set(key, value);
-    else next.delete(key);
-    next.delete('page');
+    const next = updateListFilter(searchParams, key, value);
     // Choosing a status replaces the inbound window with an explicit filter.
     if (key === 'status') next.delete('filter');
     setSearchParams(next, { replace: true });
@@ -2077,22 +1930,6 @@ export default function BillingArea() {
       };
     });
   }, [adjustments.rows]);
-
-  const auditEntries = useMemo<TimelineEntry[]>(() => {
-    return audit.entries.map((entry) => {
-      const details = entry.details ?? {};
-      const reason = asText(details.reason) ?? asText(details.note);
-      return {
-        id: entry.id,
-        title: `${humaniseToken(entry.action)}${entry.resourceName ? ` — ${entry.resourceName}` : ''}`,
-        meta: `${entry.actorEmail ?? 'Unknown operator'} · ${entry.orgName ?? 'Platform'} · ${formatDateTime(
-          entry.createdAt,
-        )} · ${formatRelative(entry.createdAt)}`,
-        text: reason ? `Why: ${reason}` : undefined,
-        tone: (entry.status === 'failed' ? 'danger' : 'neutral') as TimelineEntry['tone'],
-      };
-    });
-  }, [audit.entries]);
 
   const revenueMeters = useMemo<MeterItem[]>(() => {
     return revenue.byPlan
@@ -2247,7 +2084,8 @@ export default function BillingArea() {
             <Button
               variant="ghost"
               className="btn-sm"
-              onClick={() => setSelectedPlanId(plan.id === selectedPlanId ? null : plan.id)}
+              aria-label={`Open ${plan.name} plan details`}
+              onClick={() => setSelectedPlanId(plan.id)}
             >
               {plan.id === selectedPlanId ? 'Close' : 'Open'}
             </Button>
@@ -2633,24 +2471,17 @@ export default function BillingArea() {
       />
 
       {/* ── Section navigation ────────────────────────────────────── */}
-      <nav className="chip-row" aria-label="Subscriptions and billing sections">
-        {availableSections.filter((option) => ['overview', 'plans', 'subscriptions', 'payments'].includes(option.id)).map((option) => (
-          <button
-            key={option.id}
-            type="button"
-            className={`chip${section === option.id ? ' active' : ''}`}
-            aria-pressed={section === option.id}
-            onClick={() => openSection(option.id)}
-          >
-            {option.label}
-          </button>
-        ))}
-      </nav>
+      <SegmentedControl
+        label="Billing sections"
+        value={section}
+        options={availableSections.filter((option) => ['overview', 'plans', 'subscriptions', 'payments'].includes(option.id)).map((option) => ({ value: option.id, label: option.label }))}
+        onChange={openSection}
+      />
 
       <Disclosure summary="More billing tools">
         <div className="btn-row">
           {availableIds.has('activation') && <Link className="btn btn-ghost btn-sm" to="/platform/activation">Activation keys</Link>}
-          {availableIds.has('settings') && <button className="btn btn-ghost btn-sm" type="button" onClick={() => openSection('settings')}>Billing settings</button>}
+          {availableIds.has('settings') && <Link className="btn btn-ghost btn-sm" to="/platform/settings">Billing settings</Link>}
           {availableIds.has('audit') && <Link className="btn btn-ghost btn-sm" to="/platform/audit">Audit trail</Link>}
         </div>
       </Disclosure>
@@ -2675,14 +2506,14 @@ export default function BillingArea() {
 
             {overview.error && (
               <p className="form-hint">
-                get_platform_overview_v2 did not answer, so some counts are missing rather than zero: {overview.error}
+                Some overview figures could not be loaded: {overview.error}
               </p>
             )}
 
-            {overview.loading || watchlist.loading ? (
+            {overview.loading || watchlist.loading || revenue.loading ? (
               <LoadingLines />
-            ) : overview.error && attention.length === 0 ? (
-              <SectionFailure message={overview.error} onRetry={overview.reload} />
+            ) : (overview.error || watchlist.error || revenue.error) && attention.length === 0 ? (
+              <SectionFailure message={overview.error ?? watchlist.error ?? revenue.error!} onRetry={refreshAll} />
             ) : attention.length > 0 ? (
               <>
                 <AttentionList items={attention} />
@@ -2701,8 +2532,7 @@ export default function BillingArea() {
           <section className="card" aria-labelledby="billing-overview-metrics">
             <SectionHead
               id="billing-overview-metrics"
-              title="At a glance"
-              sub="Every figure opens the list it counts."
+              title="Billing summary"
             />
             <MetricStrip metrics={metrics} />
             {mayReadEntitlements && watchlist.rows.length >= WATCHLIST_LIMIT && (
@@ -2712,48 +2542,7 @@ export default function BillingArea() {
               </p>
             )}
 
-            <Disclosure summary={`Not built here (${NOT_BUILT.length})`}>
-              <ul className="list">
-                {NOT_BUILT.map((item) => (
-                  <li className="list-item" key={item.title}>
-                    <div>
-                      <p className="list-item-title">
-                        {item.title} <StatusBadge status="not_configured" />
-                      </p>
-                      <p className="list-item-subtitle">{item.detail}</p>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-              <p className="plat-section-sub">Permissions each section needs</p>
-              <DefList
-                rows={[
-                  { term: 'Overview, catalogue and revenue', value: <span className="mono">{PERMISSIONS.view}</span> },
-                  { term: 'Plans and publishing', value: <span className="mono">{PERMISSIONS.plans}</span> },
-                  {
-                    term: 'Subscriptions and payments',
-                    value: (
-                      <>
-                        <span className="mono">{PERMISSIONS.payments}</span> and{' '}
-                        <span className="mono">{PERMISSIONS.entitlements}</span> for the directory
-                      </>
-                    ),
-                  },
-                  { term: 'Activation and access', value: <span className="mono">{PERMISSIONS.activation}</span> },
-                  { term: 'Billing settings', value: <span className="mono">{PERMISSIONS.settings}</span> },
-                  {
-                    term: 'Audit trail',
-                    value: (
-                      <>
-                        <span className="mono">{PERMISSIONS.audit}</span> or{' '}
-                        <span className="mono">{AUDIT_FALLBACK}</span>
-                      </>
-                    ),
-                  },
-                ]}
-              />
-              <p className="form-hint">The server re-checks every call; hiding a control is never the control.</p>
-            </Disclosure>
+
           </section>
         </>
       ) : section === 'plans' ? (
@@ -2850,8 +2639,7 @@ export default function BillingArea() {
           </section>
 
           {/* ── Plans: detail, impact, history ────────────────────── */}
-          <section className="card" aria-labelledby="billing-plan-detail">
-            <SectionHead id="billing-plan-detail" title="Plan detail, publishing and history" />
+          <Dialog open={Boolean(visiblePlan) && !editingPlan && !publishingPlan} onClose={() => setSelectedPlanId(null)} title={visiblePlan?.name ?? 'Plan details'}>
 
             {!visiblePlan ? (
               <StateBlock variant="empty" title="No plan selected" body="Choose Open on a plan above." />
@@ -3004,7 +2792,7 @@ export default function BillingArea() {
                 </SectionState>
               </>
             )}
-          </section>
+          </Dialog>
         </>
       ) : section === 'subscriptions' ? (
         <>
@@ -3268,7 +3056,7 @@ export default function BillingArea() {
                   </p>
                 </div>
               </div>
-              {revenueMeters.length > 0 ? (
+              {revenue.loading ? <LoadingLines /> : revenueMeters.length > 0 ? (
                 <MeterList items={revenueMeters} />
               ) : (
                 <StateBlock
@@ -3293,342 +3081,8 @@ export default function BillingArea() {
             </>
           )}
         </section>
-      ) : section === 'activation' ? (
-        <>
-          <section className="card" aria-labelledby="billing-activation-path">
-            <SectionHead
-              id="billing-activation-path"
-              title="Activation and access"
-              sub="The three routes that turn money into access. All of them write the same entitlement row."
-              actions={
-                <Link className="btn btn-outline btn-sm" to="/platform/activation">
-                  <span className="btn-label">Activation keys</span>
-                </Link>
-              }
-            />
-
-            <ul className="list">
-              <li className="list-item">
-                <div>
-                  <p className="list-item-title">Confirmed gateway payment</p>
-                  <p className="list-item-subtitle">
-                    The Paystack or OPay webhook calls activate_subscription, which upserts organization_products with
-                    source=payment, status active, and prices taken from the plan matched to the paid legacy plan.
-                  </p>
-                </div>
-              </li>
-              <li className="list-item">
-                <div>
-                  <p className="list-item-title">Approved manual verification</p>
-                  <p className="list-item-subtitle">
-                    An operator issues an activation key for the offline or bank-transfer payment, and the business owner
-                    redeems it. That writes the entitlement with source=activation_key, the key's seat limit and expiry,
-                    and the plan's prices as they stand at redemption.
-                  </p>
-                </div>
-              </li>
-              <li className="list-item">
-                <div>
-                  <p className="list-item-title">Operator-recorded activation</p>
-                  <p className="list-item-subtitle">
-                    A manual_activation adjustment grants access with source=manual. It is the only route available when
-                    the money arrived outside a gateway and no key was issued.
-                  </p>
-                </div>
-              </li>
-            </ul>
-
-            <p className="form-hint">
-              organization_products is what grants access; the seat-limit trigger reads it. A confirmed payment that
-              never reaches activate_subscription leaves the business with no entitlement — which is what the
-              &ldquo;pending&rdquo; and &ldquo;past their expiry date&rdquo; rows on the Overview are for.
-            </p>
-          </section>
-
-          <section className="card" aria-labelledby="billing-activation-lifecycle">
-            <SectionHead
-              id="billing-activation-lifecycle"
-              title="The activation-key lifecycle"
-              sub="Read from issue_activation_key, redeem_activation_key and revoke_activation_key."
-            />
-
-            <ul className="list">
-              <li className="list-item">
-                <div>
-                  <p className="list-item-title">
-                    Issued <Badge tone="info">issued</Badge>
-                  </p>
-                  <p className="list-item-subtitle">
-                    Issue stamps valid_from = now() and valid_until = now() + the validity given in days (1–3650). The key
-                    is redeemable immediately; nothing reviews or approves it, and the seat limit it will grant is
-                    captured on the key at this moment. The prices are not: activation_keys has no price columns, so
-                    redemption reads them from the plan as it stands then.
-                  </p>
-                </div>
-              </li>
-              <li className="list-item">
-                <div>
-                  <p className="list-item-title">
-                    Redeemed <Badge tone="success">redeemed</Badge>
-                  </p>
-                  <p className="list-item-subtitle">
-                    Only the business owner may redeem, and only for exactly one business. The key row is locked with
-                    SELECT … FOR UPDATE, so two simultaneous redemptions cannot both succeed; the second is refused with
-                    &ldquo;That activation key has already been used&rdquo;. The key's expiry becomes the entitlement's
-                    expiry and an unbound key is bound to the redeeming business.
-                  </p>
-                </div>
-              </li>
-              <li className="list-item">
-                <div>
-                  <p className="list-item-title">
-                    Expired <Badge tone="warning">passed its window</Badge>
-                  </p>
-                  <p className="list-item-subtitle">
-                    A key expires when valid_until passes. Nothing sweeps it, so it still reads Issued in the key list;
-                    redemption is refused with &ldquo;That activation key has expired&rdquo;. Extending access means an
-                    extend_expiry adjustment on the entitlement — the key cannot be edited.
-                  </p>
-                </div>
-              </li>
-              <li className="list-item">
-                <div>
-                  <p className="list-item-title">
-                    Revoked <Badge tone="danger">revoked</Badge>
-                  </p>
-                  <p className="list-item-subtitle">
-                    revoke_activation_key stamps revoked_at and refuses any later redemption. A reason is required only
-                    for a key that was already redeemed; this console asks for one every time. Access already granted is
-                    untouched, so a refunded customer keeps their plan until an adjustment changes it.
-                  </p>
-                </div>
-              </li>
-              <li className="list-item">
-                <div>
-                  <p className="list-item-title">Replaced</p>
-                  <p className="list-item-subtitle">
-                    There is no replace or reissue function: revoke the key and issue another. A code is never shown
-                    twice — the key list masks it to its last four characters — so a lost code is replaced rather than
-                    recovered.
-                  </p>
-                </div>
-              </li>
-            </ul>
-
-            <p className="form-hint">
-              Duplicate activation is prevented by that one-shot redemption lock and by the unique (org_id, product_id)
-              entitlement key, not by anything on this screen: redeeming a second key for the same product overwrites the
-              deal instead of stacking a second entitlement.
-            </p>
-
-            <div className="btn-row">
-              <Link className="btn btn-outline btn-sm" to="/platform/activation">
-                <span className="btn-label">Issue, list and revoke keys</span>
-              </Link>
-              <Link className="btn btn-ghost btn-sm" to="/platform/audit?action=ACTIVATION_KEY">
-                <span className="btn-label">Key audit rows</span>
-              </Link>
-            </div>
-          </section>
-        </>
-      ) : section === 'settings' ? (
-        <section className="card" aria-labelledby="billing-settings">
-          <SectionHead
-            id="billing-settings"
-            title="Billing settings"
-            sub={`Reporting from ${environment.label.toLowerCase()}.`}
-            actions={
-              <Link className="btn btn-outline btn-sm" to="/platform/settings">
-                <span className="btn-label">Platform settings</span>
-              </Link>
-            }
-          />
-
-          <div className="callout callout-warning">
-            <div>
-              <p className="callout-title">There is no gateway configuration surface</p>
-              <p className="callout-text">
-                Paystack and OPay are hard-wired to Edge Function environment variables — PAYSTACK_SECRET_KEY and
-                OPAY_SECRET_KEY — which are set per deployment, not stored in the database. Nothing here can read, test,
-                rotate or switch them, and set_platform_setting actively refuses any key or value matching
-                secret|password|token|api_key|private_key|service_role, so a credential cannot be parked in
-                platform_settings either. Paystack is the gateway on the subscription path; the OPay credentials drive
-                the terminal payment flow, which is merchant money rather than billing.
-              </p>
-            </div>
-          </div>
-
-          <p className="form-hint">
-            Test and live are separated by deployment and by row, not by a switch: sandbox records carry is_sandbox, they
-            are excluded from every revenue figure, and issuing a sandbox activation key needs an active developer
-            grant. The environment marker names the deployment; it is not derived from the gateway credentials, so a live
-            key set on the wrong deployment is not detectable from here.
-          </p>
-
-          <p className="plat-section-sub">Billing settings that exist</p>
-          {settings.length === 0 ? (
-            <StateBlock
-              variant="unavailable"
-              title="No settings could be read"
-              body="list_platform_settings is gated on platform:view. Three billing keys are seeded by migration 068, so an empty list here means the read did not happen rather than that nothing is configured."
-            />
-          ) : (
-            <DataTable
-              columns={[
-                {
-                  key: 'key',
-                  header: 'Setting',
-                  label: '',
-                  render: (row) => (
-                    <div>
-                      <span className="data-table-primary mono">{row.key}</span>
-                      <p className="data-table-secondary">{row.description ?? 'No description recorded'}</p>
-                    </div>
-                  ),
-                },
-                {
-                  key: 'value',
-                  header: 'Value',
-                  render: (row) => <span className="mono">{JSON.stringify(row.value)}</span>,
-                },
-                {
-                  key: 'effect',
-                  header: 'Effect',
-                  render: (row) => {
-                    const note = INERT_SETTINGS.find((entry) => entry.key === row.key);
-                    if (!note) {
-                      return (
-                        <div>
-                          <Badge tone="neutral">unverified</Badge>
-                          <p className="data-table-secondary">
-                            This screen has no record of what reads this setting.
-                          </p>
-                        </div>
-                      );
-                    }
-                    return (
-                      <div>
-                        <Badge tone="warning">no reader</Badge>
-                        <p className="data-table-secondary">{note.note}</p>
-                      </div>
-                    );
-                  },
-                },
-              ]}
-              rows={settings.filter((setting) => setting.category === 'payments')}
-              rowKey={(row) => row.key}
-              stacked
-              caption="Billing settings and what reads them"
-              empty={
-                <StateBlock
-                  variant="empty"
-                  title="No setting in the payments category"
-                  body="Migration 068 seeds billing.trial_days, billing.annual_months_free and billing.currency, so this category is empty only if a later migration removed or recategorised them."
-                />
-              }
-            />
-          )}
-
-          <p className="plat-section-sub">Renewal, grace period and invoices</p>
-          <DefList
-            rows={[
-              {
-                term: 'Renewal',
-                value:
-                  'Nothing renews an entitlement. A renewal is a manual extend_expiry adjustment, and no schedule triggers one.',
-              },
-              {
-                term: 'Grace period',
-                value:
-                  'None. There is no grace window, no retry schedule and no failure-to-cancel path, so a failed payment changes nothing until an operator acts.',
-              },
-              {
-                term: 'Expiry',
-                value:
-                  'Nothing sweeps a lapsed entitlement: it keeps working past expires_at until an adjustment changes it.',
-              },
-              {
-                term: 'Invoice information',
-                value:
-                  'Invoices and receipts are generated for commercial checkout. Open Payments to review their numbers; billing contact details are shown on each business record.',
-                muted: true,
-              },
-              {
-                term: 'Billing currency',
-                value: 'Carried on the plan and on the entitlement, not read from billing.currency.',
-              },
-              {
-                term: 'Billing communications',
-                value:
-                  'Notification templates exist and are edited in Platform settings, but no template is seeded and no application code reads one to send a message. The only email the product triggers is the authentication service resending its own verification message.',
-                muted: true,
-              },
-            ]}
-          />
-        </section>
       ) : (
-        <section className="card" aria-labelledby="billing-audit">
-          <SectionHead
-            id="billing-audit"
-            title="Audit trail"
-            sub="Price, subscription, activation-key and setting changes, newest first."
-            actions={
-              <Link className="btn btn-outline btn-sm" to="/platform/audit">
-                <span className="btn-label">All audit logs</span>
-              </Link>
-            }
-          />
-
-          <p className="form-hint">
-            Prices, subscription changes, activation keys and settings all write audit rows since migration 089.
-            Permission denials do not: require_platform_permission raises and writes nothing, so a refused attempt leaves
-            no record. Reads are not recorded either — this is a change log, not an access log.
-          </p>
-
-          {audit.error !== null && audit.entries.length > 0 && (
-            <p className="form-hint">
-              One of the four reads failed, so this list is partial: {audit.error}
-            </p>
-          )}
-
-          <SectionState
-            loading={audit.loading}
-            error={audit.entries.length === 0 ? audit.error : null}
-            empty={!audit.loading && audit.error === null && auditEntries.length === 0}
-            emptyTitle="No billing changes recorded"
-            emptyBody="A plan, subscription, key or setting change appears here as soon as it is written."
-            onRetry={audit.reload}
-          >
-            <Timeline items={auditEntries} />
-          </SectionState>
-
-          <Disclosure summary="Which actions this reads, and how">
-            <ul className="list">
-              {AUDIT_ACTIONS.map((entry) => (
-                <li className="list-item" key={entry.action}>
-                  <div>
-                    <p className="list-item-title mono">{entry.action}</p>
-                    <p className="list-item-subtitle">{entry.means}</p>
-                  </div>
-                </li>
-              ))}
-            </ul>
-            <p className="form-hint">
-              p_action is a case-insensitive substring match, so no single filter covers all four families: this panel
-              merges {AUDIT_ACTION_FILTERS.join(', ')} and reads up to {formatNumber(AUDIT_LIMIT)} rows from each.
-              Business-scoped reads on one business are not included.
-            </p>
-          </Disclosure>
-
-          <div className="btn-row">
-            <Link className="btn btn-outline btn-sm" to="/platform/audit?action=PLAN">
-              <span className="btn-label">Plan changes only</span>
-            </Link>
-            <Link className="btn btn-ghost btn-sm" to="/platform/audit?action=SUBSCRIPTION">
-              <span className="btn-label">Subscription changes only</span>
-            </Link>
-          </div>
-        </section>
+        <Navigate replace to={section === 'activation' ? '/platform/activation' : section === 'settings' ? '/platform/settings' : '/platform/audit'} />
       )}
 
       <PlanEditDialog

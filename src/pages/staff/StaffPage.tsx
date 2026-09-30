@@ -154,7 +154,6 @@ export default function StaffPage() {
         <StateBlock
           title="No staff members yet"
           body="Invite a team member and assign the access they need."
-          actions={canInvite ? <Button className="btn-sm" onClick={() => setShowInvite(true)}>Invite staff</Button> : undefined}
         />
       ) : (
         <div className="list">

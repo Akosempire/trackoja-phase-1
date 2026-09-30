@@ -52,16 +52,17 @@ export default function SalesHistoryPage() {
       <div className="page-header">
         <div>
           <h1 className="page-title">{experience.terminology.recordPlural} history</h1>
-          <p className="page-subtitle">{loading ? 'Loading records…' : `${sales.length} ${experience.terminology.recordPlural.toLowerCase()}`}</p>
+          <p className="page-subtitle">{loading ? 'Loading records…' : error ? 'Records unavailable' : `${sales.length} ${experience.terminology.recordPlural.toLowerCase()}`}</p>
         </div>
         {canCheckout && (
-          <Link className="btn btn-primary btn-sm" to="/sales/checkout">{category === 'restaurant' ? 'New order' : 'New sale'}</Link>
+          <Link className="btn btn-primary btn-sm" to="/sales/checkout">{recordSaleAction(category)}</Link>
         )}
       </div>
 
       <div className="form-group">
-        <select className="select-input" value={status} onChange={(e) => setStatus(e.target.value as SaleStatus | '')}>
-          <option value="">All sales</option>
+        <label className="form-label" htmlFor="sale-status">Status</label>
+        <select id="sale-status" className="select-input" value={status} onChange={(e) => setStatus(e.target.value as SaleStatus | '')}>
+          <option value="">All {experience.terminology.recordPlural.toLowerCase()}</option>
           <option value="completed">Completed</option>
           <option value="pending_payment">Awaiting payment</option>
           <option value="voided">Voided</option>
@@ -75,7 +76,6 @@ export default function SalesHistoryPage() {
         empty={sales.length === 0}
         emptyTitle={status ? `No ${status} ${experience.terminology.recordPlural.toLowerCase()}` : `No ${experience.terminology.recordPlural.toLowerCase()} yet`}
         emptyBody={status ? 'Choose another status to broaden the list.' : experience.emptyStates.primaryList}
-        emptyActions={!status && canCheckout ? <Link className="btn btn-primary btn-sm" to="/sales/checkout">{recordSaleAction(category)}</Link> : null}
       >
         <div className="list">
           {sales.map((sale) => (

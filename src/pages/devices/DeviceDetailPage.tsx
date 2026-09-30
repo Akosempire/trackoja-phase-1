@@ -1,3 +1,4 @@
+import { SectionHead } from '../../components/ui/SectionHead';
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
@@ -151,9 +152,7 @@ export default function DeviceDetailPage() {
       </div>
 
       <div className="card">
-        <p className="list-item-title" style={{ marginBottom: 8 }}>
-          Session
-        </p>
+        <SectionHead title={<>Session</>} />
         {mySession ? (
           <>
             <div className="btn-row">
@@ -165,7 +164,7 @@ export default function DeviceDetailPage() {
               </Button>
             </div>
             {mySession.sessionToken && (
-              <div className="total-row" style={{ marginTop: 8 }}>
+              <div className="total-row" style={{ marginTop: 'var(--space-8)' }}>
                 <span>Device pairing token</span>
                 <span style={{ fontFamily: 'monospace', fontSize: 12 }}>{mySession.sessionToken}</span>
               </div>
@@ -196,9 +195,7 @@ export default function DeviceDetailPage() {
 
       {device.provider === 'opay' && device.status === 'active' && (
         <div className="card">
-          <p className="list-item-title" style={{ marginBottom: 8 }}>
-            Send OPay payment request
-          </p>
+          <SectionHead title={<>Send OPay payment request</>} />
           {opayResult && <p className="page-subtitle">{opayResult}</p>}
           <div className="field-action-row">
             <div>
@@ -219,9 +216,7 @@ export default function DeviceDetailPage() {
       )}
 
       <div className="card">
-        <p className="list-item-title" style={{ marginBottom: 8 }}>
-          Session history
-        </p>
+        <SectionHead title={<>Session history</>} />
         {sessions.length === 0 ? (
           <p className="page-subtitle">No sessions recorded yet.</p>
         ) : (
@@ -251,9 +246,7 @@ export default function DeviceDetailPage() {
       </div>
 
       <div className="card">
-        <p className="list-item-title" style={{ marginBottom: 8 }}>
-          Transaction history
-        </p>
+        <SectionHead title={<>Transaction history</>} />
         {transactions.length === 0 ? (
           <p className="page-subtitle">No device transactions recorded yet.</p>
         ) : (

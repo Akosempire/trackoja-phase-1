@@ -74,9 +74,7 @@ export function PermissionDenied({ what, permission }: { what: string; permissio
       </span>
       <p className="state-title">You do not have access to {what}</p>
       <p className="state-body">
-        This needs the <span className="mono">{permission}</span> permission. A platform owner can grant it from
-        Users &amp; roles. The server refuses this data regardless of what the interface shows, so nothing is
-        exposed by reaching this page.
+        Ask a platform owner for the <span className="mono">{permission}</span> permission.
       </p>
       <div className="state-actions">
         <Link className="btn btn-outline btn-sm" to="/platform">

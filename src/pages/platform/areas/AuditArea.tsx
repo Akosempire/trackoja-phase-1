@@ -1,3 +1,4 @@
+import { updateListFilter } from '../../../utils/list-filters';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
@@ -173,10 +174,7 @@ export default function AuditArea() {
   }, [load]);
 
   function setFilter(key: string, value: string) {
-    const next = new URLSearchParams(searchParams);
-    if (value) next.set(key, value);
-    else next.delete(key);
-    next.delete('page');
+    const next = updateListFilter(searchParams, key, value);
     setSearchParams(next, { replace: true });
   }
 
@@ -402,7 +400,7 @@ export default function AuditArea() {
     <>
       <PlatformPageHead
         area={AREA}
-        description={`Who changed what, and when. Needs platform:view_audit, with platform:support as a fallback.`}
+        description={`Search changes by actor, action, business and date.`}
         actions={<RefreshButton onClick={load} loading={loading} />}
       />
 
@@ -698,7 +696,7 @@ export default function AuditArea() {
       </section>
 
       {/* ── Coverage ────────────────────────────────────────────────── */}
-      <section className="card" aria-labelledby="audit-coverage">
+      <Disclosure summary="What is and is not recorded"><section className="card" aria-labelledby="audit-coverage">
         <SectionHead id="audit-coverage" title="What is and is not recorded" />
 
         <p className="section-sub">
@@ -737,6 +735,7 @@ export default function AuditArea() {
           </p>
         </Disclosure>
       </section>
+      </Disclosure>
 
       {/* ── Detail dialog ───────────────────────────────────────────── */}
       <Dialog
@@ -744,7 +743,7 @@ export default function AuditArea() {
         onClose={() => setDetail(null)}
         wide
         title={detail ? humaniseToken(detail.action) : 'Audit entry'}
-        description="As the server returned it."
+        description="Recorded changes and context."
         footer={
           <Button variant="outline" onClick={() => setDetail(null)}>
             Close

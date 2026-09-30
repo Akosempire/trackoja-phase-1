@@ -1,0 +1,1 @@
+import{j as a}from"./react-905cd176.js";function d({tone:s="neutral",dot:e,children:n,className:r}){const t=["badge",`badge-${s}`,r].filter(Boolean).join(" ");return a.jsxs("span",{className:t,children:[e&&a.jsx("span",{className:"badge-dot","aria-hidden":"true"}),n]})}export{d as B};

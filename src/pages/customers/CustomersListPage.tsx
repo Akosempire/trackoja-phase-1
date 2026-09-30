@@ -1,3 +1,4 @@
+import { formatMoney } from '../../utils/format';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
@@ -72,7 +73,6 @@ export default function CustomersListPage() {
         empty={customers.length === 0}
         emptyTitle={search ? `No matching ${customersLabel}` : `No ${customersLabel} yet`}
         emptyBody={search ? 'Try a different name, phone number, or email.' : `Add a ${customerLabel} to track purchases, balances, and loyalty.`}
-        emptyActions={canCreate && !search ? <Link className="btn btn-primary btn-sm" to="/customers/new">Add {customerLabel}</Link> : undefined}
       >
         <div className="list">
           {customers.map((customer) => (
@@ -83,7 +83,7 @@ export default function CustomersListPage() {
               </div>
               <div className="list-item-meta">
                 <span className={`badge ${customer.balance > 0 ? 'badge-warning' : 'badge-default'}`}>
-                  ₦{customer.balance.toLocaleString()} owed
+                  {formatMoney(customer.balance)} owed
                 </span>
                 {customer.loyaltyPoints > 0 && (
                   <span className="list-item-subtitle">{customer.loyaltyPoints} pts</span>

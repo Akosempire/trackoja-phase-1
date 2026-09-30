@@ -53,6 +53,8 @@ label,
     min-height: var(--touch-target);
   }
 
+  .segmented-control button,
+  .chip,
   .btn {
     min-height: var(--touch-target);
     height: var(--touch-target);

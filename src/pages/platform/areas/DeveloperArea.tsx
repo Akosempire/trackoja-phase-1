@@ -554,10 +554,10 @@ export default function DeveloperArea() {
         </div>
       )}
 
-      <AreaCoverage gaps={AREA.gaps} title="What is not enforced or not built here" />
+      <AreaCoverage gaps={AREA.gaps} title="Diagnostic limits" />
 
       {/* ── Environment ─────────────────────────────────────────────── */}
-      <section className="card" aria-labelledby="developer-environment">
+      <Disclosure summary="Environment"><section className="card" aria-labelledby="developer-environment">
         <SectionHead id="developer-environment" title="Environment" />
         <DefList rows={environmentRows} />
         <div className="callout callout-info">
@@ -581,6 +581,7 @@ export default function DeveloperArea() {
           </div>
         </div>
       </section>
+      </Disclosure>
 
       {/* ── Developer session ───────────────────────────────────────── */}
       <section className="card" aria-labelledby="developer-session">
@@ -985,7 +986,7 @@ export default function DeveloperArea() {
       </section>
 
       {/* ── Not built ───────────────────────────────────────────────── */}
-      <section className="card" aria-labelledby="developer-not-built">
+      <Disclosure summary="Not built in this area"><section className="card" aria-labelledby="developer-not-built">
         <SectionHead id="developer-not-built" title="Not built in this area" />
         <ul className="list">
           {NOT_BUILT.map((item) => (
@@ -1000,6 +1001,7 @@ export default function DeveloperArea() {
           ))}
         </ul>
       </section>
+      </Disclosure>
 
       {/* ── Dialogs ─────────────────────────────────────────────────── */}
       <Dialog

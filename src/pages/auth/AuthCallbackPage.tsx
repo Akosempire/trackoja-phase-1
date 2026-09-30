@@ -84,7 +84,7 @@ export default function AuthCallbackPage() {
           <>
             {resendEmail ? (
               <>
-                <p style={{ fontSize: 14, color: 'var(--t2)', marginBottom: 16, textAlign: 'center' }}>
+                <p style={{ fontSize: 14, color: 'var(--t2)', marginBottom: 'var(--space-16)', textAlign: 'center' }}>
                   We'll send a fresh link to <strong>{resendEmail}</strong>
                 </p>
                 <Button onClick={handleResend} loading={resending}>
@@ -93,7 +93,7 @@ export default function AuthCallbackPage() {
               </>
             ) : (
               <>
-                <p style={{ fontSize: 14, color: 'var(--t2)', marginBottom: 16, textAlign: 'center' }}>
+                <p style={{ fontSize: 14, color: 'var(--t2)', marginBottom: 'var(--space-16)', textAlign: 'center' }}>
                   Enter your email to get a new verification link.
                 </p>
                 <input
@@ -102,14 +102,14 @@ export default function AuthCallbackPage() {
                   placeholder="you@example.com"
                   value={resendEmail}
                   onChange={(e) => setResendEmail(e.target.value)}
-                  style={{ marginBottom: 12 }}
+                  style={{ marginBottom: 'var(--space-12)' }}
                 />
                 <Button onClick={handleResend} loading={resending} disabled={!resendEmail}>
                   Resend verification email
                 </Button>
               </>
             )}
-            <div style={{ textAlign: 'center', marginTop: 12 }}>
+            <div style={{ textAlign: 'center', marginTop: 'var(--space-12)' }}>
               <Link
                 to={`/verify-email${resendEmail ? `?email=${encodeURIComponent(resendEmail)}` : ''}`}
                 style={{ fontSize: 13, color: 'var(--t2)' }}

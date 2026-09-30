@@ -102,7 +102,7 @@ export default function ExpiryAlertsPage() {
         const items = groups[group];
         if (items.length === 0) return null;
         return (
-          <div key={group} style={{ marginBottom: 20 }}>
+          <div key={group} style={{ marginBottom: 'var(--space-20)' }}>
             <p className={`expiry-section-label ${cfg.color}`}>
               {cfg.label} ({items.length}) — {cfg.description}
             </p>
@@ -134,7 +134,7 @@ export default function ExpiryAlertsPage() {
       })}
 
       {groups.ok.length > 0 && (
-        <div style={{ marginTop: 8 }}>
+        <div style={{ marginTop: 'var(--space-8)' }}>
           <button
             type="button"
             className="btn btn-ghost btn-sm"
@@ -143,7 +143,7 @@ export default function ExpiryAlertsPage() {
             {showOk ? 'Hide' : 'Show'} {groups.ok.length} safe product{groups.ok.length === 1 ? '' : 's'}
           </button>
           {showOk && (
-            <div className="expiry-list" style={{ marginTop: 8 }}>
+            <div className="expiry-list" style={{ marginTop: 'var(--space-8)' }}>
               {groups.ok.map(({ product, daysLeft }) => (
                 <div
                   key={product.id}

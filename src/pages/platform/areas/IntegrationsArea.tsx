@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { usePlatform } from '../../../components/platform/PlatformContext';
 import { AreaCoverage, PlatformPageHead } from '../../../components/platform/PlatformPageHead';
 import { DataTable, type DataTableColumn } from '../../../components/ui/DataTable';
+import { Disclosure } from '../../../components/ui/Disclosure';
 import { DefList } from '../../../components/ui/DefList';
 import { SectionHead } from '../../../components/ui/SectionHead';
 import { SectionState, StateBlock } from '../../../components/ui/StateBlock';
@@ -94,15 +95,15 @@ export default function IntegrationsArea() {
       />
 
       <section className="card">
-        <SectionHead title="Subscription billing" actions={<Button variant="outline" onClick={reloadBilling}>Refresh status</Button>} />
+        <SectionHead title="Paystack subscription billing" actions={<Button variant="outline" onClick={reloadBilling}>Refresh status</Button>} />
         {billingError ? <p role="alert">{billingError}</p> : billing ? <>
           <DefList rows={[
-            { term: 'Payment system', value: billing.paymentSystem === 'DISABLED' ? 'Not configured ? payments disabled' : billing.paymentSystem === 'TEST' ? 'Test ? authorised sandbox businesses only' : 'Live mode selected ? server credentials required' },
+            { term: 'Payment system', value: billing.paymentSystem === 'DISABLED' ? 'Not configured - payments disabled' : billing.paymentSystem === 'TEST' ? 'Test - sandbox businesses only' : 'Live mode selected - connection not verified' },
             { term: 'Free trials', value: billing.trialEnabled ? `${billing.trialDays} days` : 'Disabled' },
           ]} />
           <p className="section-sub">Payment credentials stay on the server. A mode setting does not verify a provider connection. Existing paid subscriptions are preserved.</p>
           {can('platform:manage_settings') && <Link className="btn btn-outline" to="/platform/settings">Manage billing availability</Link>}
-        </> : <p role="status">Loading billing availability?</p>}
+        </> : <p role="status">Loading billing availability...</p>}
       </section>
       {canManage && (
         <section className="card" aria-labelledby="moniepoint-platform-title">
@@ -147,6 +148,7 @@ export default function IntegrationsArea() {
         </section>
       )}
 
+      <Disclosure summary="Service setup and delivery monitoring">
       <section className="card" aria-labelledby="integrations-services">
         <SectionHead
           id="integrations-services"
@@ -174,6 +176,7 @@ export default function IntegrationsArea() {
         <p className="form-hint">Application notification emails are not enabled yet. Supabase Auth handles account verification and password recovery email through its own SMTP settings.</p>
       </section>
 
+      </Disclosure>
       <AreaCoverage gaps={AREA.gaps} title="Current limits" />
     </>
   );
