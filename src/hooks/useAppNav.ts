@@ -1,3 +1,4 @@
+import { mobileDestinations } from '../utils/navigation-layout';
 import { useNavigate } from 'react-router-dom';
 import { usePermissions } from './usePermissions';
 import { useBusinessContext } from '../contexts/BusinessContext';
@@ -85,16 +86,10 @@ export function useAppNav() {
     .map((key) => navByKey.get(key))
     .filter((item): item is NavItem => Boolean(item));
 
-  // Two either side, so Scan holds the exact centre column of the five-slot bar.
-  const leftItems: NavItem[] = bottomItems.slice(0, 2);
-  const bottomRoutes = new Set(bottomItems.map((item) => item.to));
-  const additionalItem = navByKey.get('payments') && !bottomRoutes.has('/payments')
-    ? navByKey.get('payments')
-    : allItems.find((item) => item.to !== '/more' && !bottomRoutes.has(item.to));
-  const rightItems: NavItem[] = [
-    ...bottomItems.slice(2),
-    additionalItem ?? { to: '/more', label: 'More', icon: MoreIcon },
-  ];
+  // Selection only uses permitted items, with Payments in the four available slots.
+  const mobileItems = mobileDestinations(bottomItems, allItems);
+  const leftItems = mobileItems.slice(0, 2);
+  const rightItems = mobileItems.slice(2, 4);
 
   const handleScan = () => {
     if (!canScan) return;

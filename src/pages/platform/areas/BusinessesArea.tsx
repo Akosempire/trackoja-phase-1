@@ -1,3 +1,4 @@
+import { SearchInput } from '../../../components/ui/SearchInput';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { PlatformAdminService, type ProductBusiness, type PlatformProduct } from '../../../services/platformAdmin.service';
@@ -243,10 +244,10 @@ export default function BusinessesArea() {
             <label className="form-label" htmlFor="business-search">
               Search businesses
             </label>
-            <input
+            <SearchInput aria-label="Search businesses"
               id="business-search"
-              className="form-input"
-              type="search"
+
+
               value={searchDraft}
               placeholder="Name, owner email or slug"
               onChange={(event) => setSearchDraft(event.target.value)}

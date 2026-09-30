@@ -253,6 +253,8 @@
    and a stacked card layout on narrow ones driven by data-label. */
 
 .data-table-wrap {
+  min-width: 0;
+  max-width: 100%;
   width: 100%;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
@@ -421,7 +423,7 @@
 
 .toolbar-grow {
   flex: 1;
-  min-width: 200px;
+  min-width: min(100%, var(--content-filter-min));
 }
 
 .toolbar-group {
@@ -465,6 +467,9 @@
 }
 
 .field-action-row .form-group { margin-bottom: 0; }
+.form-group .search-input,
+.control-row .search-input,
+.field-action-row .search-input { margin-bottom: 0; }
 .control-row > .btn,
 .field-action-row > .btn { height: var(--control-height); }
 
@@ -537,6 +542,8 @@
 
   .control-row,
   .field-action-row { align-items: stretch; flex-direction: column; }
+  .control-row > :first-child,
+  .field-action-row > :first-child { flex: 0 1 auto; width: 100%; }
   .control-row > .btn,
   .field-action-row > .btn { width: 100%; }
 }
@@ -1388,7 +1395,7 @@ button.kpi-card:hover {
 }
 
 /* Directories and billing ledgers need more columns than overview and forms. */
-.plat-page:has(.data-table-wrap) { max-width: calc(var(--content-readable) + var(--space-24) + var(--space-24)); }
+.plat-page.is-wide { max-width: calc(var(--content-readable) + var(--space-24) + var(--space-24)); }
 
 /* Anything that reads as running text is capped at a comfortable measure,
    however wide its card becomes. This is deliberately broad: the offending
@@ -1454,7 +1461,7 @@ button.kpi-card:hover {
 
 .plat-page-desc {
   margin: var(--space-6) 0 0;
-  max-width: 72ch;
+  max-width: var(--measure-prose);
   font-size: var(--text-body-sm);
   color: var(--color-text-secondary);
   line-height: var(--leading-body);

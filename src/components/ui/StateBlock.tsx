@@ -22,7 +22,7 @@ interface StateBlockProps {
 export function StateBlock({ variant = 'empty', title, body, actions, centred, compact }: StateBlockProps) {
   const classes = ['state-block', `state-${variant}`, centred ? 'is-centred' : '', compact ? 'is-compact' : ''].filter(Boolean).join(' ');
   return (
-    <div className={classes}>
+    <div className={classes} role={variant === 'error' ? 'alert' : undefined}>
       {(variant === 'error' || variant === 'denied' || variant === 'unavailable') && (
         <span className="state-icon" aria-hidden="true">
           <AlertIcon width={18} height={18} />

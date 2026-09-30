@@ -1,5 +1,6 @@
+import { platformUsesWideLayout } from '../../utils/navigation-layout';
 import { useState } from 'react';
-import { Outlet, useNavigate } from 'react-router-dom';
+import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { AuthService } from '../../services/auth.service';
 import { Button } from '../ui/Button';
 import { DeveloperModeBanner } from '../DeveloperModeBanner';
@@ -23,6 +24,7 @@ import { Drawer } from '../ui/Drawer';
  */
 export function PlatformLayout() {
   const navigate = useNavigate();
+  const { pathname } = useLocation();
   const toast = useToast();
   const { access, environment } = usePlatform();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -95,11 +97,9 @@ export function PlatformLayout() {
       <div className="app-main">
         <DeveloperModeBanner />
         <OfflineBanner />
-        {/* Same nesting as the merchant shell, but the console caps its reading
-            column: `.page` alone is `max-width: none`, which on a wide monitor
-            stretched cards and prose across the whole window. */}
+        {/* Module width stays fixed while loading data or switching billing tabs. */}
         <main className="app-content" id="platform-content" tabIndex={-1}>
-          <div className="page plat-page">
+          <div className={`page plat-page${platformUsesWideLayout(pathname) ? ' is-wide' : ''}`}>
             <Outlet />
           </div>
         </main>

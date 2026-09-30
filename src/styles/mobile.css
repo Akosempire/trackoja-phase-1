@@ -48,14 +48,14 @@ label,
   textarea,
   input:not([type='checkbox']):not([type='radio']),
   select {
-    font-size: 16px;
+    font-size: var(--text-body-lg);
     /* Comfortable thumb target, and enough height that 16px text cannot clip. */
-    min-height: 44px;
+    min-height: var(--touch-target);
   }
 
   .btn {
-    min-height: 44px;
-    height: 44px;
+    min-height: var(--touch-target);
+    height: var(--touch-target);
   }
 
   /* A native date/number control keeps its own intrinsic height on some browsers. */

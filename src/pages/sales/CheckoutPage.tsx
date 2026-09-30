@@ -1,3 +1,4 @@
+import { SearchInput } from '../../components/ui/SearchInput';
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
@@ -453,8 +454,8 @@ export default function CheckoutPage() {
 
           <div className="control-row search-input-row">
             <div>
-              <input
-                className="form-input"
+              <SearchInput
+                aria-label="Search products by name, SKU, or barcode"
                 placeholder="Search by name, SKU, or barcode"
                 value={search}
                 onChange={(e) => {

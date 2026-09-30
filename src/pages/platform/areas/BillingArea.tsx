@@ -1,3 +1,4 @@
+import { SearchInput } from '../../../components/ui/SearchInput';
 // Platform → Subscriptions & billing.
 //
 // Seven sections, one visible at a time. The chip row writes ?section=, so a
@@ -1798,7 +1799,7 @@ function CommercialTransactionsPanel({ permitted, refreshToken }: { permitted: b
       <div className="plat-toolbar">
         <div className="plat-field plat-field-grow">
           <label className="form-label" htmlFor="billing-transaction-search">Search transactions</label>
-          <input id="billing-transaction-search" className="form-input" type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Reference, business or document" />
+          <SearchInput aria-label="Search transactions" id="billing-transaction-search"   value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Reference, business or document" />
         </div>
         <div className="plat-field">
           <label className="form-label" htmlFor="billing-transaction-status">Status</label>
@@ -3035,10 +3036,10 @@ export default function BillingArea() {
                     <label className="form-label" htmlFor="billing-search">
                       Search businesses
                     </label>
-                    <input
+                    <SearchInput aria-label="Search businesses"
                       id="billing-search"
-                      className="form-input"
-                      type="search"
+
+
                       value={searchDraft}
                       placeholder="Name, owner email or slug"
                       onChange={(event) => setSearchDraft(event.target.value)}

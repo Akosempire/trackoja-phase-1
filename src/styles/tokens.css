@@ -49,6 +49,7 @@
   --shadow-dialog: 0 16px 48px rgb(0 0 0 / .16);
   --sidebar-width: 247px; --sidebar-collapsed: 60px;
   --content-form: 760px; --content-page: 1120px; --content-readable: 1440px;
+  --content-filter-min: 200px; --touch-target: 44px;
   --content-search: 560px; --content-filter-row: 640px;
   /* Longest comfortable line of running text, in characters. Waya caps a couple
      of components at 56ch and 72ch ad hoc; this is the one measure everything

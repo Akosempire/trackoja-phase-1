@@ -540,7 +540,7 @@
 }
 
 .search-input {
-  margin-bottom: 12px;
+  margin-bottom: var(--space-12);
 }
 
 .search-input-row {

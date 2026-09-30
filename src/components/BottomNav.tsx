@@ -19,15 +19,15 @@ export function BottomNav() {
   const { leftItems, rightItems, handleScan, canScan } = useAppNav();
   const cartCount = useCartCount();
 
-  const renderLink = (item: NavItem) => {
+  const renderLink = (item: NavItem, slot: number) => {
     // The checkout slot carries the live item count for the sale in progress.
-    const isCheckout = item.to.startsWith('/sales');
+    const isCheckout = item.to === '/sales/checkout';
     return (
       <NavLink
         key={item.to}
         to={item.to}
         end={item.end}
-        className={({ isActive }) => `bottom-nav-link${isActive ? ' active' : ''}`}
+        className={({ isActive }) => `bottom-nav-link bottom-nav-slot-${slot}${isActive ? ' active' : ''}`}
         aria-label={isCheckout && cartCount > 0 ? `${item.label}, ${cartCount} items in the sale` : item.label}
       >
         <span className="bottom-nav-icon">
@@ -45,14 +45,14 @@ export function BottomNav() {
 
   return (
     <nav className="bottom-nav" aria-label="Primary">
-      {leftItems.map(renderLink)}
+      {leftItems.map((item, index) => renderLink(item, index + 1))}
 
       <button
         type="button"
         className="bottom-nav-scan"
         onClick={handleScan}
         disabled={!canScan}
-        aria-label="Scan a barcode to add it to the sale"
+        aria-label="Scan a barcode"
       >
         <span className="bottom-nav-scan-face">
           <ScanIcon width={26} height={26} />
@@ -60,7 +60,7 @@ export function BottomNav() {
         <span className="bottom-nav-label bottom-nav-scan-label">Scan</span>
       </button>
 
-      {rightItems.map(renderLink)}
+      {rightItems.map((item, index) => renderLink(item, index + 4))}
     </nav>
   );
 }

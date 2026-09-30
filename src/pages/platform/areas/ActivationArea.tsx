@@ -1,3 +1,4 @@
+import { SearchInput } from '../../../components/ui/SearchInput';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   PlatformAdminService,
@@ -520,10 +521,10 @@ function IssueKeyDialog({
         </label>
         <div className="toolbar">
           <div className="toolbar-grow">
-            <input
+            <SearchInput aria-label="Search businesses"
               id="issue-business-search"
-              className="form-input"
-              type="search"
+
+
               value={businessQuery}
               placeholder="Search by name, owner email or slug"
               onChange={(event) => setBusinessQuery(event.target.value)}

@@ -1,8 +1,8 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, type InputHTMLAttributes } from 'react';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { ViewIcon, ViewOffSlashIcon } from '@hugeicons/core-free-icons';
 
-interface FormFieldProps {
+interface FormFieldProps extends Pick<InputHTMLAttributes<HTMLInputElement>, 'min' | 'max' | 'step' | 'minLength' | 'maxLength' | 'inputMode' | 'pattern'> {
   id: string;
   label: string;
   type?: string;
@@ -29,6 +29,7 @@ export function FormField({
   autoComplete,
   required,
   disabled,
+  ...constraints
 }: FormFieldProps) {
   const [revealed, setRevealed] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -54,6 +55,7 @@ export function FormField({
 
       <div className={isPassword ? 'form-input-wrap' : undefined}>
         <input
+          {...constraints}
           ref={inputRef}
           id={id}
           name={id}

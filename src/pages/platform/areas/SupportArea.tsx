@@ -1,3 +1,4 @@
+import { SearchInput } from '../../../components/ui/SearchInput';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   PlatformAdminService,
@@ -436,10 +437,10 @@ export default function SupportArea() {
             <label className="form-label" htmlFor="support-business-search">
               Find a business
             </label>
-            <input
+            <SearchInput aria-label="Search businesses"
               id="support-business-search"
-              className="form-input"
-              type="search"
+
+
               value={searchDraft}
               placeholder="Name, owner email or slug"
               onChange={(event) => setSearchDraft(event.target.value)}

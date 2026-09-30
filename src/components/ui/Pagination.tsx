@@ -35,7 +35,7 @@ export function Pagination({
     status = `No ${noun}`;
   } else if (knownTotal === null) {
     // Say the count is not available rather than implying these are all of them.
-    status = `Showing ${first.toLocaleString()}–${last.toLocaleString()} ${noun}`;
+    status = `${noun[0].toUpperCase()}${noun.slice(1)}`;
   } else {
     status = `Showing ${first.toLocaleString()}–${Math.min(last, knownTotal).toLocaleString()} of ${knownTotal.toLocaleString()} ${noun}`;
   }

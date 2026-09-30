@@ -97,7 +97,8 @@ export function DataTable<T,>({
   const columnCount = columns.length;
 
   return (
-    <div className="data-table-wrap">
+    <div className="data-table-wrap" role="region" aria-label={caption ?? 'Records'} tabIndex={0} aria-busy={loading || undefined}>
+      {loading && <span className="sr-only" role="status">Loading records</span>}
       <table className={tableClasses}>
         {caption && <caption className="sr-only">{caption}</caption>}
         <thead>

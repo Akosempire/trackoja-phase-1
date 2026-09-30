@@ -193,7 +193,7 @@ input[type='checkbox'], input[type='radio'] { accent-color: var(--color-accent);
   .app-shell { flex-direction: column; }
   .app-header { display: flex; }
   .app-shell > .side-nav { display: none; }
-  .bottom-nav { display: flex !important; }
+  .bottom-nav { display: grid !important; }
   .checkout-shell { flex-direction: column !important; }
   .checkout-receipt { width: 100% !important; height: auto; position: static; }
   .app-content { padding-bottom: 88px; }
