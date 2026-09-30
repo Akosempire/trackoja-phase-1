@@ -12,6 +12,26 @@ The current default is **payments DISABLED, free trials enabled, 14 days**. Publ
 
 If SQL Editor reports an error, the transaction rolls back. Capture the exact database error before continuing. The rollout has **not** been applied to the hosted database by this code change.
 
+### Onboarding: plan availability could not be loaded
+
+The frontend requires the public `get_billing_availability()` RPC. A read-only
+probe of the production configuration on 30 September 2026 returned HTTP 404,
+code `PGRST202`: PostgREST could not find this function in its schema cache.
+This is a database rollout/schema-cache issue, not missing user plan selection.
+
+Run the entire `supabase/manual/free_trial_onboarding.sql` file in the matching
+Supabase project's SQL Editor. The file now explicitly reloads the API schema
+cache and finishes by returning `billing_availability`. Do not install just the
+availability function: trial activation and access enforcement need the rest of
+the rollout too. Existing billing settings are preserved.
+
+If the rollout was already successfully applied, the SQL check
+`SELECT public.get_billing_availability();` should work; run
+`NOTIFY pgrst, 'reload schema';` to refresh the REST API's cache. If the function
+is absent in SQL too, apply the full rollout. After the API cache refreshes,
+click Retry on onboarding. Do not replace this failure with assumed trial or
+payment availability in the browser.
+
 ## Administration
 
 Platform **Settings → Operational configuration → Billing and payments** contains:

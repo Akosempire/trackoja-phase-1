@@ -1022,4 +1022,10 @@ END;
 $$;
 
 
+-- Publish the new RPC signatures to the REST API after this transaction commits.
+NOTIFY pgrst, 'reload schema';
 COMMIT;
+
+-- SQL Editor should return one row with payment_system, trial_enabled and
+-- trial_days. Existing billing settings are preserved by the rollout.
+SELECT public.get_billing_availability() AS billing_availability;
