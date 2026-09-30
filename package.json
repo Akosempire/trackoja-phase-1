@@ -16,7 +16,9 @@
     "lint": "eslint src --ext .ts,.tsx",
     "format": "prettier --write 'src/**/*.{ts,tsx}'",
     "db:reset": "supabase db reset",
-    "db:migrate": "supabase migration up"
+    "db:migrate": "supabase migration up",
+    "test:browsers": "playwright test --config=playwright.compatibility.config.ts",
+    "test:browsers:install": "playwright install chromium firefox webkit"
   },
   "dependencies": {
     "@fontsource-variable/inter": "^5.3.0",

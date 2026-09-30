@@ -127,3 +127,15 @@ A phase is complete only after its implementation and relevant checks pass. This
 - TypeScript, production Vite/PWA build and ESLint passed.
 - Generated `dist` is included because this repository deploys its checked-in build output.
 - Production deployment and authenticated real-tenant smoke testing are not claimed by these results.
+
+## Browser compatibility follow-up
+
+- Added an eight-project browser matrix covering Chromium, installed Chrome/Edge,
+  Firefox, WebKit and Android/iPhone/iPad emulation. See
+  [BROWSER_COMPATIBILITY.md](BROWSER_COMPATIBILITY.md) for scope and commands.
+- Fixed shared button focus before modal actions, resolving WebKit's failure to
+  return focus to the opener after closing a dialog or drawer.
+- Added public authentication, install-help, decimal-field and camera-unavailable
+  fallback checks, plus production cache fallback with a stopped local server.
+- After the focus fix, all 606 unit tests, lint, TypeScript, production build and
+  static PWA checks passed. No database or entitlement changes were needed.
