@@ -74,6 +74,52 @@ export interface BillingDocument {
   billingEmail: string | null;
 }
 
+/** One invoice line as the database stored it. Amounts are minor units. */
+export interface BillingDocumentLine {
+  lineType: string;
+  description: string;
+  quantity: number;
+  unitAmountMinor: number;
+  totalAmountMinor: number;
+}
+
+/** The receipt issued for an invoice, when one was. */
+export interface BillingDocumentReceipt {
+  receiptNumber: string;
+  amountMinor: number;
+  currency: string;
+  paymentMode: string;
+  providerReference: string | null;
+  isTestData: boolean;
+  paidAt: string;
+}
+
+/**
+ * A whole billing document: the invoice, its own lines, and its receipt or the
+ * knowledge that there is none.
+ *
+ * This is what the printable page renders, so it carries the stored amounts in
+ * minor units rather than a total alone — the lines and the totals have to come
+ * from the same row or the page could contradict itself.
+ */
+export interface BillingDocumentDetail {
+  invoiceNumber: string;
+  status: string;
+  isTestData: boolean;
+  issuedAt: string;
+  paidAt: string | null;
+  currency: string;
+  subtotalMinor: number;
+  totalMinor: number;
+  billingEmail: string | null;
+  businessName: string | null;
+  planName: string | null;
+  billingCycle: string | null;
+  reference: string | null;
+  lines: BillingDocumentLine[];
+  receipt: BillingDocumentReceipt | null;
+}
+
 /** A plan as the customer sees it: the published catalogue, not an admin view. */
 export interface PublishedPlan {
   id: string;
@@ -373,6 +419,62 @@ export class SubscriptionService {
       reference: row.reference,
       billingEmail: row.billing_email,
     }));
+  }
+
+  /**
+   * One document by the number the customer was shown, or null when this
+   * business has no such document.
+   *
+   * Null covers both "no document with that number" and "that document belongs
+   * to another business", because the server answers both the same way so the
+   * number cannot be probed. The page states the absence rather than inventing
+   * an empty document.
+   */
+  static async getBillingDocument(documentNumber: string): Promise<BillingDocumentDetail | null> {
+    const { data, error } = await supabase.rpc('get_my_billing_document', {
+      p_document_number: documentNumber,
+    });
+    if (error) {
+      console.error('Billing document failed', error);
+      throw new Error('This document could not be loaded. Please try again.');
+    }
+    // SQL NULL, not an error: the number is unknown or belongs to another
+    // business, and the server answers both the same way.
+    if (!data) return null;
+    const receipt = data.receipt;
+    return {
+      invoiceNumber: data.invoice_number,
+      status: data.status,
+      isTestData: Boolean(data.is_test_data),
+      issuedAt: data.issued_at,
+      paidAt: data.paid_at,
+      currency: data.currency,
+      subtotalMinor: Number(data.subtotal_minor),
+      totalMinor: Number(data.total_minor),
+      billingEmail: data.billing_email,
+      businessName: data.business_name,
+      planName: data.plan_name,
+      billingCycle: data.billing_cycle,
+      reference: data.reference,
+      lines: (data.lines ?? []).map((line: any) => ({
+        lineType: line.line_type,
+        description: line.description,
+        quantity: Number(line.quantity),
+        unitAmountMinor: Number(line.unit_amount_minor),
+        totalAmountMinor: Number(line.total_amount_minor),
+      })),
+      receipt: receipt
+        ? {
+            receiptNumber: receipt.receipt_number,
+            amountMinor: Number(receipt.amount_minor),
+            currency: receipt.currency,
+            paymentMode: receipt.payment_mode,
+            providerReference: receipt.provider_reference,
+            isTestData: Boolean(receipt.is_test_data),
+            paidAt: receipt.paid_at,
+          }
+        : null,
+    };
   }
 
   /**

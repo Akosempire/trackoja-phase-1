@@ -1284,6 +1284,43 @@
 }
 
 /* ============================================================
+   Printable billing document (BillingDocumentPage)
+   The invoice and receipt reuse the receipt sheet above so both
+   documents read as one product. Only the pieces the receipt has
+   no equivalent of are defined here.
+   ============================================================ */
+.bd-block {
+  padding: var(--space-4) var(--space-24) var(--space-12);
+}
+
+/* The test-data marker sits inside the sheet, at its top, because it has to
+   survive the print as well as the screen. */
+.bd-notice {
+  margin: var(--space-16) var(--space-24) 0;
+}
+
+@media print {
+  /* The shell's page padding and the sheet's screen border would otherwise print
+     as a frame around the document. The action bar carries the global no-print
+     class, as do the app's header, sidebar and bottom navigation. */
+  .bd-page {
+    max-width: none;
+    padding: 0;
+  }
+
+  .bd-sheet {
+    border: 0;
+    border-radius: 0;
+    /* The browser drops backgrounds from a printout by default, which would put
+       the dark theme's light text on white paper. Keeping the sheet's own
+       background prints the document in the palette it was authored in, in both
+       themes, without introducing a colour of its own. */
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
+
+/* ============================================================
    Dashboard improvements
    ============================================================ */
 .dash-header {

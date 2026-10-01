@@ -21,7 +21,7 @@ import { StateBlock } from '../../components/ui/StateBlock';
 import { useToast } from '../../components/ui/Toast';
 import { Dialog } from '../../components/ui/Dialog';
 import { FormField } from '../../components/ui/FormField';
-import { formatDate, formatMoney, formatNumber, formatRelative, formatSeatLimit } from '../../utils/format';
+import { formatDate, formatMoney, formatMoneyMinor, formatNumber, formatRelative, formatSeatLimit } from '../../utils/format';
 import type { SubscriptionTransaction } from '../../types';
 
 type BillingCycle = 'monthly' | 'annual';
@@ -553,9 +553,17 @@ export default function BillingPage() {
                   <span className="payment-amount">{document.invoiceNumber}</span>
                   <StatusBadge status={document.status} />
                   {document.isTestData && <Badge tone="warning">Test payment</Badge>}
+                  {/* The document itself, rendered from its stored rows and printed
+                      from the browser: the list can only say that it exists. */}
+                  <Link
+                    className="btn btn-outline btn-sm"
+                    to={`/billing/documents/${encodeURIComponent(document.invoiceNumber)}`}
+                  >
+                    View or print
+                  </Link>
                 </div>
                 <p className="attention-meta">
-                  {document.planName} · {document.billingCycle} · {formatMoney(document.totalMinor / 100, document.currency)}
+                  {document.planName} · {document.billingCycle} · {formatMoneyMinor(document.totalMinor, document.currency)}
                   {document.receiptNumber ? ` · receipt ${document.receiptNumber}` : ''}
                 </p>
                 <p className="attention-meta">Issued {formatDate(document.issuedAt)} · {document.billingEmail ?? 'No billing email recorded'}</p>

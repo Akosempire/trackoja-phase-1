@@ -17,6 +17,19 @@ export function formatMoney(value: number | null | undefined, currency = 'NGN'):
   })}`;
 }
 
+/**
+ * Currency for a value held in minor units, which is how the billing tables and
+ * the checkout previews store money: 2250000 is ₦22,500.
+ *
+ * It exists so the minor-to-major division happens in one place. `formatMoney`
+ * takes major units, and dividing ad hoc at each call site is how a price ends
+ * up a hundred times too large in exactly one of the places it is shown.
+ */
+export function formatMoneyMinor(value: number | null | undefined, currency = 'NGN'): string {
+  if (value === null || value === undefined || Number.isNaN(value)) return '—';
+  return formatMoney(value / 100, currency);
+}
+
 /** Compact currency for KPI tiles, e.g. ₦1.2M. */
 export function formatMoneyCompact(value: number | null | undefined, currency = 'NGN'): string {
   if (value === null || value === undefined || Number.isNaN(value)) return '—';

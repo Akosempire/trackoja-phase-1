@@ -6,6 +6,7 @@ import { PageLoader } from './components/ui/PageLoader';
 import LegalPlaceholderPage from './pages/landing/LegalPlaceholderPage';
 import { PlatformProvider } from './components/platform/PlatformContext';
 import { PlatformLayout } from './components/platform/PlatformLayout';
+import { withTimeout } from './utils/session-continuity';
 
 const pageModules = import.meta.glob<{ default: ComponentType }>([
   './pages/**/*.tsx',
@@ -15,7 +16,7 @@ const pageModules = import.meta.glob<{ default: ComponentType }>([
 const lazyPage = (path: string) => {
   const loader = pageModules[`${path}.tsx`];
   if (!loader) throw new Error(`Unknown page module: ${path}`);
-  return lazy(loader);
+  return lazy(() => withTimeout(loader(), 20000));
 };
 const WelcomePage = lazyPage('./pages/WelcomePage');
 const LoginPage = lazyPage('./pages/auth/LoginPage');
@@ -51,6 +52,7 @@ const DeviceDetailPage = lazyPage('./pages/devices/DeviceDetailPage');
 const StaffPage = lazyPage('./pages/staff/StaffPage');
 const ReportsPage = lazyPage('./pages/reports/ReportsPage');
 const BillingPage = lazyPage('./pages/billing/BillingPage');
+const BillingDocumentPage = lazyPage('./pages/billing/BillingDocumentPage');
 const MorePage = lazyPage('./pages/MorePage');
 const SettingsPage = lazyPage('./pages/SettingsPage');
 const SupportPage = lazyPage('./pages/SupportPage');
@@ -160,6 +162,11 @@ export default function App() {
           <Route path="/staff" element={<StaffPage />} />
           <Route path="/reports" element={<ReportsPage />} />
           <Route path="/billing" element={<BillingPage />} />
+          {/* The printable invoice or receipt, opened from the billing list. Inside
+              the merchant shell so it inherits the same auth and access guard as
+              the rest of the customer app; the shell's chrome is removed by the
+              print stylesheet rather than by a second, unprotected layout. */}
+          <Route path="/billing/documents/:number" element={<BillingDocumentPage />} />
           <Route path="/more" element={<MorePage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/support" element={<SupportPage />} />
