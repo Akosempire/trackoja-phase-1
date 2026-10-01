@@ -92,6 +92,7 @@ export function AppLayout() {
 
         <div className="app-main">
           <div className="workspace-topbar" aria-label="Workspace controls">
+            <span className="workspace-topbar-title">Workspace</span>
             <div className="workspace-topbar-search">
               <MerchantCommandSearch />
             </div>
@@ -101,7 +102,7 @@ export function AppLayout() {
                   Platform
                 </NavLink>
               )}
-              <NavLink to="/more" className="btn btn-outline btn-sm">Account & tools</NavLink>
+              <NavLink to="/more" className="workspace-account" aria-label="Account and tools" title="Account and tools">{profile?.firstName?.[0]?.toUpperCase() ?? 'T'}</NavLink>
               <Button variant="ghost" className="btn-sm" onClick={handleLogout} disabled={loggingOut}>
                 {loggingOut ? 'Logging out...' : 'Log out'}
               </Button>

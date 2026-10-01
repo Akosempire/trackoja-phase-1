@@ -29,12 +29,12 @@ export function SideNav({ onLogout, mobile = false, onClose }: SideNavProps) {
       <div className="side-nav-brand">
         <span className="workspace-mark" aria-label="TrackOja">T</span>
         <span className="side-nav-logo nav-label">TrackOja</span>
-        {mobile && <button type="button" className="icon-button" onClick={onClose} aria-label="Close navigation"><ArrowLeftIcon width={18} height={18} /></button>}
-      </div>
-      {!mobile && <button className="sidebar-toggle" aria-label={compact ? 'Expand navigation' : 'Collapse navigation'} aria-expanded={!compact} onClick={() => {
+        {!mobile && <button type="button" className="icon-button sidebar-toggle" aria-label={compact ? 'Expand navigation' : 'Collapse navigation'} aria-expanded={!compact} onClick={() => {
         setCollapsed(!collapsed);
         try { localStorage.setItem('trackoja-sidebar-collapsed', String(!collapsed)); } catch { /* Session-only is fine. */ }
-      }}><SidebarIcon width={17} height={17} /><span className="nav-label">Collapse sidebar</span></button>}
+      }}><SidebarIcon width={17} height={17} /></button>}
+        {mobile && <button type="button" className="icon-button" onClick={onClose} aria-label="Close navigation"><ArrowLeftIcon width={18} height={18} /></button>}
+      </div>
       <div className="side-nav-store nav-label"><StoreSwitcher /></div>
       <nav className="side-nav-items" aria-label="Main navigation">
         {['Business operations', 'Management', 'Payments and connections', 'Account'].map(group => <div key={group} className="side-nav-group">

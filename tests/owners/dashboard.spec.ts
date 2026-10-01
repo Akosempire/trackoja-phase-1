@@ -12,7 +12,7 @@ for (const role of ['merchant', 'platform']) for (const state of ['empty', 'popu
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     const main = await page.locator(role === 'merchant' ? '.dashboard-command-grid' : '.owner-dashboard-main').boundingBox();
     const panel = await revenue.boundingBox(); const side = await page.locator(role === 'merchant' ? '.dashboard-support-stack' : '.owner-dashboard-side').boundingBox();
-    expect(main!.width).toBeLessThanOrEqual(1120);
+    expect(main!.width).toBeLessThanOrEqual(1440);
     if (width === 1440) { expect(side!.x).toBeGreaterThan(panel!.x + panel!.width); expect(Math.abs(side!.y - panel!.y)).toBeLessThan(2); }
     else expect(side!.y).toBeGreaterThanOrEqual(panel!.y + panel!.height);
     expect(errors).toEqual([]);
@@ -24,5 +24,25 @@ for (const role of ['merchant', 'platform']) for (const state of ['empty', 'popu
     const background = await revenue.evaluate(el => getComputedStyle(el).backgroundColor);
     expect(background).toBe(theme === 'dark' ? 'rgb(11, 11, 11)' : 'rgb(255, 255, 255)');
     if (info.project.name === 'edge' && width !== 768) await page.screenshot({ path: info.outputPath(`${role}-${state}-${width}-${theme}.png`), fullPage: true });
+  });
+}
+
+for (const width of [390, 1440]) for (const theme of ['light', 'dark']) {
+  test(`shell reference ${width}px ${theme}`, async ({ page }, info) => {
+    await page.setViewportSize({ width, height: 1100 });
+    await page.goto(`http://127.0.0.1:4180/tests/visual/owner.html?shell=true&state=populated&theme=${theme}`);
+    await expect(page.getByRole('heading', { name: 'Sales revenue', exact: true })).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    if (width === 1440) {
+      await expect(page.getByRole('link', { name: 'Account and tools' })).toBeVisible();
+      const revenue = await page.locator('.dashboard-revenue').boundingBox();
+      const aside = await page.locator('.dashboard-support-stack').boundingBox();
+      expect(revenue!.width / aside!.width).toBeGreaterThan(1.9);
+      expect(Math.abs(revenue!.height - aside!.height)).toBeLessThan(2);
+      await page.getByRole('button', { name: 'Collapse navigation' }).click();
+      await expect(page.getByRole('button', { name: 'Expand navigation' })).toBeVisible();
+      await page.getByRole('button', { name: 'Expand navigation' }).click();
+    }
+    await page.screenshot({ path: info.outputPath(`shell-${width}-${theme}.png`), fullPage: true });
   });
 }

@@ -95,11 +95,19 @@ export function PlatformLayout() {
       </Drawer>
 
       <div className="app-main">
+        <div className="workspace-topbar" aria-label="Platform controls">
+          <span className="workspace-topbar-title">Platform console</span>
+          <div className="workspace-topbar-search"><CommandSearch items={searchItems} label="Search platform" /></div>
+          <div className="workspace-topbar-actions">
+            <EnvironmentBadge environment={environment} />
+            <Button variant="ghost" className="btn-sm" onClick={handleLogout} disabled={loggingOut}>{loggingOut ? 'Logging out…' : 'Log out'}</Button>
+          </div>
+        </div>
         <DeveloperModeBanner />
         <OfflineBanner />
         {/* Module width stays fixed while loading data or switching billing tabs. */}
         <main className="app-content" id="platform-content" tabIndex={-1}>
-          <div className={`page plat-page${platformUsesWideLayout(pathname) ? ' is-wide' : ''}`}>
+          <div className={`page plat-page${pathname === '/platform' || platformUsesWideLayout(pathname) ? ' is-wide' : ''}`}>
             <Outlet />
           </div>
         </main>

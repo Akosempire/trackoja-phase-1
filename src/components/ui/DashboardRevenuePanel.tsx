@@ -45,19 +45,24 @@ export function DashboardRevenuePanel({ load, title, breakdownTitle, note, empty
 
   return <section className="dashboard-revenue" aria-labelledby={id} aria-busy={!current}>
     <header className="dashboard-revenue-head"><h2 id={id}>{title}</h2><span className="badge">NGN</span></header>
-    <SegmentedControl label={`${title} period`} value={preset} options={REPORT_DATE_RANGE_PRESETS} onChange={setPreset} />
-    <p className="dashboard-period">{formatReportDateRange(range)}</p>
+    <div className="dashboard-revenue-total">
+      {data ? <><strong>{formatMoney(data.total)}</strong><span>{formatNumber(data.count)} completed {data.count === 1 ? 'transaction' : 'transactions'}</span></>
+        : !current ? <span className="skeleton dashboard-amount-skeleton" aria-label="Loading total" /> : <strong aria-label="Revenue unavailable">—</strong>}
+    </div>
+    <div className="dashboard-revenue-controls">
+      <SegmentedControl label={`${title} period`} value={preset} options={REPORT_DATE_RANGE_PRESETS} onChange={setPreset} />
+      <p className="dashboard-period">{formatReportDateRange(range)}</p>
+    </div>
     {!current ? <div className="dashboard-revenue-loading" role="status" aria-label="Loading revenue"><span className="skeleton skeleton-text" /><span className="skeleton skeleton-text is-short" /></div> : current.error || !data ? (
       <StateBlock variant="error" title="Revenue unavailable" body="The selected period could not be loaded." actions={retryButton} />
     ) : <>
-      <div className="dashboard-revenue-total"><strong>{formatMoney(data.total)}</strong><span>{formatNumber(data.count)} completed {data.count === 1 ? 'transaction' : 'transactions'}</span></div>
-      {data.count === 0 ? <StateBlock compact title="No revenue in this period" body={emptyDescription} actions={emptyAction} /> : data.rows === null ? (
+      {data.count === 0 ? <div className="dashboard-chart-empty"><div className="dashboard-chart-grid" aria-hidden="true" /><StateBlock compact title="No revenue in this period" body={emptyDescription} actions={emptyAction} /></div> : data.rows === null ? (
         <StateBlock compact variant="error" title="Breakdown unavailable" body="The revenue total is available, but its breakdown could not load." actions={retryButton} />
       ) : rows?.length ? <div className="dashboard-breakdown">
         <h3>{breakdownTitle}</h3>
-        <ul>{rows.map(row => <li key={row.key}>
-          <div><span>{row.label}</span><strong>{formatMoney(row.amount)}</strong></div>
-          <div className="dashboard-bar" aria-hidden="true"><span style={{ width: `${Math.abs(row.amount) / max * 100}%` }} /></div>
+        <ul className="dashboard-column-chart" aria-label={breakdownTitle}>{rows.map(row => <li key={row.key}>
+          <div className="dashboard-column-track" aria-hidden="true"><span style={{ height: `${Math.abs(row.amount) / max * 100}%` }} /></div>
+          <strong>{formatMoney(row.amount)}</strong><span className="dashboard-column-label">{row.label}</span>
         </li>)}</ul>
       </div> : <p className="section-sub">No breakdown is available for these transactions.</p>}
     </>}

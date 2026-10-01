@@ -30,3 +30,9 @@ Shared buttons support accent, neutral, outline, quiet, and danger variants. Pen
 The build retains its existing large-JavaScript-chunk advisory. No service/database/payment logic was changed.
 
 The current phased audit and validation status is maintained in `docs/PRODUCT_UX_AUDIT.md`.
+
+## Owner dashboard composition
+
+The approved dashboard reference defines hierarchy and proportions, while existing WAYA tokens define every colour and control. Owner overview pages may use `--content-readable` (1440px); ordinary pages retain `--content-page` (1120px). The main row divides into two-thirds revenue and one-third stacked supporting panels. Merchant overview metrics use three columns, while platform subscription metrics use four; both reflow on smaller screens.
+
+Revenue totals use `--text-display`, summary figures use `--text-display-mobile`, and all surfaces retain `--radius-card` and `--color-border-control`. Spacious summary cards use existing spacing tokens and a quiet footer divider. No new colour tokens are introduced. Chart columns show actual grouped payment-method or plan totals, with visible labels and values; they are not a daily revenue time series. Empty chart grids are explicitly marked as empty and offer relevant actions. Mobile geometry compacts the panels while keeping readable values and controls.

@@ -1,8 +1,5 @@
-import { useState } from 'react';
+import { AppLayout } from '../../src/components/AppLayout';
 import { Routes, Route } from 'react-router-dom';
-import { SideNav } from '../../src/components/SideNav';
-import { BottomNav } from '../../src/components/BottomNav';
-import { Drawer } from '../../src/components/ui/Drawer';
 import MorePage from '../../src/pages/MorePage';
 import { ToastProvider } from '../../src/components/ui/Toast';
 import { JobService } from '../../src/services/job.service';
@@ -26,6 +23,7 @@ import '@fontsource/forum/latin-400.css';
 import '../../src/styles/tokens.css';
 import '../../src/styles/waya.css';
 import '../../src/styles/waya-components.css';
+import '../../src/styles/command-search.css';
 import '../../src/styles/bottom-nav.css';
 import '../../src/styles/form-controls.css';
 import '../../src/styles/mobile.css';
@@ -40,6 +38,7 @@ for (const service of [JobService, StoreService, ReportService, ProductService, 
 }
 const mock = (service: object, key: string, value: unknown) => Object.defineProperty(service, key, { configurable: true, value: async () => value });
 mock(JobService, 'summary', { jobsDueSoon: 2, jobsOverdue: 1, upcomingFittings: 3, awaitingPickup: 4, outstandingBalances: 12000, openJobs: 5 });
+mock(StoreService, 'getUserStores', [{ id: 'fixture-store', name: 'Main branch', status: 'active' }]);
 mock(StoreService, 'getStore', { name: 'Ada’s store', id: 'fixture-store' });
 mock(ReportService, 'getSalesSummary', { totalRevenue: populated ? 67500 : 0, transactionCount: populated ? 8 : 0, averageSale: populated ? 8437.5 : 0, taxTotal: 0, discountTotal: 0, voidedCount: 0 });
 mock(ReportService, 'getSalesByPaymentMethod', methods);
@@ -47,6 +46,8 @@ mock(ProductService, 'getProducts', populated ? [{ id: 'product', name: 'Stock i
 mock(SaleService, 'getRefundCount', 0);
 mock(PlatformAdminService, 'getMyAccess', { isSuperAdmin: true, permissions: [], level: 'owner' });
 mock(PlatformAdminService, 'getOverview', {});
+mock(PlatformAdminService, 'getDeveloperStatus', { developerMode: false });
+mock(PlatformAdminService, 'getActiveImpersonation', null);
 mock(PlatformAdminService, 'listAuditLogs', { entries: [] });
 mock(PlatformService, 'getOverview', {});
 mock(PlatformService, 'getRevenueSummary', { totalRevenue: populated ? 67500 : 0, transactionCount: populated ? 3 : 0, successfulCount: populated ? 3 : 0, failedCount: 0 });
@@ -56,9 +57,6 @@ mock(AuditService, 'getStoreAuditLogs', activity);
 mock(PlatformAdminService, 'listAuditLogs', { entries: activity });
 document.documentElement.dataset.theme = params.get('theme') ?? 'light';
 function MerchantShell() {
- const [open, setOpen] = useState(false);
- return <ToastProvider><div className="app-shell"><header className="app-header"><button onClick={event => { event.currentTarget.focus(); setOpen(true); }}>Open navigation</button></header><SideNav onLogout={() => {}} />
- <Drawer open={open} onClose={() => setOpen(false)} label="Navigation" closeAtDesktop>{open && <SideNav mobile onClose={() => setOpen(false)} onLogout={() => {}} />}</Drawer>
- <div className="app-main"><main className="app-content"><Routes><Route path="/more" element={<MorePage />} /><Route path="*" element={<DashboardPage />} /></Routes></main><BottomNav /></div></div></ToastProvider>;
+ return <ToastProvider><Routes><Route element={<AppLayout />}><Route path="/more" element={<MorePage />} /><Route path="*" element={<DashboardPage />} /></Route></Routes></ToastProvider>;
 }
-createRoot(document.getElementById('root')!).render(<MemoryRouter>{params.get('role') === 'platform' ? <PlatformProvider><main className="page plat-page"><OverviewArea /></main></PlatformProvider> : params.get('shell') === 'true' ? <MerchantShell /> : <DashboardPage />}</MemoryRouter>);
+createRoot(document.getElementById('root')!).render(<MemoryRouter>{params.get('role') === 'platform' ? <PlatformProvider><main className="page plat-page is-wide"><OverviewArea /></main></PlatformProvider> : params.get('shell') === 'true' ? <MerchantShell /> : <DashboardPage />}</MemoryRouter>);

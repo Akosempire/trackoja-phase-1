@@ -53,3 +53,9 @@ The reference informs the two-column hierarchy, with a primary revenue panel and
 - Removed duplicate no-sales attention text. Failed checks cannot produce an unqualified all-clear message.
 
 Validation for this correction: 60 targeted unit checks (including all 12 categories with permitted/restricted roles), 64 fixture-based browser checks across Edge, Firefox and WebKit, plus a final merchant layout recheck after spacing/empty-state adjustments. TypeScript/Vite/PWA production build checked. Browser checks exercise real components with fixture services; live customer sessions and hosting deployment are not verified by these tests.
+
+## Reference proportions restored
+
+The next visual pass restores the reference's prominent revenue area, equally stacked supporting panels, wider focused dashboard container, and spacious summary cards with footer dividers. Merchant and platform headers now use a consistent desktop utility bar; the merchant sidebar collapse control sits beside the brand. The existing palette, card radius and typography families are unchanged. Composition rules are documented in WAYA_DESIGN_SYSTEM.md.
+
+Revenue is plotted as labelled categorical columns using actual payment-method/plan totals. No daily time series is inferred. Empty chart areas clearly explain the missing data. Merchant overview metrics retain their original meaning and business-specific operational metrics remain available. Fixture verification covers the real AppLayout (header, sidebar, drawer and bottom navigation) as well as the dashboard pages. Validation: 35 targeted unit tests; 64 browser dashboard checks in Edge/Firefox/WebKit; 24 desktop, mobile, theme and category-navigation checks in Edge, followed by 4 full-shell checks with the real search styling and branch selector. Production build passes. These are fixture checks, not authenticated live-customer testing.
