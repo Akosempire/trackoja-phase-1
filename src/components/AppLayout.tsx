@@ -11,6 +11,7 @@ import { BusinessProvider } from '../contexts/BusinessContext';
 import { useState } from 'react';
 import { MenuIcon } from './icons';
 import { MerchantCommandSearch } from './MerchantCommandSearch';
+import { ThemeToggle } from './ThemeToggle';
 import { Drawer } from './ui/Drawer';
 import { RouteBackBar } from './RouteBackBar';
 import { useToast } from './ui/Toast';
@@ -68,6 +69,7 @@ export function AppLayout() {
         <div className="app-header-actions">
           <MerchantCommandSearch />
           <StoreSwitcher />
+          <ThemeToggle />
           {profile?.isPlatformAdmin && (
             <NavLink to="/platform" className={({ isActive }) => `app-nav-link${isActive ? ' active' : ''}`}>
               Platform
