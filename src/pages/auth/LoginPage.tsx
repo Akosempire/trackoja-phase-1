@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { AuthLayout } from '../../components/AuthLayout';
 import { FormField } from '../../components/ui/FormField';
 import { Button } from '../../components/ui/Button';
@@ -8,6 +8,7 @@ import { AuthService } from '../../services/auth.service';
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -20,7 +21,7 @@ export default function LoginPage() {
 
     try {
       await AuthService.login({ email, password });
-      navigate('/auth/continue', { replace: true });
+      navigate('/auth/continue' + location.search, { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to sign in. Please try again.');
     } finally {

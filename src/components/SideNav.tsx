@@ -3,7 +3,6 @@ import '../styles/owner-dashboard.css';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useAppNav } from '../hooks/useAppNav';
-import { StoreSwitcher } from './StoreSwitcher';
 import { ArrowLeftIcon, LogoutIcon, ScanIcon, SalesIcon, SettingsIcon, SidebarIcon } from './icons';
 import { ThemeSelect } from './ThemeSelect';
 
@@ -35,7 +34,6 @@ export function SideNav({ onLogout, mobile = false, onClose }: SideNavProps) {
         setCollapsed(!collapsed);
         try { localStorage.setItem('trackoja-sidebar-collapsed', String(!collapsed)); } catch { /* Session-only is fine. */ }
       }}><SidebarIcon width={17} height={17} /><span className="nav-label">Collapse sidebar</span></button>}
-      <div className="side-nav-store nav-label"><StoreSwitcher /></div>
       <nav className="side-nav-items" aria-label="Main navigation">
         {['Business operations', 'Management', 'Payments and connections', 'Account'].map(group => <div key={group} className="side-nav-group">
         {!compact && <p className="side-nav-group-title">{group}</p>}

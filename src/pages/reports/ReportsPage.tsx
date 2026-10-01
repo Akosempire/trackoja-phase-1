@@ -1,3 +1,4 @@
+import { useWorkspaceState } from '../../hooks/useWorkspaceState';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
@@ -40,7 +41,7 @@ export default function ReportsPage() {
   const salesRequest = useRef(0);
   const snapshotRequest = useRef(0);
 
-  const [preset, setPreset] = useState<ReportDateRangePreset>('today');
+  const [preset, setPreset] = useWorkspaceState<ReportDateRangePreset>('report-period', 'today');
   const [summary, setSummary] = useState<SalesSummary | null>(null);
   const [paymentBreakdown, setPaymentBreakdown] = useState<PaymentMethodBreakdown[]>([]);
   const [topProducts, setTopProducts] = useState<TopProduct[]>([]);

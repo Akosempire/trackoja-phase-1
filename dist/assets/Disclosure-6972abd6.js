@@ -1,1 +1,0 @@
-import{j as s}from"./react-905cd176.js";function o({summary:r,children:e}){return s.jsxs("details",{className:"disclosure",children:[s.jsx("summary",{children:r}),s.jsx("div",{className:"disclosure-body",children:e})]})}export{o as D};

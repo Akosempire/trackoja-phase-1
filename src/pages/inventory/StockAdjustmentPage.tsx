@@ -1,3 +1,4 @@
+import { useWorkspaceState } from '../../hooks/useWorkspaceState';
 import { SectionHead } from '../../components/ui/SectionHead';
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
@@ -32,10 +33,10 @@ export default function StockAdjustmentPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [productId, setProductId] = useState(searchParams.get('productId') ?? '');
-  const [movementType, setMovementType] = useState<AdjustmentMovementType>('replenishment');
-  const [direction, setDirection] = useState<'increase' | 'decrease'>('increase');
-  const [quantity, setQuantity] = useState('');
+  const [productId, setProductId] = useWorkspaceState('stock-product', searchParams.get('productId') ?? '');
+  const [movementType, setMovementType] = useWorkspaceState<AdjustmentMovementType>('stock-movement', 'replenishment');
+  const [direction, setDirection] = useWorkspaceState<'increase' | 'decrease'>('stock-direction', 'increase');
+  const [quantity, setQuantity] = useWorkspaceState('stock-quantity', '');
   const [reason, setReason] = useState('');
 
   const selectedProduct = products.find((p) => p.id === productId);

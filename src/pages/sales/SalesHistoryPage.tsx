@@ -1,3 +1,4 @@
+import { useWorkspaceState } from '../../hooks/useWorkspaceState';
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
@@ -21,7 +22,7 @@ export default function SalesHistoryPage() {
   const [sales, setSales] = useState<Sale[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [status, setStatus] = useState<SaleStatus | ''>('');
+  const [status, setStatus] = useWorkspaceState<SaleStatus | ''>('sales-status', '');
 
   const canCheckout = hasPermission('sales:create');
 

@@ -20,6 +20,8 @@ import { ToastProvider } from './components/ui/Toast';
 import { applyTheme, readTheme } from './components/ThemeSelect';
 import { registerAppWorker } from './pwa';
 import { initializeInstallApp } from './pwa-install';
+import { AppErrorBoundary } from './components/AppErrorBoundary';
+import { AppUpdateBanner } from './components/AppUpdateBanner';
 
 applyTheme(readTheme());
 initializeInstallApp();
@@ -27,6 +29,8 @@ registerAppWorker();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
+    <AppErrorBoundary>
+    <AppUpdateBanner />
     <BrowserRouter>
       <AuthProvider>
         <ToastProvider>
@@ -34,5 +38,6 @@ createRoot(document.getElementById('root')!).render(
         </ToastProvider>
       </AuthProvider>
     </BrowserRouter>
+    </AppErrorBoundary>
   </StrictMode>
 );

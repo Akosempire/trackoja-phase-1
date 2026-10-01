@@ -1,6 +1,7 @@
 import { registerSW } from 'virtual:pwa-register';
+import { offerAppUpdate } from './utils/app-update-state';
 
-/** Keep already-open dashboards on the current deployed bundle. */
+/** Discover updates without reloading an active form when the app resumes. */
 export function registerAppWorker() {
   if (!import.meta.env.PROD || !('serviceWorker' in navigator)) return;
 
@@ -8,8 +9,9 @@ export function registerAppWorker() {
   // by account. Drop that legacy cache as the new worker takes over.
   if ('caches' in window) void caches.delete('supabase-data');
 
-  registerSW({
+  const updateSW = registerSW({
     immediate: true,
+    onNeedRefresh: () => offerAppUpdate(() => updateSW(true)),
     onRegisteredSW: (_workerUrl, registration) => {
       if (!registration) return;
       const checkForUpdate = () => {

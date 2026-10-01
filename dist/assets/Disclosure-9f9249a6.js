@@ -1,0 +1,1 @@
+import{j as s}from"./react-3ea9b78b.js";function o({summary:r,children:e}){return s.jsxs("details",{className:"disclosure",children:[s.jsx("summary",{children:r}),s.jsx("div",{className:"disclosure-body",children:e})]})}export{o as D};

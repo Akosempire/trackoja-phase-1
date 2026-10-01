@@ -2,7 +2,8 @@
 // Authentication service for TrackOja Phase 1
 
 import { supabase } from '../config/supabase';
-import type { User } from '@supabase/supabase-js';
+import type { AuthChangeEvent, User } from '@supabase/supabase-js';
+import { clearRestoration, withTimeout } from '../utils/session-continuity';
 import type { SignUpRequest, LoginRequest, User as AppUser } from '../types';
 
 export class AuthService {
@@ -82,13 +83,14 @@ export class AuthService {
       // has no corresponding database write to hook a trigger into, so this is
       // handled by an Edge Function (see supabase/functions/log-logout).
       try {
-        await supabase.functions.invoke('log-logout');
+        await withTimeout(supabase.functions.invoke('log-logout'), 3000);
       } catch (auditError) {
         console.error('Log logout audit error:', auditError);
       }
 
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
+      clearRestoration();
     } catch (error) {
       console.error('Logout error:', error);
       throw error;
@@ -180,23 +182,17 @@ export class AuthService {
    * Get current session
    */
   static async getSession() {
-    try {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      return session;
-    } catch (error) {
-      console.error('Get session error:', error);
-      return null;
-    }
+    const { data: { session }, error } = await supabase.auth.getSession();
+    if (error) throw error;
+    return session;
   }
 
   /**
    * Listen to auth state changes
    */
-  static onAuthStateChange(callback: (user: User | null) => void) {
-    return supabase.auth.onAuthStateChange((_event, session) => {
-      callback(session?.user ?? null);
+  static onAuthStateChange(callback: (user: User | null, event: AuthChangeEvent) => void) {
+    return supabase.auth.onAuthStateChange((event, session) => {
+      callback(session?.user ?? null, event);
     });
   }
 

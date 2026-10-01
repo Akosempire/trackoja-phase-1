@@ -6,9 +6,8 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: 'autoUpdate',
-      // The injected one-line register script never reloads a tab after a new
-      // worker takes control. The app registers through virtual:pwa-register.
+      registerType: 'prompt',
+      // Register through the app so updates wait for an explicit user action.
       injectRegister: false,
       includeAssets: ['favicon.svg'],
       manifest: {
@@ -30,7 +29,7 @@ export default defineConfig({
         ],
       },
       workbox: {
-        skipWaiting: true,
+        skipWaiting: false,
         clientsClaim: true,
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/_/],

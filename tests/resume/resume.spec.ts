@@ -1,0 +1,32 @@
+import { test, expect } from '@playwright/test';
+test('three-page app switch preserves branch, filter, draft, back history and eviction restore', async ({ page }) => {
+  await page.goto('http://127.0.0.1:4182/tests/visual/resume.html#/dashboard');
+  await page.getByLabel('Branch').selectOption('second');
+  await page.getByRole('link', { name: 'Products', exact: true }).click();
+  await page.getByRole('link', { name: 'Stock', exact: true }).click();
+  await page.getByLabel('Filter').selectOption('low');
+  await page.getByLabel('Quantity').fill('12.5');
+  await page.evaluate(() => { (window as any).resumeTest.offline(true); window.dispatchEvent(new Event('blur')); document.dispatchEvent(new Event('visibilitychange')); (window as any).resumeTest.event('TOKEN_REFRESHED'); (window as any).resumeTest.event('SIGNED_IN'); window.dispatchEvent(new Event('focus')); window.dispatchEvent(new Event('pageshow')); });
+  await expect(page.getByRole('heading')).toHaveText('/inventory/stock');
+  await expect(page.getByLabel('Branch')).toHaveValue('second');
+  await expect(page.getByLabel('Quantity')).toHaveValue('12.5');
+  await expect(page.getByLabel('Filter')).toHaveValue('low');
+  await page.goBack(); await expect(page.getByRole('heading')).toHaveText('/inventory/products');
+  await page.goBack(); await expect(page.getByRole('heading')).toHaveText('/dashboard');
+  await page.goForward(); await page.goForward();
+  await page.reload(); await expect(page.getByLabel('Quantity')).toHaveValue('12.5');
+  await page.goto('http://127.0.0.1:4182/tests/visual/resume.html#/auth/continue');
+  await expect(page.getByRole('heading')).toHaveText('/inventory/stock');
+  await expect(page.getByLabel('Branch')).toHaveValue('second');
+  await page.evaluate(() => (window as any).resumeTest.logout());
+  await expect(page.getByRole('heading')).toHaveText('Sign in');
+  expect(await page.evaluate(() => Object.keys(localStorage).filter(key => key.startsWith('trackoja:resume:')))).toEqual([]);
+});
+test('offline cold direct link stays put and retries without a welcome redirect', async ({ page }) => {
+  await page.goto('http://127.0.0.1:4182/tests/visual/resume.html?offline=1#/inventory/stock');
+  await expect(page.getByText('We could not open your workspace')).toBeVisible();
+  await expect(page).toHaveURL(/#\/inventory\/stock$/);
+  await page.evaluate(() => (window as any).resumeTest.offline(false));
+  await page.getByRole('button', { name: 'Try again' }).click();
+  await expect(page.getByRole('heading')).toHaveText('/inventory/stock');
+});

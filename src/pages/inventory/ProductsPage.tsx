@@ -1,3 +1,4 @@
+import { useWorkspaceState } from '../../hooks/useWorkspaceState';
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
@@ -30,8 +31,8 @@ export default function ProductsPage() {
   const [error, setError] = useState<string | null>(null);
 
   const [search, setSearch] = useState('');
-  const [categoryId, setCategoryId] = useState('');
-  const [lowStockOnly, setLowStockOnly] = useState(false);
+  const [categoryId, setCategoryId] = useWorkspaceState('products-category', '');
+  const [lowStockOnly, setLowStockOnly] = useWorkspaceState('products-low-stock', false);
   const [scanning, setScanning] = useState(false);
 
   const canCreate = hasPermission('product:create');

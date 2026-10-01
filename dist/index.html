@@ -10,14 +10,25 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <title>TrackOja</title>
-    <script type="module" crossorigin src="/assets/index-a4338344.js"></script>
-    <link rel="modulepreload" crossorigin href="/assets/react-905cd176.js">
+    <style>
+      html,body { margin:0; background:#fff; color:#222; }
+      html[data-theme="dark"],html[data-theme="dark"] body { background:#0b0b0b; color:#fff; color-scheme:dark; }
+      .startup-screen { min-height:100vh; min-height:100dvh; box-sizing:border-box; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px; padding:24px; text-align:center; font-family:Inter,system-ui,sans-serif; }
+      .startup-screen strong { font-size:24px; } .startup-screen p { margin:0; max-width:36rem; }
+      .startup-screen button { font:inherit; padding:12px 24px; cursor:pointer; }
+    </style>
+    <script>
+      try { var appearance=localStorage.getItem('trackoja-theme'); document.documentElement.dataset.theme=appearance==='dark'||(appearance!=='light'&&matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light'; } catch (_) { document.documentElement.dataset.theme=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'; }
+      window.trackojaBootTimer=setTimeout(function(){ var message=document.getElementById('boot-message'); if(message){message.textContent='TrackOja could not finish loading. Check your connection and try again.'; document.getElementById('boot-retry').hidden=false;} },20000);
+    </script>
+    <script type="module" crossorigin src="/assets/index-b2bf1514.js"></script>
+    <link rel="modulepreload" crossorigin href="/assets/react-3ea9b78b.js">
     <link rel="modulepreload" crossorigin href="/assets/supabase-387795e1.js">
-    <link rel="modulepreload" crossorigin href="/assets/icons-2568f22c.js">
-    <link rel="stylesheet" href="/assets/index-91b447cf.css">
+    <link rel="modulepreload" crossorigin href="/assets/icons-be907804.js">
+    <link rel="stylesheet" href="/assets/index-ce3acc6b.css">
   <link rel="manifest" href="/manifest.webmanifest"></head>
   <body>
-    <div id="root"></div>
+    <div id="root"><main class="startup-screen" role="status"><strong>TrackOja</strong><p id="boot-message">Opening your workspace…</p><button id="boot-retry" hidden onclick="location.reload()">Retry</button><noscript>Enable JavaScript to open TrackOja.</noscript></main></div>
     
   </body>
 </html>

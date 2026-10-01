@@ -91,6 +91,22 @@ export function AppLayout() {
         </Drawer>
 
         <div className="app-main">
+          <div className="workspace-topbar" aria-label="Workspace controls">
+            <div className="workspace-topbar-search">
+              <MerchantCommandSearch />
+            </div>
+            <div className="workspace-topbar-actions">
+              <StoreSwitcher />
+              {profile?.isPlatformAdmin && (
+                <NavLink to="/platform" className={({ isActive }) => `app-nav-link${isActive ? ' active' : ''}`}>
+                  Platform
+                </NavLink>
+              )}
+              <Button variant="ghost" className="btn-sm" onClick={handleLogout} disabled={loggingOut}>
+                {loggingOut ? 'Logging out...' : 'Log out'}
+              </Button>
+            </div>
+          </div>
           <DeveloperModeBanner />
           <OfflineBanner />
           <main className="app-content" id="main-content" tabIndex={-1}>
