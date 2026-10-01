@@ -24,8 +24,17 @@ import { StateBlock } from '../components/ui/StateBlock';
 import { HealthyStrip } from '../components/ui/AttentionList';
 import { getBusinessExperience, type DashboardMetric } from '../config/businessExperience';
 import { isResolvableMetric } from '../config/dashboardMetrics';
-import type { AuditLog, Product, Sale, SalesSummary, Store } from '../types';
+import type { AuditLog, PaymentMethod, PaymentMethodBreakdown, Product, Sale, SalesSummary, Store, TopProduct } from '../types';
 import { formatMoney, formatNumber } from '../utils/format';
+import {
+  HomeBars,
+  HomeDonut,
+  HomeMetricCard,
+  HomePanel,
+  type HomeBar,
+  type HomeMetric,
+  type HomeSlice,
+} from '../components/home/HomeDashboard';
 import '../styles/dashboard.css';
 
 function greetingForNow(name?: string) {
@@ -158,6 +167,8 @@ export default function DashboardPage() {
   const [kitchenOrders, setKitchenOrders] = useState<Sale[] | null>(null);
   const [refundCount, setRefundCount] = useState<number | null>(null);
   const [customerCount, setCustomerCount] = useState<number | null>(null);
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethodBreakdown[] | null>(null);
+  const [topProducts, setTopProducts] = useState<TopProduct[] | null>(null);
   const [activity, setActivity] = useState<AuditLog[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -186,6 +197,8 @@ export default function DashboardPage() {
     setKitchenOrders(null);
     setRefundCount(null);
     setCustomerCount(null);
+    setPaymentMethods(null);
+    setTopProducts(null);
     setActivity(null);
     setPartialFailures(0);
 
@@ -204,7 +217,7 @@ export default function DashboardPage() {
               ? canReadCustomers
               : canReadJobs
       ));
-      const [storeRow, sales, allProducts, low, logs, orders, refundRows, customers, jobSummary] = await Promise.all([
+      const [storeRow, sales, allProducts, low, logs, orders, refundRows, customers, jobSummary, methods, top] = await Promise.all([
         StoreService.getStore(storeId),
         canReadReports ? optional(ReportService.getSalesSummary(storeId, todayStart.toISOString(), now.toISOString())) : Promise.resolve(null),
         canReadInventory ? optional(ProductService.getProducts(storeId)) : Promise.resolve(null),
@@ -214,6 +227,8 @@ export default function DashboardPage() {
         canReadSales ? optional(SaleService.getRefundCount(storeId, todayStart.toISOString(), now.toISOString())) : Promise.resolve(null),
         canReadCustomers ? optional(CustomerService.getCustomers(storeId)) : Promise.resolve(null),
         canReadJobs ? optional(JobService.summary(storeId)) : Promise.resolve(null),
+        canReadReports ? optional(ReportService.getSalesByPaymentMethod(storeId, todayStart.toISOString(), now.toISOString())) : Promise.resolve(null),
+        canReadReports ? optional(ReportService.getTopProducts(storeId, todayStart.toISOString(), now.toISOString(), 5)) : Promise.resolve(null),
       ]);
       if (request !== dashboardRequest.current) return;
       setStore(storeRow);
@@ -225,6 +240,8 @@ export default function DashboardPage() {
       setKitchenOrders(orders);
       setRefundCount(refundRows);
       setCustomerCount(customers?.length ?? null);
+      setPaymentMethods(methods);
+      setTopProducts(top);
       setPartialFailures(failed);
     } catch (err) {
       if (request === dashboardRequest.current) setError((err as Error)?.message ?? 'Could not load your dashboard');
@@ -275,14 +292,36 @@ export default function DashboardPage() {
   const outOfStockCount = trackedProducts?.filter((product) => product.stockQty <= 0).length ?? null;
   const uncategorizedProducts = products?.filter((product) => !product.categoryId).length ?? null;
   const averageSale = summary && summary.transactionCount > 0 ? summary.totalRevenue / summary.transactionCount : 0;
-  const kpis = [
-    canReadReports && summary ? { label: 'Sales revenue today', value: formatMoney(summary.totalRevenue), foot: 'Completed sales today', tone: 'brand' as const } : null,
-    canReadReports && summary ? { label: 'Transactions', value: formatNumber(summary.transactionCount), foot: 'Completed today' } : null,
-    canReadReports && summary ? { label: 'Average sale', value: formatMoney(averageSale), foot: summary.transactionCount ? 'Per completed sale today' : 'No completed sales yet' } : null,
-    canReadInventory && lowStock ? { label: `${experience.terminology.stock} alerts`, value: formatNumber(lowStock.length), foot: 'Low or out of stock', tone: lowStock.length ? 'warning' as const : 'default' as const } : null,
-    canReadCustomers && customerCount !== null ? { label: `${experience.terminology.customer}s`, value: formatNumber(customerCount), foot: 'All customer records' } : null,
-    canReadInventory && trackedProducts ? { label: 'Items tracked', value: formatNumber(trackedProducts.length), foot: 'Current stock snapshot' } : null,
-  ].filter((item): item is { label: string; value: string; foot: string; tone?: 'default' | 'brand' | 'warning' } => Boolean(item));
+  const homeMetrics: HomeMetric[] = [
+    canReadReports && summary ? { label: 'Sales revenue today', value: formatMoney(summary.totalRevenue) } : null,
+    canReadReports && summary ? { label: 'Transactions', value: formatNumber(summary.transactionCount) } : null,
+    canReadReports && summary ? { label: 'Average sale', value: formatMoney(averageSale) } : null,
+    canReadInventory && lowStock ? { label: `${experience.terminology.stock} alerts`, value: formatNumber(lowStock.length) } : null,
+    canReadCustomers && customerCount !== null ? { label: `${experience.terminology.customer}s`, value: formatNumber(customerCount) } : null,
+  ].filter((item): item is HomeMetric => item !== null);
+
+  const methodTone: Record<PaymentMethod, HomeSlice['tone']> = {
+    cash: 'success',
+    card: 'orders',
+    transfer: 'users',
+    credit: 'pending',
+    other: 'failed',
+  };
+  const totalRevenue = summary?.totalRevenue ?? 0;
+  const donutSlices: HomeSlice[] = (paymentMethods ?? [])
+    .filter((row) => row.amount > 0)
+    .map((row) => ({
+      label: row.method.replace(/_/g, ' '),
+      value: formatMoney(row.amount),
+      percent: totalRevenue > 0 ? Math.round((row.amount / totalRevenue) * 1000) / 10 : 0,
+      tone: methodTone[row.method],
+    }));
+  const topBars: HomeBar[] = (topProducts ?? []).map((p) => ({
+    label: p.productName,
+    amount: formatMoney(p.revenue),
+    percent: totalRevenue > 0 ? `${((p.revenue / totalRevenue) * 100).toFixed(1)}%` : '0%',
+    width: totalRevenue > 0 ? (p.revenue / totalRevenue) * 100 : 0,
+  }));
 
   const duplicateMetricKeys = new Set(['sales_today', 'transactions_today', 'low_stock', 'clients']);
   const operationalMetrics = resolved.filter(({ metric }) => !duplicateMetricKeys.has(metric.key));
@@ -387,17 +426,55 @@ export default function DashboardPage() {
             </aside>
           </section>
 
-          {kpis.length > 0 && (
-            <section className="owner-metrics" aria-label="Key business metrics">
-              <div className="owner-dashboard-snapshot">
-                <h2>Business overview</h2>
-                <p>Sales figures cover today. Stock and customer counts show the current branch.</p>
-              </div>
-              <KpiGrid>
-                {kpis.map((metric) => (
-                  <KpiCard key={metric.label} label={metric.label} value={metric.value} foot={metric.foot} tone={metric.tone ?? 'default'} />
+          {homeMetrics.length > 0 && (
+            <section className="hd-home" aria-label="Business overview">
+              <div className="hd-metrics">
+                {homeMetrics.map((metric) => (
+                  <HomeMetricCard key={metric.label} metric={metric} />
                 ))}
-              </KpiGrid>
+              </div>
+              <div className="hd-grid">
+                <HomePanel title="Sales by payment method" subtitle="Completed sales today, by how customers paid.">
+                  {donutSlices.length > 0 ? (
+                    <HomeDonut slices={donutSlices} />
+                  ) : (
+                    <p className="hd-panel-note">No completed sales today, or the payment breakdown is unavailable.</p>
+                  )}
+                </HomePanel>
+                <HomePanel title="Top products" subtitle="Best sellers today, as a share of today's revenue.">
+                  {topBars.length > 0 ? (
+                    <HomeBars total={formatMoney(totalRevenue)} bars={topBars} />
+                  ) : (
+                    <p className="hd-panel-note">No completed sales to rank yet.</p>
+                  )}
+                </HomePanel>
+                <HomePanel title="Recent activity" subtitle="The latest changes in this workspace.">
+                  {activity === null ? (
+                    <p className="hd-panel-note">Activity is unavailable.</p>
+                  ) : (
+                    <BusinessActivity logs={activity.slice(0, 3)} actorId={profile?.id} actorName={profile?.firstName} />
+                  )}
+                </HomePanel>
+                <HomePanel title={`${experience.terminology.stock} attention`} subtitle="Items at or below their reorder level.">
+                  {lowStock === null ? (
+                    <p className="hd-panel-note">Stock status is unavailable.</p>
+                  ) : lowStock.length === 0 ? (
+                    <p className="hd-panel-note">No low-stock {experience.terminology.lineItem.toLowerCase()} need attention.</p>
+                  ) : (
+                    <div className="list">
+                      {lowStock.slice(0, 4).map((product) => (
+                        <Link className="list-item" key={product.id} to={`/inventory/products/${product.id}`}>
+                          <div>
+                            <p className="list-item-title">{product.name}</p>
+                            <p className="list-item-subtitle">Available: {stockQuantity(product.stockQty, product.unit)}</p>
+                          </div>
+                          <span className={`badge ${product.stockQty <= 0 ? 'badge-danger' : 'badge-warning'}`}>{stockState(product)}</span>
+                        </Link>
+                      ))}
+                    </div>
+                  )}
+                </HomePanel>
+              </div>
             </section>
           )}
 

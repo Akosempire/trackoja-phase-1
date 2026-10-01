@@ -1,4 +1,4 @@
-﻿// @vitest-environment jsdom
+// @vitest-environment jsdom
 import { act, createElement } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
@@ -16,7 +16,7 @@ vi.mock('../src/services/product.service', () => ({ ProductService: { getProduct
 vi.mock('../src/services/audit.service', () => ({ AuditService: { getStoreAuditLogs: async () => [] } }));
 vi.mock('../src/services/sale.service', () => ({ SaleService: { getKitchenOrders: async () => [], getRefundCount: async () => 0 } }));
 vi.mock('../src/services/customer.service', () => ({ CustomerService: { getCustomers: async () => [] } }));
-vi.mock('../src/services/report.service', () => ({ ReportService: { getSalesSummary: state.summary, getSalesByPaymentMethod: state.methods } }));
+vi.mock('../src/services/report.service', () => ({ ReportService: { getSalesSummary: state.summary, getSalesByPaymentMethod: state.methods, getTopProducts: async () => [] } }));
 let root: Root; let host: HTMLDivElement;
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 beforeEach(() => {
@@ -30,9 +30,9 @@ for (const category of Object.keys(CATEGORY_CONFIGS)) for (const allowed of [tru
   it(`${category} dashboard preserves reports permission (${allowed}) and empty-state structure`, async () => {
     state.category = category; state.allowed = allowed;
     await act(async () => root.render(createElement(MemoryRouter, {}, createElement(DashboardPage))));
-    expect(host.textContent).toContain('Ada store'); expect(host.textContent).toContain('Business overview');
+    expect(host.textContent).toContain('Ada store'); expect(host.querySelector('.hd-metrics')).toBeTruthy();
     expect(host.querySelectorAll('.dashboard-revenue').length).toBe(allowed ? 1 : 0);
-    expect(state.methods).toHaveBeenCalledTimes(allowed ? 1 : 0);
+    expect(state.methods).toHaveBeenCalledTimes(allowed ? 2 : 0);
     expect(state.summary).toHaveBeenCalledTimes(allowed ? 2 : 0);
     if (allowed) expect(host.textContent).toContain('No revenue in this period');
     else expect(host.textContent).not.toMatch(/Record sale|New order|Add client|New job|Add product/);
@@ -55,7 +55,7 @@ it('a failed dashboard source is not rendered as a zero', async () => {
   state.summary.mockRejectedValue(new Error('Unavailable'));
   await act(async () => root.render(createElement(MemoryRouter, {}, createElement(DashboardPage))));
   expect(host.textContent).toContain('could not load');
-  expect(host.querySelector('.owner-metrics')?.textContent).not.toContain('Sales today');
+  expect(host.querySelector('.hd-metrics')?.textContent).not.toContain('Sales today');
   expect(host.querySelector('.dashboard-revenue')?.textContent).not.toContain('No revenue in this period');
 });
 
@@ -63,10 +63,10 @@ it('uses sales and customer meanings instead of wallet or gross/net placeholders
   state.category = 'general_retail'; state.allowed = true;
   state.summary.mockResolvedValue({ totalRevenue: 22500, transactionCount: 3 });
   await act(async () => root.render(createElement(MemoryRouter, {}, createElement(DashboardPage))));
-  const overview = host.querySelector('.owner-metrics')!.textContent;
+  const overview = host.querySelector('.hd-metrics')!.textContent;
   expect(overview).toContain('Sales revenue today');
   expect(overview).toContain('\u20a622,500');
   expect(overview).toContain('\u20a67,500');
-  expect(overview).toContain('All customer records');
+  expect(overview).toContain('Customers');
   expect(host.textContent).not.toMatch(/Withdraw funds|Gross Volume|Net Volume|New Customers|USD|Last withdrawal/);
 });

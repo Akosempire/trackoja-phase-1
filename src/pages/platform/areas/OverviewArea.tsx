@@ -7,7 +7,6 @@ import { PlatformService } from '../../../services/platform.service';
 import { usePlatform } from '../../../components/platform/PlatformContext';
 import { AreaCoverage, PlatformPageHead, RefreshButton } from '../../../components/platform/PlatformPageHead';
 import { AttentionList, HealthyStrip, type AttentionItem } from '../../../components/ui/AttentionList';
-import { OverviewMetricCard } from '../../../components/ui/OverviewMetricCard';
 import { SectionHead } from '../../../components/ui/SectionHead';
 import { Timeline, type TimelineEntry } from '../../../components/ui/Timeline';
 import { Button } from '../../../components/ui/Button';
@@ -17,6 +16,16 @@ import { daysUntil, formatNumber, formatRelative, humaniseToken } from '../../..
 import { getReportDateRange } from '../../../utils/report-date-ranges';
 import type { PlatformInventoryOverview, PlatformOrganization, PlatformOverview, PlatformRecentError, PlatformRevenueSummary } from '../../../types';
 import type { PlatformOverviewV2, ProductBusiness } from '../../../services/platformAdmin.service';
+import {
+  HomeBar,
+  HomeBars,
+  HomeDashboardSkeleton,
+  HomeDonut,
+  HomeMetricCard,
+  HomePanel,
+  type HomeMetric,
+  type HomeSlice,
+} from '../../../components/home/HomeDashboard';
 import '../../../styles/platform-overview.css';
 
 const AREA = PLATFORM_AREAS.find((area) => area.id === 'overview')!;
@@ -286,6 +295,30 @@ export default function OverviewArea() {
   }, [entitlements]);
   const canAssertHealthy = Boolean(data.entitlements && data.organizations && (data.revenue || data.v2));
 
+  const platformMetrics: HomeMetric[] = [
+    { label: 'Businesses', value: data.organizations && data.entitlements ? formatNumber(counts.businesses) : '—' },
+    { label: 'Active access', value: data.entitlements ? formatNumber(counts.activeSubs) : '—' },
+    { label: 'On trial', value: data.entitlements ? formatNumber(counts.trialingSubs) : '—' },
+    { label: 'Failed payments', value: data.revenue ? formatNumber(counts.failedPayments) : '—' },
+  ];
+
+  const totalSubs = counts.activeSubs + counts.trialingSubs + counts.pastDueSubs;
+  const subSlices: HomeSlice[] = totalSubs > 0
+    ? [
+        { label: 'Active', value: formatNumber(counts.activeSubs), percent: Math.round((counts.activeSubs / totalSubs) * 100), tone: 'success' },
+        { label: 'Trialing', value: formatNumber(counts.trialingSubs), percent: Math.round((counts.trialingSubs / totalSubs) * 100), tone: 'pending' },
+        { label: 'Past due', value: formatNumber(counts.pastDueSubs), percent: Math.round((counts.pastDueSubs / totalSubs) * 100), tone: 'failed' },
+      ]
+    : [];
+
+  const billingBars: HomeBar[] = counts.businesses > 0
+    ? [
+        { label: 'Paying', amount: formatNumber(counts.paying), percent: `${Math.round((counts.paying / counts.businesses) * 100)}%`, width: (counts.paying / counts.businesses) * 100 },
+        { label: 'On trial', amount: formatNumber(counts.trial), percent: `${Math.round((counts.trial / counts.businesses) * 100)}%`, width: (counts.trial / counts.businesses) * 100 },
+        { label: 'Suspended', amount: formatNumber(counts.suspendedBusinesses), percent: `${Math.round((counts.suspendedBusinesses / counts.businesses) * 100)}%`, width: (counts.suspendedBusinesses / counts.businesses) * 100 },
+      ]
+    : [];
+
   return (
     <div className="platform-overview">
       <PlatformPageHead
@@ -357,13 +390,38 @@ export default function OverviewArea() {
       </section>
         </aside>
       </div>
-      <div className="owner-dashboard-snapshot"><h2>Platform overview</h2><p>Current businesses and access. Payment failures cover the last 30 days.</p></div>
-      <div className="overview-metrics" aria-label="Platform metrics">
-        <OverviewMetricCard label="Businesses" value={data.organizations && data.entitlements ? formatNumber(counts.businesses) : null} detail={`${formatNumber(counts.new30d)} new in 30 days`} to="/platform/businesses" loading={loading} />
-        <OverviewMetricCard label="Active access" value={data.entitlements ? formatNumber(counts.activeSubs) : null} detail="Current product subscriptions" to="/platform/billing?filter=active" loading={loading} />
-        <OverviewMetricCard label="On trial" value={data.entitlements ? formatNumber(counts.trialingSubs) : null} detail="Current trialing subscriptions" to="/platform/billing?filter=trialing" loading={loading} />
-        <OverviewMetricCard label="Failed payments" value={data.revenue ? formatNumber(counts.failedPayments) : null} detail="Last 30 days" to="/platform/billing?filter=failed" tone={counts.failedPayments > 0 ? 'danger' : 'default'} loading={loading} />
-      </div>
+      <section className="hd-home" aria-label="Platform overview">
+        {loading ? (
+          <HomeDashboardSkeleton metricCount={4} panelCount={2} />
+        ) : (
+          <>
+            <div className="hd-metrics">
+              {platformMetrics.map((metric) => (
+                <HomeMetricCard key={metric.label} metric={metric} />
+              ))}
+            </div>
+            <div className="hd-grid">
+              <HomePanel title="Subscriptions by status" subtitle="Active, trialing and past-due product subscriptions.">
+                {subSlices.length > 0 ? (
+                  <HomeDonut slices={subSlices} />
+                ) : (
+                  <p className="hd-panel-note">No product subscriptions recorded yet.</p>
+                )}
+              </HomePanel>
+              <HomePanel
+                title="Businesses by billing status"
+                subtitle={`Live businesses, excluding sandbox${counts.sandbox > 0 ? ` (${formatNumber(counts.sandbox)} excluded)` : ''}. ${formatNumber(counts.new30d)} new in 30 days.`}
+              >
+                {billingBars.length > 0 ? (
+                  <HomeBars total={formatNumber(counts.businesses)} bars={billingBars} />
+                ) : (
+                  <p className="hd-panel-note">No live businesses recorded yet.</p>
+                )}
+              </HomePanel>
+            </div>
+          </>
+        )}
+      </section>
 
       <div className="overview-panels">
       <section className="overview-panel" aria-labelledby="needs-attention">

@@ -27,6 +27,19 @@
   --color-on-accent: #fff;
   --color-success-text: #08783d;
   --color-warning-text: #865d00;
+  /* Waya chart series and data-viz surfaces. The home dashboard needs a small,
+     fixed set of distinguishable series colours plus a tooltip surface; these are
+     the only colours the charts are allowed to use, so a panel never invents a
+     literal. */
+  --color-chart-users: var(--color-accent);
+  --color-chart-orders: var(--color-workspace);
+  --color-chart-activation: var(--color-success);
+  --color-chart-success: var(--color-success);
+  --color-chart-pending: var(--color-warning);
+  --color-chart-failed: var(--color-danger);
+  --color-tooltip-bg: #1a1a1a;
+  --color-tooltip-text: #fff;
+  --shadow-card-interactive: 0 10px 30px rgb(0 0 0 / .08);
   --font-body: 'Inter Variable', Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --font-display: Forum, Georgia, serif;
   --text-2xs: 9px; --text-xs: 10px; --text-sm: 11px;

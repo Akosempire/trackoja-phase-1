@@ -36,8 +36,8 @@ describe('ZIP design-system component adoption', () => {
       'src/pages/reports/ReportsPage.tsx',
     ]) {
       const page = source(path);
-      expect(page).toMatch(/<(KpiGrid|MetricStrip)[ >]/);
-      expect(page).toMatch(/<(KpiCard|MetricStrip)[ >]/);
+      expect(page).toMatch(/<(KpiGrid|MetricStrip)[\s>]/);
+      expect(page).toMatch(/<(KpiCard|MetricStrip|HomeMetricCard)[\s>]/);
       expect(page).not.toContain('className="stat-card"');
     }
   });
