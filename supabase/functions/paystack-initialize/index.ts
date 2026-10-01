@@ -183,8 +183,14 @@ Deno.serve(async (req) => {
     return json({ error: redactSecrets(stampError.message) }, 500);
   }
 
+  // The gate RETURNS its verdict rather than raising on a refusal. That is not a
+  // style choice: a raised exception aborts the transaction, so the failed-status
+  // record the gate writes on its way out would be rolled back and the attempt
+  // would sit at 'pending' with no reason. A refusal here is a business outcome and
+  // has to be able to persist, so the caller reads the result instead of catching
+  // an error. An actual `error` still means an integrity failure and is thrown.
   const settle = async (settledBy: 'webhook' | 'callback' | 'mock', gatewayAmount: number, gatewayData: unknown) => {
-    const { error } = await adminClient.rpc('settle_verified_payment', {
+    const { data, error } = await adminClient.rpc('settle_verified_payment', {
       p_reference: reference,
       p_gateway_data: { ...(gatewayData as Record<string, unknown> ?? {}), org_id: txn.org_id },
       p_paid_at: new Date().toISOString(),
@@ -196,6 +202,10 @@ Deno.serve(async (req) => {
       p_settled_by: settledBy,
     });
     if (error) throw new Error(redactSecrets(error.message));
+    if (data && typeof data === 'object' && (data as { refused?: boolean }).refused) {
+      throw new Error(redactSecrets((data as { reason?: string }).reason ?? 'The payment did not match this checkout.'));
+    }
+    return data;
   };
 
   // ----------------------------------------------------------

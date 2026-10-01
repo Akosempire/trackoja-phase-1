@@ -195,7 +195,7 @@ Deno.serve(async (req) => {
         return json({ received: true, settled: false });
       }
 
-      const { error } = await adminClient.rpc('settle_verified_payment', {
+      const { data: settleResult, error } = await adminClient.rpc('settle_verified_payment', {
         p_reference: reference,
         p_gateway_data: data,
         p_paid_at: paidAt,
@@ -207,22 +207,28 @@ Deno.serve(async (req) => {
         p_settled_by: 'webhook',
       });
 
-      // A refusal from the gate is a real outcome, not a transport failure: it
-      // means the payment did not match what was agreed, and the gate has already
-      // marked the attempt failed with the reason. Recorded, acknowledged with 200
-      // so Paystack does not retry a settled decision, and never activated.
+      // A refusal is a business outcome and arrives as a value, so the gate's own
+      // record of it is committed. Only an integrity failure arrives as an error.
+      const refusal = error
+        ? redactSecrets(error.message)
+        : (settleResult as { refused?: boolean; reason?: string } | null)?.refused
+          ? String((settleResult as { reason?: string }).reason ?? 'The payment did not match the pending attempt.')
+          : null;
+
       await record({
         event,
         reference,
         signature_valid: true,
         http_status: 200,
-        outcome: error ? 'refused' : 'settled',
-        detail: error ? redactSecrets(error.message) : `Settled in ${matchedMode} mode.`,
+        outcome: refusal ? 'refused' : 'settled',
+        detail: refusal ?? `Settled in ${matchedMode} mode.`,
         payload: data,
         processed_at: new Date().toISOString(),
       });
 
-      return json({ received: true, settled: !error, mode: matchedMode });
+      // Acknowledged with 200 either way: Paystack retries on non-2xx, and a
+      // refusal is a decision that has been made, not a delivery that failed.
+      return json({ received: true, settled: !refusal, mode: matchedMode, refused: Boolean(refusal) });
     }
 
     // charge.failed

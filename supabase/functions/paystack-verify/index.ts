@@ -177,7 +177,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { error: settleError } = await adminClient.rpc('settle_verified_payment', {
+    const { data: settleResult, error: settleError } = await adminClient.rpc('settle_verified_payment', {
       p_reference: reference,
       p_gateway_data: { ...data, org_id: txn.org_id },
       p_paid_at: data.paid_at ?? new Date().toISOString(),
@@ -189,10 +189,17 @@ Deno.serve(async (req) => {
       p_settled_by: 'callback',
     });
 
-    if (settleError) {
-      // The gate refused: the charge does not match what was agreed. It has
-      // already marked the attempt failed and written the reason, which is passed
-      // through so the customer and the operator see the same words.
+    // A refusal comes back as a value, not an exception, so that the gate's own
+    // record of the refusal is committed rather than rolled back with the error.
+    // Either shape is handled here: `error` for an integrity failure, `refused` for
+    // a payment that simply did not match what was agreed.
+    const refusal = settleError
+      ? redactSecrets(settleError.message)
+      : (settleResult as { refused?: boolean; reason?: string } | null)?.refused
+        ? String((settleResult as { reason?: string }).reason ?? 'The payment did not match this checkout.')
+        : null;
+
+    if (refusal) {
       const { data: after } = await adminClient
         .from('subscription_transactions')
         .select('status, failure_reason')
@@ -202,7 +209,7 @@ Deno.serve(async (req) => {
       return state({
         settled: false,
         status: after?.status ?? txn.status,
-        failureReason: after?.failure_reason ?? redactSecrets(settleError.message),
+        failureReason: after?.failure_reason ?? refusal,
         detail: 'The payment did not match this checkout, so access was not granted.',
       });
     }
