@@ -346,3 +346,163 @@ hash comparison, and never from a commit message.
 **`dist/` churn makes commits large.** Rebuilding renames the hashed asset files,
 so each build commit shows a rename pair. That is expected and not a sign that
 something was committed by accident.
+
+---
+
+# 2026-10-01: billing release state, and a production outage
+
+Everything below supersedes the migration table earlier in this file. That table
+was written before this release and two of its claims are now wrong: it says
+`20260927000096` is "not applied", and it does not know about
+`20260927000095`, `20261001000001` or `20261001000002`, all of which are applied.
+
+## `trackoja.cv` IS DOWN
+
+Measured on 2026-10-01, and this is the most urgent item in this file.
+
+```
+GET https://trackoja.cv/                           200  1077 bytes  text/html
+GET https://trackoja.cv/assets/index-a4338344.js   200  1077 bytes  text/html
+```
+
+The second request should return a 163 KB JavaScript module. Instead it returns
+the same 1077-byte `index.html`, with `Content-Type: text/html`, because Caddy
+serves the SPA fallback for any path it cannot find. The asset is **not on the
+VPS**.
+
+A browser confirms the consequence. Chromium, against `https://trackoja.cv`:
+
+```
+#root children : 0
+body text      : ""
+js resources   : ["1377B index-a4338344.js", "1377B react-905cd176.js",
+                  "1377B icons-2568f22c.js", "1377B supabase-387795e1.js"]
+failed requests: net::ERR_ABORTED https://trackoja.cv/assets/index-91b447cf.css
+console errors : Failed to load module script: Expected a JavaScript-or-Wasm
+                 module script but the server responded with a MIME type of
+                 "text/html".
+```
+
+Every asset returns the HTML fallback, so the browser refuses all of them and the
+application never mounts. **The site renders a blank page.** A 200 response is not
+evidence that a deployment works, which is why the smoke test below checks that the
+application boots rather than that the server answered.
+
+What is *not* established: why the assets are missing. `dist/index.html` and
+`dist/assets/index-a4338344.js` are both committed at `HEAD` (`580dafb`), so a
+`git pull` into the served directory would restore them. Something removed or never
+materialised `dist/assets/` on the VPS. Diagnose before repairing.
+
+**Remediation for the VPS operator**, in order:
+
+1. `ssh` to the VPS and find the served directory (the Caddyfile `root`).
+2. Confirm `dist/assets/` is empty or missing: `ls -la <root>/dist/assets | head`
+3. `cd` to the repository, `git fetch --all`, `git log --oneline -1`, and
+   **record the commit you are moving from** - that is the rollback point.
+4. `git pull` (or `git checkout <commit>`), then `git status` to confirm `dist/`
+   is present and not dirty.
+5. If `dist/assets/` is still absent, rebuild from source:
+   `npm ci && npm run build`, and confirm the build prints asset filenames.
+6. Verify, do not assume:
+   `curl -sI https://trackoja.cv/assets/index-a4338344.js | grep -i content-type`
+   must say `application/javascript` (or `text/javascript`), and the byte count
+   must be in the hundreds of thousands, not 1077.
+7. Then load the site in a browser with the console open. The page must render and
+   the console must be free of MIME-type errors.
+
+**Rollback.** Return to the commit recorded in step 3 with `git checkout <commit>`
+and, if the assets are still missing, `npm ci && npm run build` at that commit. A
+code rollback does not roll back the database; see the migration notes below.
+
+## What is deployed
+
+| Target | State | Evidence |
+| --- | --- | --- |
+| `trackoja.cv` (VPS, 193.181.212.65, Caddy) | **DOWN** | assets return HTML; `#root` empty; MIME-type errors in the console |
+| `trackoja-community.vercel.app` | **UP, but behind** | boots and renders; serves `index-529d2438.js`, the bundle built from `3eb5110` |
+| Supabase Edge Functions | **CURRENT** | `paystack-initialize` v6, `paystack-webhook` v24, `paystack-verify` v2, `payments-config` v2, all deployed 2026-10-01 |
+
+Vercel builds from source, so it recovered from the same content the VPS is
+missing. That makes it a usable reference for what a working deployment looks like,
+but it is not running `HEAD`.
+
+Before this release the Edge Functions were badly behind: `paystack-initialize` was
+**version 4, from June**, which is the version whose mock branch activated a paid
+subscription without charging anything, and `paystack-verify` did not exist at all.
+Both are now current.
+
+## Migrations for this release
+
+Applied to the live database on 2026-10-01, in this order, each recorded in
+`supabase_migrations.schema_migrations`:
+
+| Version | File | Effect |
+| --- | --- | --- |
+| `20260927000095` | `payments_fail_closed.sql` | payment mode, environment, expected amount and currency on the transaction; `webhook_events`; `settle_verified_payment` as the only activating path; `activate_subscription` loses every role grant |
+| `20261001000001` | `refusal_must_persist.sql` | a refused settlement returns its verdict instead of raising, so the failure record is committed rather than rolled back with the error |
+| `20261001000002` | `platform_transactions_view.sql` | repairs `list_platform_commercial_transactions` (it selected a column that does not exist and joined the wrong table), adds server-side filters and a transaction detail function, and revokes `anon` EXECUTE from three platform functions a later migration had left open |
+
+**The migration ledger has been reconciled.** Six migrations had been applied to the
+live database without being recorded - `20260928000100`, `20260929000001`,
+`20260929000002`, `20260929000003`, `20260929000004` - and one was recorded under a
+mistyped version (`202609270090` instead of `20260927000090`). All are now recorded
+correctly. The ledger previously could not answer "what is applied", which is why
+the earlier table in this file is unreliable.
+
+**Four migrations remain genuinely unapplied.** None is billing, and they are listed
+because the code that calls them is deployed, so each is a broken feature on the
+live site:
+
+| Version | File | What breaks without it |
+| --- | --- | --- |
+| `20260928000098` | `onboarding_entry_resolution.sql` | `list_my_trackoja_workspaces` and `select_my_trackoja_workspace` are absent, so the multi-business workspace chooser cannot load or switch (`src/services/entry.service.ts`) |
+| `20260928000099` | `platform_admin_workspace_routing.sql` | superseded by `20260929000003`; its only function exists in a later form, so applying it would likely fail or regress |
+| `20260928000101` | `merchant_pos_functions.sql` | `set_default_moniepoint_terminal` and the rest of the POS lifecycle are absent |
+| `20260928000102` | `platform_moniepoint_health.sql` | `platform_moniepoint_health()` is absent, so the Moniepoint health panel fails |
+
+Do not apply these blind. They belong to a different workstream, `099` is
+superseded, and `098` is a dependency of `099`. They need a decision from whoever
+owns the onboarding and merchant-POS work, not a mechanical apply.
+
+## Environment variables the billing functions need
+
+Set these as Edge Function secrets (`supabase secrets set NAME=value`), never in a
+client bundle, a log line or a screenshot:
+
+| Name | Required for | Notes |
+| --- | --- | --- |
+| `PAYMENTS_ENVIRONMENT` | every mode decision | `production`, `staging` or `development`. **If it is unset the deployment is treated as production and mock mode is refused** - deliberately fail-closed |
+| `PAYSTACK_SECRET_KEY_LIVE` | live payments | must begin with `sk_live_`. Its absence is why `payments-config` currently reports `PAYMENTS_UNAVAILABLE` and why checkout refuses |
+| `PAYSTACK_SECRET_KEY_TEST` | test payments | must begin with `sk_test_` |
+| `PAYMENTS_MOCK_ENABLED` | mock checkout | must be exactly `true` **and** the environment must be staging or development. Both conditions are server-side; no request can select mock mode |
+
+`PAYSTACK_SECRET_KEY` (the bare name) is **ignored** by the current functions, on
+purpose: accepting it would reintroduce the assumption that any secret means the
+system is live. If it is set, the config reports that it is being ignored.
+
+The webhook endpoint to register with Paystack is
+`https://<project-ref>.supabase.co/functions/v1/paystack-webhook`. It is the only
+one of these functions that skips JWT verification, because Paystack cannot send a
+Supabase session; it authenticates by HMAC signature instead, trying the test and
+live keys and treating which one verifies as the evidence of the mode.
+
+## Smoke test after any deploy
+
+1. `curl -sI https://trackoja.cv/assets/<the bundle index.html names>` returns
+   JavaScript, not `text/html`, and a size in the hundreds of KB.
+2. Load `https://trackoja.cv` with the console open: the page renders and there are
+   no MIME-type errors.
+3. The pricing section shows the published plans, and the monthly/annual toggle
+   switches between `22,500` and `225,000` for Standard.
+4. Sign in as a business owner and open Billing: the status block, usage and the
+   plan comparison render.
+5. With payments unconfigured, the checkout refuses with "Online subscription
+   payments are not available yet. Start a free trial" and **no** entitlement is
+   created.
+6. As a platform admin, open the platform billing area's Payments section: the
+   transaction table renders rows. If it shows an error state, the transactions RPC
+   repair has not been deployed.
+7. Confirm the deployed Edge Function versions with
+   `supabase functions list --project-ref <ref>`; `paystack-initialize` must not be
+   version 4.
+
