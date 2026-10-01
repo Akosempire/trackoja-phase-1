@@ -96,12 +96,16 @@ export function AppLayout() {
               <MerchantCommandSearch />
             </div>
             <div className="workspace-topbar-actions">
-              <StoreSwitcher />
+              <button type="button" className="topbar-pill">Get started</button>
               {profile?.isPlatformAdmin && (
                 <NavLink to="/platform" className={({ isActive }) => `app-nav-link${isActive ? ' active' : ''}`}>
                   Platform
                 </NavLink>
               )}
+              <button type="button" className="topbar-icon" aria-label="View workspace">◎</button>
+              <button type="button" className="topbar-icon" aria-label="Notifications">1</button>
+              <button type="button" className="topbar-pill">Feedback</button>
+              <span className="topbar-avatar" aria-hidden="true">{profile?.firstName?.[0]?.toUpperCase() ?? profile?.email?.[0]?.toUpperCase() ?? 'U'}</span>
               <Button variant="ghost" className="btn-sm" onClick={handleLogout} disabled={loggingOut}>
                 {loggingOut ? 'Logging out...' : 'Log out'}
               </Button>

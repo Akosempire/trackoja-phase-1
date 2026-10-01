@@ -279,14 +279,14 @@ export default function DashboardPage() {
       ? 'Sales data is unavailable'
       : 'Reports access is required';
 
-  const kpis = [
-    canReadReports && summary ? { label: 'Gross sales', value: formatMoney(summary.totalRevenue), foot: 'Completed sales today', tone: 'brand' as const } : null,
-    canReadReports && summary ? { label: 'Transactions', value: formatNumber(summary.transactionCount), foot: 'Completed checkouts' } : null,
-    canReadReports && summary ? { label: 'Average sale', value: formatMoney(averageSale), foot: summary.transactionCount ? 'Per transaction' : 'No completed sales yet' } : null,
-    canReadInventory && lowStock ? { label: `${experience.terminology.stock} alerts`, value: formatNumber(lowStock.length), foot: 'Low or out of stock', tone: lowStock.length ? 'warning' as const : 'default' as const } : null,
-    canReadCustomers && customerCount !== null ? { label: `${experience.terminology.customer}s`, value: formatNumber(customerCount), foot: 'Active records' } : null,
-    canReadInventory && trackedProducts ? { label: 'Items tracked', value: formatNumber(trackedProducts.length), foot: 'Current stock snapshot' } : null,
-  ].filter((item): item is { label: string; value: string; foot: string; tone?: 'default' | 'brand' | 'warning' } => Boolean(item));
+  const overviewCards = [
+    canReadReports && summary ? { label: 'Gross Volume', value: formatMoney(summary.totalRevenue), noData: summary.transactionCount === 0 } : null,
+    canReadReports && summary ? { label: 'Net Volume', value: formatMoney(summary.totalRevenue), noData: summary.transactionCount === 0 } : null,
+    canReadCustomers && customerCount !== null ? { label: 'New Customers', value: formatNumber(customerCount), noData: customerCount === 0 } : null,
+    canReadReports && summary ? { label: 'Average sale', value: formatMoney(averageSale), noData: summary.transactionCount === 0 } : null,
+    canReadInventory && lowStock ? { label: `${experience.terminology.stock} alerts`, value: formatNumber(lowStock.length), noData: lowStock.length === 0 } : null,
+    canReadInventory && trackedProducts ? { label: 'Items tracked', value: formatNumber(trackedProducts.length), noData: trackedProducts.length === 0 } : null,
+  ].filter((item): item is { label: string; value: string; noData: boolean } => Boolean(item));
 
   const duplicateMetricKeys = new Set(['sales_today', 'transactions_today', 'low_stock', 'clients']);
   const operationalMetrics = resolved.filter(({ metric }) => !duplicateMetricKeys.has(metric.key));
@@ -374,35 +374,56 @@ export default function DashboardPage() {
               />
             )}
             <aside className="dashboard-support-stack" aria-label="Current business status">
-              <section className="dashboard-support-card">
-                <span className="dashboard-support-label">Today</span>
-                <strong>{summary ? formatMoney(summary.totalRevenue) : 'Unavailable'}</strong>
-                <p>{salesSubtitle}</p>
+              <section className="dashboard-balance-card">
+                <span className="dashboard-support-label">Branch Balance</span>
+                <strong>{summary ? formatMoney(summary.totalRevenue) : formatMoney(0)}</strong>
+                <div className="dashboard-balance-meter" aria-hidden="true"><span /></div>
+                <div className="dashboard-balance-row">
+                  <span>Available</span>
+                  <span>Pending</span>
+                  <strong>{summary ? formatMoney(summary.totalRevenue) : formatMoney(0)} available</strong>
+                </div>
+                <div className="dashboard-withdrawal-row">
+                  <span>Last withdrawal<br /><strong>{formatMoney(0)}</strong></span>
+                  <button type="button">Withdraw funds</button>
+                </div>
               </section>
-              {canReadInventory && (
-                <Link className="dashboard-support-card dashboard-support-link" to="/inventory/products">
-                  <span className="dashboard-support-label">{experience.terminology.stock}</span>
-                  <strong>{lowStock ? formatNumber(lowStock.length) : 'Unavailable'}</strong>
-                  <p>{lowStock && lowStock.length ? 'Items need stock attention' : 'No low-stock items need attention'}</p>
-                </Link>
-              )}
-              {canReadCustomers && (
-                <Link className="dashboard-support-card dashboard-support-link" to="/customers">
-                  <span className="dashboard-support-label">{experience.terminology.customer}s</span>
-                  <strong>{customerCount !== null ? formatNumber(customerCount) : 'Unavailable'}</strong>
-                  <p>Customer records and balances</p>
-                </Link>
-              )}
+              <section className="dashboard-recent-payments-card">
+                <span className="dashboard-support-label">Recent payments</span>
+                <div className="dashboard-payment-skeleton" aria-hidden="true">
+                  <span />
+                  <span />
+                  <span />
+                </div>
+                <strong>Nothing here yet</strong>
+                <p>Your incoming payments will appear here.</p>
+              </section>
             </aside>
           </section>
 
-          {kpis.length > 0 && (
-            <section className="owner-metrics" aria-label="Key business metrics">
-              <KpiGrid>
-                {kpis.map((metric) => (
-                  <KpiCard key={metric.label} label={metric.label} value={metric.value} foot={metric.foot} tone={metric.tone ?? 'default'} />
+          {overviewCards.length > 0 && (
+            <section className="dashboard-overview-section" aria-label="Overview metrics">
+              <div className="dashboard-overview-head">
+                <h2>Overview</h2>
+                <button type="button" className="dashboard-customize-button">Customize</button>
+              </div>
+              <div className="dashboard-overview-filters">
+                <button type="button">Last 3 months</button>
+                <button type="button">3 Jul 2026 to 1 Oct 2026</button>
+              </div>
+              <div className="dashboard-overview-cards">
+                {overviewCards.slice(0, 6).map((metric) => (
+                  <section className="dashboard-overview-card" key={metric.label}>
+                    <span>{metric.label}</span>
+                    <strong>{metric.value}</strong>
+                    <div className="dashboard-mini-chart" aria-hidden="true">
+                      <span />
+                      <span />
+                      <i>{metric.noData ? 'No data available' : salesSubtitle}</i>
+                    </div>
+                  </section>
                 ))}
-              </KpiGrid>
+              </div>
             </section>
           )}
 
