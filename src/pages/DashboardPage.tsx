@@ -258,13 +258,15 @@ export default function DashboardPage() {
 
   const canUseAction = (route: string) => {
     if (permissionsLoading || (routeModule(route) && !enabled.includes(routeModule(route)!))) return false;
+    if (route === '/jobs') return hasPermission('job:create');
+    if (route.startsWith('/sales') && route !== '/sales/checkout') return canReadSales;
     if (route === '/sales/checkout') return hasPermission('sales:create');
     if (route === '/inventory/products/new') return hasPermission('product:create');
     if (route === '/kitchen') return canReadSales;
     if (route.startsWith('/inventory')) return canReadInventory;
     if (route === '/customers/new') return hasPermission('customer:create');
     if (route.startsWith('/customers')) return canReadCustomers;
-    if (route.startsWith('/jobs')) return hasPermission('job:create');
+    if (route.startsWith('/jobs')) return route.includes('new=1') ? hasPermission('job:create') : canReadJobs;
     if (route === '/settings') return hasPermission('store:update');
     return true;
   };
@@ -273,20 +275,14 @@ export default function DashboardPage() {
   const outOfStockCount = trackedProducts?.filter((product) => product.stockQty <= 0).length ?? null;
   const uncategorizedProducts = products?.filter((product) => !product.categoryId).length ?? null;
   const averageSale = summary && summary.transactionCount > 0 ? summary.totalRevenue / summary.transactionCount : 0;
-  const salesSubtitle = summary
-    ? `${formatNumber(summary.transactionCount)} completed ${summary.transactionCount === 1 ? 'sale' : 'sales'} today`
-    : canReadReports
-      ? 'Sales data is unavailable'
-      : 'Reports access is required';
-
-  const overviewCards = [
-    canReadReports && summary ? { label: 'Gross Volume', value: formatMoney(summary.totalRevenue), noData: summary.transactionCount === 0 } : null,
-    canReadReports && summary ? { label: 'Net Volume', value: formatMoney(summary.totalRevenue), noData: summary.transactionCount === 0 } : null,
-    canReadCustomers && customerCount !== null ? { label: 'New Customers', value: formatNumber(customerCount), noData: customerCount === 0 } : null,
-    canReadReports && summary ? { label: 'Average sale', value: formatMoney(averageSale), noData: summary.transactionCount === 0 } : null,
-    canReadInventory && lowStock ? { label: `${experience.terminology.stock} alerts`, value: formatNumber(lowStock.length), noData: lowStock.length === 0 } : null,
-    canReadInventory && trackedProducts ? { label: 'Items tracked', value: formatNumber(trackedProducts.length), noData: trackedProducts.length === 0 } : null,
-  ].filter((item): item is { label: string; value: string; noData: boolean } => Boolean(item));
+  const kpis = [
+    canReadReports && summary ? { label: 'Sales revenue today', value: formatMoney(summary.totalRevenue), foot: 'Completed sales today', tone: 'brand' as const } : null,
+    canReadReports && summary ? { label: 'Transactions', value: formatNumber(summary.transactionCount), foot: 'Completed today' } : null,
+    canReadReports && summary ? { label: 'Average sale', value: formatMoney(averageSale), foot: summary.transactionCount ? 'Per completed sale today' : 'No completed sales yet' } : null,
+    canReadInventory && lowStock ? { label: `${experience.terminology.stock} alerts`, value: formatNumber(lowStock.length), foot: 'Low or out of stock', tone: lowStock.length ? 'warning' as const : 'default' as const } : null,
+    canReadCustomers && customerCount !== null ? { label: `${experience.terminology.customer}s`, value: formatNumber(customerCount), foot: 'All customer records' } : null,
+    canReadInventory && trackedProducts ? { label: 'Items tracked', value: formatNumber(trackedProducts.length), foot: 'Current stock snapshot' } : null,
+  ].filter((item): item is { label: string; value: string; foot: string; tone?: 'default' | 'brand' | 'warning' } => Boolean(item));
 
   const duplicateMetricKeys = new Set(['sales_today', 'transactions_today', 'low_stock', 'clients']);
   const operationalMetrics = resolved.filter(({ metric }) => !duplicateMetricKeys.has(metric.key));
@@ -302,15 +298,12 @@ export default function DashboardPage() {
     canReadInventory && uncategorizedProducts !== null && uncategorizedProducts > 0
       ? { title: `${uncategorizedProducts} uncategorized ${experience.terminology.lineItem.toLowerCase()}${uncategorizedProducts === 1 ? '' : 's'}`, body: 'Categories make checkout and reports easier to scan.', to: '/inventory/categories' }
       : null,
-    canReadReports && summary && summary.transactionCount === 0 && canUseAction(experience.primaryAction.route)
-      ? { title: `No ${experience.terminology.record.toLowerCase()} recorded today`, body: experience.emptyStates.dashboard, to: experience.primaryAction.route === '/jobs' ? '/jobs?new=1' : experience.primaryAction.route }
-      : null,
     canReadCustomers && customerCount === 0 && canUseAction('/customers/new')
       ? { title: `No ${experience.terminology.customer.toLowerCase()} records yet`, body: `Add ${experience.terminology.customer.toLowerCase()}s to track repeat buyers and balances.`, to: '/customers/new' }
       : null,
   ].filter((item): item is { title: string; body: string; to: string } => Boolean(item));
 
-  const hasAvailableData = jobs !== null || summary !== null || products !== null || customerCount !== null || kitchenOrders !== null;
+  const hasAvailableData = activity !== null || jobs !== null || summary !== null || products !== null || customerCount !== null || kitchenOrders !== null;
 
   if (loading || permissionsLoading) return <PageLoader />;
 
@@ -321,10 +314,10 @@ export default function DashboardPage() {
         <div>
           <p className="dashboard-greeting">{store?.name ? `${store.name} workspace` : experience.displayName}</p>
           <h1 className="page-title">{greetingForNow(profile?.firstName)}</h1>
-          <p className="page-subtitle">Here is an overview of your sales, stock, and business activity. {experience.primaryQuestion}</p>
+          <p className="page-subtitle">{experience.primaryQuestion}</p>
         </div>
         <div className="dashboard-header-actions">
-          <span className="dashboard-date-chip">Today</span>
+          <Button variant="outline" onClick={loadDashboard}>Refresh</Button>
           {experience.primaryAction.implemented && canUseAction(experience.primaryAction.route) && (
             <Button onClick={() => navigate(experience.primaryAction.route === '/jobs' ? '/jobs?new=1' : experience.primaryAction.route)}>
               {experience.primaryAction.label}
@@ -373,64 +366,45 @@ export default function DashboardPage() {
                   : undefined}
               />
             )}
-            <aside className="dashboard-support-stack" aria-label="Current business status">
-              <section className="dashboard-balance-card">
-                <span className="dashboard-support-label">Branch Balance</span>
-                <strong>{summary ? formatMoney(summary.totalRevenue) : formatMoney(0)}</strong>
-                <div className="dashboard-balance-meter" aria-hidden="true"><span /></div>
-                <div className="dashboard-balance-row">
-                  <span>Available</span>
-                  <span>Pending</span>
-                  <strong>{summary ? formatMoney(summary.totalRevenue) : formatMoney(0)} available</strong>
-                </div>
-                <div className="dashboard-withdrawal-row">
-                  <span>Last withdrawal<br /><strong>{formatMoney(0)}</strong></span>
-                  <button type="button">Withdraw funds</button>
-                </div>
-              </section>
-              <section className="dashboard-recent-payments-card">
-                <span className="dashboard-support-label">Recent payments</span>
-                <div className="dashboard-payment-skeleton" aria-hidden="true">
-                  <span />
-                  <span />
-                  <span />
-                </div>
-                <strong>Nothing here yet</strong>
-                <p>Your incoming payments will appear here.</p>
+            <aside className="dashboard-support-stack" aria-label="Business actions and activity">
+              {experience.secondaryActions.some(action => action.implemented && canUseAction(action.route)) && (
+                <section className="card dashboard-quick-actions" aria-labelledby="quick-actions-title">
+                  <SectionHead id="quick-actions-title" title="Quick actions" />
+                  <p className="section-sub">Keep your {experience.displayName.toLowerCase()} moving.</p>
+                  <div className="dashboard-action-list">
+                    {experience.secondaryActions.filter(action => action.implemented && canUseAction(action.route)).map(action => (
+                      <Link className="btn btn-outline" key={action.route} to={action.route}>{action.label}</Link>
+                    ))}
+                  </div>
+                </section>
+              )}
+              <section className="card dash-panel" aria-labelledby="recent-activity-title">
+                <SectionHead id="recent-activity-title" title="Recent activity" actions={<Link className="btn btn-ghost btn-sm" to="/activity">View all</Link>} />
+                {activity === null
+                  ? <StateBlock compact variant="error" title="Activity unavailable" actions={<Button variant="outline" onClick={loadDashboard}>Try again</Button>} />
+                  : <BusinessActivity logs={activity.slice(0, 3)} actorId={profile?.id} actorName={profile?.firstName} />}
               </section>
             </aside>
           </section>
 
-          {overviewCards.length > 0 && (
-            <section className="dashboard-overview-section" aria-label="Overview metrics">
-              <div className="dashboard-overview-head">
-                <h2>Overview</h2>
-                <button type="button" className="dashboard-customize-button">Customize</button>
+          {kpis.length > 0 && (
+            <section className="owner-metrics" aria-label="Key business metrics">
+              <div className="owner-dashboard-snapshot">
+                <h2>Business overview</h2>
+                <p>Sales figures cover today. Stock and customer counts show the current branch.</p>
               </div>
-              <div className="dashboard-overview-filters">
-                <button type="button">Last 3 months</button>
-                <button type="button">3 Jul 2026 to 1 Oct 2026</button>
-              </div>
-              <div className="dashboard-overview-cards">
-                {overviewCards.slice(0, 6).map((metric) => (
-                  <section className="dashboard-overview-card" key={metric.label}>
-                    <span>{metric.label}</span>
-                    <strong>{metric.value}</strong>
-                    <div className="dashboard-mini-chart" aria-hidden="true">
-                      <span />
-                      <span />
-                      <i>{metric.noData ? 'No data available' : salesSubtitle}</i>
-                    </div>
-                  </section>
+              <KpiGrid>
+                {kpis.map((metric) => (
+                  <KpiCard key={metric.label} label={metric.label} value={metric.value} foot={metric.foot} tone={metric.tone ?? 'default'} />
                 ))}
-              </div>
+              </KpiGrid>
             </section>
           )}
 
           <section className="dashboard-attention" aria-labelledby="dashboard-attention-title">
             <SectionHead id="dashboard-attention-title" title="Needs attention" />
             {attentionItems.length === 0 ? (
-              <HealthyStrip>No urgent business issues need attention right now.</HealthyStrip>
+              <HealthyStrip>{partialFailures > 0 ? "Some checks are unavailable. Retry above for a complete overview." : "No urgent business issues need attention right now."}</HealthyStrip>
             ) : (
               <div className="dashboard-attention-grid">
                 {attentionItems.slice(0, 4).map((item) => (
@@ -459,7 +433,7 @@ export default function DashboardPage() {
                       value={value}
                       foot={sub}
                       tone={tone}
-                      onClick={metric.linkTo && (metric.linkTo.startsWith('/sales') ? canReadSales : true) ? () => navigate(metric.linkTo!) : undefined}
+                      onClick={metric.linkTo && (metric.linkTo.startsWith('/jobs') ? canReadJobs : canUseAction(metric.linkTo)) ? () => navigate(metric.linkTo!) : undefined}
                       ariaLabel={metric.linkTo ? `${metric.label}: ${value}. Open details` : undefined}
                     />
                   );
@@ -478,6 +452,9 @@ export default function DashboardPage() {
                 />
                 {lowStock === null ? (
                   <StateBlock compact variant="error" title="Stock status unavailable" body="Inventory could not be loaded." actions={<Button variant="outline" className="btn-sm" onClick={loadDashboard}>Try again</Button>} />
+                ) : trackedProducts?.length === 0 ? (
+                  <StateBlock compact title="No stock tracked yet" body={`Add your ${experience.terminology.lineItem.toLowerCase()}s to start monitoring stock.`}
+                    actions={canUseAction('/inventory/products/new') ? <Link className="btn btn-outline btn-sm" to="/inventory/products/new">Add {experience.terminology.lineItem.toLowerCase()}</Link> : undefined} />
                 ) : lowStock.length === 0 ? (
                   <HealthyStrip>No low-stock {experience.terminology.lineItem.toLowerCase()} need attention.</HealthyStrip>
                 ) : (
@@ -495,12 +472,7 @@ export default function DashboardPage() {
                 )}
               </section>
             )}
-            <section className="card dash-panel" aria-labelledby="recent-activity-title">
-              <SectionHead id="recent-activity-title" title="Recent activity" actions={<Link className="btn btn-ghost btn-sm" to="/activity">View activity</Link>} />
-              {activity === null
-                ? <StateBlock compact variant="error" title="Activity unavailable" actions={<Button variant="outline" onClick={loadDashboard}>Try again</Button>} />
-                : <BusinessActivity logs={activity.slice(0, 3)} actorId={profile?.id} actorName={profile?.firstName} />}
-            </section>
+
           </div>
         </>
       )}

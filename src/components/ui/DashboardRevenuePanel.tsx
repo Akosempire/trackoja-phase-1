@@ -1,8 +1,9 @@
 import { useEffect, useId, useMemo, useState, type ReactNode } from 'react';
 import { Button } from './Button';
+import { SegmentedControl } from './SegmentedControl';
 import { StateBlock } from './StateBlock';
 import { formatMoney, formatNumber } from '../../utils/format';
-import { getReportDateRange, type ReportDateRange } from '../../utils/report-date-ranges';
+import { formatReportDateRange, getReportDateRange, REPORT_DATE_RANGE_PRESETS, type ReportDateRange } from '../../utils/report-date-ranges';
 import type { ReportDateRangePreset } from '../../utils/report-date-ranges';
 import '../../styles/owner-dashboard.css';
 
@@ -41,42 +42,16 @@ export function DashboardRevenuePanel({ load, title, breakdownTitle, note, empty
   const retryButton = <Button variant="outline" className="btn-sm" onClick={retry}>Try again</Button>;
   const rows = data?.rows?.filter(row => Number.isFinite(row.amount)).sort((a, b) => b.amount - a.amount);
   const max = Math.max(1, ...(rows ?? []).map(row => Math.abs(row.amount)));
-  const startLabel = range.from ? new Date(range.from).toLocaleDateString('en-NG', { month: 'short', day: 'numeric' }) : '';
-  const endLabel = range.to ? new Date(range.to).toLocaleDateString('en-NG', { month: 'short', day: 'numeric' }) : '';
-  const emptyHint = emptyDescription || (emptyAction ? 'No revenue in this period' : '');
 
   return <section className="dashboard-revenue" aria-labelledby={id} aria-busy={!current}>
-    <header className="dashboard-revenue-head">
-      <div>
-        <h2 id={id}>{title}</h2>
-        <div className="dashboard-revenue-total">
-          <strong>{data ? formatMoney(data.total) : formatMoney(0)}</strong>
-          <button type="button" className="dashboard-period" onClick={() => setPreset(value => value === 'last30' ? 'thisMonth' : 'last30')}>
-            {preset === 'last30' ? 'Last 30 days' : 'This month'}
-          </button>
-        </div>
-      </div>
-      <div className="dashboard-currency-pill" aria-label="Currency">
-        <span>NGN</span>
-        <span>USD</span>
-      </div>
-    </header>
+    <header className="dashboard-revenue-head"><h2 id={id}>{title}</h2><span className="badge">NGN</span></header>
+    <SegmentedControl label={`${title} period`} value={preset} options={REPORT_DATE_RANGE_PRESETS} onChange={setPreset} />
+    <p className="dashboard-period">{formatReportDateRange(range)}</p>
     {!current ? <div className="dashboard-revenue-loading" role="status" aria-label="Loading revenue"><span className="skeleton skeleton-text" /><span className="skeleton skeleton-text is-short" /></div> : current.error || !data ? (
       <StateBlock variant="error" title="Revenue unavailable" body="The selected period could not be loaded." actions={retryButton} />
     ) : <>
-      <div className="dashboard-chart" aria-label={`${formatNumber(data.count)} completed ${data.count === 1 ? 'transaction' : 'transactions'}`}>
-        <span />
-        <span />
-        <span />
-        <span />
-        <span />
-        <span />
-        <span />
-        <span />
-        <div className="dashboard-chart-baseline" />
-        <div className="dashboard-chart-axis"><span>{startLabel}</span><span>{endLabel}</span></div>
-      </div>
-      {data.count === 0 ? (emptyHint ? <span className="sr-only">{emptyHint}</span> : null) : data.rows === null ? (
+      <div className="dashboard-revenue-total"><strong>{formatMoney(data.total)}</strong><span>{formatNumber(data.count)} completed {data.count === 1 ? 'transaction' : 'transactions'}</span></div>
+      {data.count === 0 ? <StateBlock compact title="No revenue in this period" body={emptyDescription} actions={emptyAction} /> : data.rows === null ? (
         <StateBlock compact variant="error" title="Breakdown unavailable" body="The revenue total is available, but its breakdown could not load." actions={retryButton} />
       ) : rows?.length ? <div className="dashboard-breakdown">
         <h3>{breakdownTitle}</h3>

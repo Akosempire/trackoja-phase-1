@@ -58,3 +58,15 @@ it('a failed dashboard source is not rendered as a zero', async () => {
   expect(host.querySelector('.owner-metrics')?.textContent).not.toContain('Sales today');
   expect(host.querySelector('.dashboard-revenue')?.textContent).not.toContain('No revenue in this period');
 });
+
+it('uses sales and customer meanings instead of wallet or gross/net placeholders', async () => {
+  state.category = 'general_retail'; state.allowed = true;
+  state.summary.mockResolvedValue({ totalRevenue: 22500, transactionCount: 3 });
+  await act(async () => root.render(createElement(MemoryRouter, {}, createElement(DashboardPage))));
+  const overview = host.querySelector('.owner-metrics')!.textContent;
+  expect(overview).toContain('Sales revenue today');
+  expect(overview).toContain('\u20a622,500');
+  expect(overview).toContain('\u20a67,500');
+  expect(overview).toContain('All customer records');
+  expect(host.textContent).not.toMatch(/Withdraw funds|Gross Volume|Net Volume|New Customers|USD|Last withdrawal/);
+});
