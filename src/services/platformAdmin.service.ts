@@ -96,12 +96,28 @@ export interface PlatformOverviewV2 {
   sandboxBusinesses: number;
 }
 
+/**
+ * One checkout attempt as the Platform Owner transaction table shows it.
+ *
+ * The column list is the repaired `list_platform_commercial_transactions`
+ * (migration 20261001000002), which is the only thing that reads
+ * `subscription_transactions` platform-wide: `productName` comes from
+ * `platform_products` (the catalogue) and never from `products`, which is the
+ * merchant inventory table.
+ */
 export interface CommercialTransaction {
   reference: string;
+  orgId: string;
   businessName: string;
+  businessIsSandbox: boolean;
+  /** COALESCEd to 'TrackOja' in SQL for a pre-attribution transaction. */
   productName: string | null;
   planName: string | null;
+  planKey: string | null;
+  /** The number of the immutable plan version bought; the legacy plan has none. */
   planVersion: number | null;
+  planVersionId: string | null;
+  billingCycle: string | null;
   amountMinor: number | null;
   currency: string;
   status: string;
@@ -111,8 +127,190 @@ export interface CommercialTransaction {
   failureReason: string | null;
   createdAt: string;
   paidAt: string | null;
+  verifiedAt: string | null;
+  settledBy: string | null;
+  gatewayReference: string | null;
+  providerReference: string | null;
   invoiceNumber: string | null;
   receiptNumber: string | null;
+  subscriptionStatus: string | null;
+  entitlementStatus: string | null;
+  entitlementExpiresAt: string | null;
+  auditEventCount: number;
+  webhookEventCount: number;
+}
+
+/**
+ * The transaction list's filters, applied in SQL rather than in the browser.
+ *
+ * The row limit is applied before a client-side filter would be, so filtering here
+ * would hide matching rows behind newer non-matching ones. Every filter is sent to
+ * the endpoint, and a value that is NULL, empty or the literal 'all' means "do not
+ * filter on this" — which is why 'all' is a legitimate value for the token filters
+ * and not a client-only convention.
+ */
+export interface CommercialTransactionFilters {
+  /** Free text across reference, business, product, plan, both documents and both gateway identifiers. */
+  search?: string;
+  /** `pending` | `success` | `failed` | `abandoned` | `all`. */
+  status?: string;
+  /** `live` | `test` | `mock` | `uninitialized` | `all`. NULL payment_mode filters as `uninitialized`. */
+  paymentMode?: string;
+  /** `production` | `staging` | `development` | `unknown` | `all`. NULL environment filters as `unknown`. */
+  environment?: string;
+  /** One business. The console's table is platform-wide and offers no field for this. */
+  orgId?: string;
+  /** Inclusive ISO timestamps compared against `created_at`. */
+  from?: string;
+  to?: string;
+  /** true = test rows only, false = production rows only, null/undefined = both. */
+  testOnly?: boolean | null;
+  limit?: number;
+}
+
+/** The business a checkout attempt belongs to, as the detail payload reports it. */
+export interface CommercialTransactionBusiness {
+  id: string;
+  name: string;
+  billingEmail: string | null;
+  isSandbox: boolean;
+  billingStatus: string | null;
+}
+
+/** The catalogue product, from `platform_products`, not the merchant inventory table. */
+export interface CommercialTransactionProduct {
+  id: string;
+  key: string;
+  name: string;
+}
+
+/** The immutable plan version bought. NULL only for a transaction with no version. */
+export interface CommercialTransactionPlan {
+  versionId: string;
+  planKey: string | null;
+  displayName: string | null;
+  version: number | null;
+  billingCycle: string | null;
+  amountMinor: number | null;
+  setupFeeMinor: number | null;
+  currency: string | null;
+  status: string | null;
+}
+
+export interface CommercialTransactionInvoiceLine {
+  type: string;
+  description: string | null;
+  unitAmountMinor: number | null;
+  totalAmountMinor: number | null;
+}
+
+export interface CommercialTransactionInvoice {
+  number: string;
+  status: string;
+  currency: string;
+  subtotalMinor: number | null;
+  totalMinor: number | null;
+  billingEmail: string | null;
+  isTestData: boolean;
+  issuedAt: string | null;
+  paidAt: string | null;
+  lines: CommercialTransactionInvoiceLine[];
+}
+
+export interface CommercialTransactionReceipt {
+  number: string;
+  amountMinor: number | null;
+  currency: string;
+  paymentMode: string;
+  providerReference: string | null;
+  isTestData: boolean;
+  paidAt: string | null;
+}
+
+export interface CommercialTransactionSubscriptionEffect {
+  subscriptionId: string;
+  status: string;
+  currentPeriodStart: string | null;
+  currentPeriodEnd: string | null;
+  cancelAtPeriodEnd: boolean | null;
+  entitlementStatus: string | null;
+  entitlementActivatedAt: string | null;
+  entitlementExpiresAt: string | null;
+  entitlementPlanVersionId: string | null;
+}
+
+/**
+ * Derived events are assembled server-side from stored timestamps, webhook events
+ * and audit rows. `source` names the table and column each entry came from, which is
+ * how a reader tells a recorded fact from a derived one; `detail` is only present on
+ * webhook and audit entries.
+ */
+export type CommercialTransactionTimelineKind =
+  | 'checkout_opened'
+  | 'initialized'
+  | 'verified'
+  | 'paid'
+  | 'failed'
+  | 'abandoned'
+  | 'webhook'
+  | 'audit';
+
+export interface CommercialTransactionTimelineEntry {
+  at: string;
+  kind: CommercialTransactionTimelineKind;
+  label: string;
+  source: string;
+  detail?: string | null;
+}
+
+/**
+ * Refunds have no authorised flow in this system, and the endpoint says so with this
+ * marker rather than by omitting the field. `refundable` is always false, so nothing
+ * can read an absent field as "nothing to see here" and offer an action anyway.
+ */
+export interface CommercialTransactionRefund {
+  state: 'not_implemented';
+  reason: string;
+  refundable: false;
+}
+
+/**
+ * One transaction, everything the detail view shows.
+ *
+ * Any of the row-valued keys is JSON `null` when that thing does not exist: no plan
+ * version bought, no invoice issued, no receipt recorded. A null here is a fact about
+ * the record, not a failed load, so the screen states which one it is.
+ */
+export interface CommercialTransactionDetail {
+  reference: string;
+  status: string;
+  amountMinor: number | null;
+  recurringAmountMinor: number | null;
+  setupFeeAmountMinor: number | null;
+  amount: number | null;
+  currency: string;
+  billingCycle: string | null;
+  paymentMode: string | null;
+  environment: string | null;
+  isTestData: boolean;
+  failureReason: string | null;
+  createdAt: string;
+  paidAt: string | null;
+  verifiedAt: string | null;
+  settledBy: string | null;
+  gatewayReference: string | null;
+  providerReference: string | null;
+  /** What the gateway returned, kept whole so the verification has visible evidence. */
+  verificationData: Record<string, unknown> | null;
+  business: CommercialTransactionBusiness | null;
+  product: CommercialTransactionProduct | null;
+  plan: CommercialTransactionPlan | null;
+  legacyPlanName: string | null;
+  invoice: CommercialTransactionInvoice | null;
+  receipt: CommercialTransactionReceipt | null;
+  subscriptionEffect: CommercialTransactionSubscriptionEffect | null;
+  timeline: CommercialTransactionTimelineEntry[];
+  refund: CommercialTransactionRefund;
 }
 
 export interface ProductBusiness {
@@ -425,27 +623,89 @@ export class PlatformAdminService {
     }
   }
 
-  static async listCommercialTransactions(limit = 100): Promise<CommercialTransaction[]> {
-    const { data, error } = await supabase.rpc('list_platform_commercial_transactions', { p_limit: limit });
-    if (error) throw error;
-    return (data ?? []).map((row: any) => ({
-      reference: row.reference,
-      businessName: row.business_name,
-      productName: row.product_name,
-      planName: row.plan_name,
-      planVersion: row.plan_version === null ? null : Number(row.plan_version),
-      amountMinor: row.amount_minor === null ? null : Number(row.amount_minor),
-      currency: row.currency,
-      status: row.status,
-      paymentMode: row.payment_mode,
-      environment: row.environment,
-      isTestData: Boolean(row.is_test_data),
-      failureReason: row.failure_reason,
-      createdAt: row.created_at,
-      paidAt: row.paid_at,
-      invoiceNumber: row.invoice_number,
-      receiptNumber: row.receipt_number,
-    }));
+  /**
+   * The newest matching checkout attempts, newest first.
+   *
+   * Every filter is passed to the endpoint rather than applied to the returned rows:
+   * the limit is applied inside the function, so a filter applied here would only
+   * ever search the page that arrived and would hide a matching row behind newer
+   * non-matching ones.
+   */
+  static async listCommercialTransactions(
+    filters: CommercialTransactionFilters = {},
+  ): Promise<CommercialTransaction[]> {
+    try {
+      const { data, error } = await supabase.rpc('list_platform_commercial_transactions', {
+        p_limit: filters.limit ?? 100,
+        p_status: filters.status ?? null,
+        p_payment_mode: filters.paymentMode ?? null,
+        p_environment: filters.environment ?? null,
+        p_org_id: filters.orgId ?? null,
+        p_search: filters.search ?? null,
+        p_from: filters.from ?? null,
+        p_to: filters.to ?? null,
+        p_test_only: filters.testOnly ?? null,
+      });
+      if (error) throw error;
+      return (data ?? []).map((row: any) => ({
+        reference: row.reference,
+        orgId: row.org_id,
+        businessName: row.business_name,
+        businessIsSandbox: Boolean(row.business_is_sandbox),
+        productName: row.product_name,
+        planName: row.plan_name,
+        planKey: row.plan_key,
+        planVersion: row.plan_version === null ? null : Number(row.plan_version),
+        planVersionId: row.plan_version_id,
+        billingCycle: row.billing_cycle,
+        amountMinor: row.amount_minor === null ? null : Number(row.amount_minor),
+        currency: row.currency,
+        status: row.status,
+        paymentMode: row.payment_mode,
+        environment: row.environment,
+        isTestData: Boolean(row.is_test_data),
+        failureReason: row.failure_reason,
+        createdAt: row.created_at,
+        paidAt: row.paid_at,
+        verifiedAt: row.verified_at,
+        settledBy: row.settled_by,
+        gatewayReference: row.gateway_reference,
+        providerReference: row.provider_reference,
+        invoiceNumber: row.invoice_number,
+        receiptNumber: row.receipt_number,
+        subscriptionStatus: row.subscription_status,
+        entitlementStatus: row.entitlement_status,
+        entitlementExpiresAt: row.entitlement_expires_at,
+        auditEventCount: Number(row.audit_event_count ?? 0),
+        webhookEventCount: Number(row.webhook_event_count ?? 0),
+      }));
+    } catch (error) {
+      console.error('List platform commercial transactions error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * One transaction with everything the detail view shows, in a single call.
+   *
+   * The endpoint answers with one JSON object whose keys the type above already
+   * names, so it is returned as read rather than re-keyed through a mapper: a
+   * second field-by-field copy could not change the answer and would only be a
+   * place for the two shapes to drift apart. A reference that does not exist is an
+   * error from the endpoint, not an empty object.
+   */
+  static async getCommercialTransaction(reference: string): Promise<CommercialTransactionDetail> {
+    try {
+      const { data, error } = await supabase.rpc('get_platform_commercial_transaction', {
+        p_reference: reference,
+      });
+      if (error) throw error;
+      if (!data) throw new Error(`No transaction detail was returned for ${reference}.`);
+      return data as CommercialTransactionDetail;
+    } catch (error) {
+      console.error('Get platform commercial transaction error:', error);
+      throw error;
+    }
   }
 
   // ---------------------------------------------------------- products

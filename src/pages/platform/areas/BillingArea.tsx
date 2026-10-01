@@ -15,6 +15,8 @@ import {
   type ProductPlan,
   type SubscriptionAdjustment,
   type CommercialTransaction,
+  type CommercialTransactionDetail,
+  type CommercialTransactionFilters,
 } from '../../../services/platformAdmin.service';
 import { PlatformService } from '../../../services/platform.service';
 import { usePlatform } from '../../../components/platform/PlatformContext';
@@ -209,6 +211,16 @@ function toTimestamp(dateOnly: string): string | null {
   // Local midnight, then to ISO: the date stored is the date the operator typed,
   // read back in their own timezone, rather than a UTC-midnight day.
   const parsed = new Date(`${dateOnly}T00:00:00`);
+  return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
+}
+
+/**
+ * The same day widened to its last millisecond, so a `to` bound includes the whole
+ * day the operator typed rather than stopping at its midnight.
+ */
+function toEndOfDayTimestamp(dateOnly: string): string | null {
+  if (!dateOnly) return null;
+  const parsed = new Date(`${dateOnly}T23:59:59.999`);
   return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
 }
 
@@ -1629,63 +1641,858 @@ interface CompareState {
   error: string | null;
 }
 
-function CommercialTransactionsPanel({ permitted, refreshToken }: { permitted: boolean; refreshToken: number }) {
+/**
+ * The statuses `subscription_transactions` can hold, from its own CHECK constraint.
+ *
+ * Declared rather than derived from the rows on screen: the rows are now one filtered
+ * page, so a derived list would lose an option the moment that filter was used.
+ */
+const TRANSACTION_STATUSES = ['pending', 'success', 'failed', 'abandoned'] as const;
+
+/**
+ * The stored payment modes and environments, plus the stand-in the endpoint compares a
+ * NULL column against. Selecting "Not recorded" therefore matches a row whose column is
+ * NULL, which is exactly what the endpoint does with `uninitialized` and `unknown`.
+ */
+const TRANSACTION_PAYMENT_MODES: { value: string; label: string }[] = [
+  { value: 'live', label: 'Live' },
+  { value: 'test', label: 'Test' },
+  { value: 'mock', label: 'Mock' },
+  { value: 'uninitialized', label: 'Not recorded' },
+];
+
+const TRANSACTION_ENVIRONMENTS: { value: string; label: string }[] = [
+  { value: 'production', label: 'Production' },
+  { value: 'staging', label: 'Staging' },
+  { value: 'development', label: 'Development' },
+  { value: 'unknown', label: 'Not recorded' },
+];
+
+/** The window the table asks for. The endpoint caps its own limit at 500 regardless. */
+const TRANSACTION_WINDOW = 100;
+
+type TestDataFilter = 'all' | 'test' | 'production';
+
+interface TransactionQuery {
+  search: string;
+  status: string;
+  paymentMode: string;
+  environment: string;
+  from: string;
+  to: string;
+  testData: TestDataFilter;
+}
+
+const NO_TRANSACTION_QUERY: TransactionQuery = {
+  search: '',
+  status: 'all',
+  paymentMode: 'all',
+  environment: 'all',
+  from: '',
+  to: '',
+  testData: 'all',
+};
+
+function hasActiveTransactionFilters(query: TransactionQuery): boolean {
+  return (
+    query.search !== '' ||
+    query.status !== 'all' ||
+    query.paymentMode !== 'all' ||
+    query.environment !== 'all' ||
+    query.from !== '' ||
+    query.to !== '' ||
+    query.testData !== 'all'
+  );
+}
+
+/**
+ * The transaction table and its filters.
+ *
+ * Every filter goes to the endpoint. Filtering the returned page here would look
+ * identical on a small table and be wrong on a large one: the row limit is applied
+ * inside the function, so a browser-side filter would only ever search the newest page
+ * and would hide a match behind newer non-matching rows. The trade is that an empty
+ * result is now a real answer — no attempt matches — rather than "none in this page".
+ */
+function CommercialTransactionsPanel({
+  permitted,
+  refreshToken,
+  initialStatus = 'all',
+}: {
+  permitted: boolean;
+  refreshToken: number;
+  /** Seeds the status filter so an inbound failed-payments link lands filtered. */
+  initialStatus?: string;
+}) {
   const [rows, setRows] = useState<CommercialTransaction[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [retry, setRetry] = useState(0);
-  const [query, setQuery] = useState('');
-  const [status, setStatus] = useState('all');
+  const [query, setQuery] = useState<TransactionQuery>({ ...NO_TRANSACTION_QUERY, status: initialStatus });
+  const [searchDraft, setSearchDraft] = useState('');
+  const [fromDraft, setFromDraft] = useState('');
+  const [toDraft, setToDraft] = useState('');
+  const [detailReference, setDetailReference] = useState<string | null>(null);
+
   useEffect(() => {
     if (!permitted) return;
+    let cancelled = false;
     setLoading(true);
     setError(null);
-    PlatformAdminService.listCommercialTransactions()
-      .then(setRows)
-      .catch((cause) => setError(messageOf(cause)))
-      .finally(() => setLoading(false));
-  }, [permitted, refreshToken, retry]);
-  if (!permitted) return <StateBlock variant="denied" title="Payment records are restricted" body="Viewing transactions requires platform:view_payments." />;
-  if (error) return <StateBlock variant="error" title="Transactions unavailable" body={error} actions={<Button variant="outline" className="btn-sm" onClick={() => setRetry((value) => value + 1)}>Try again</Button>} />;
-  const search = query.trim().toLowerCase();
-  const filtered = rows.filter((row) =>
-    (status === 'all' || row.status === status) &&
-    (!search || [row.reference, row.businessName, row.productName, row.planName, row.invoiceNumber, row.receiptNumber]
-      .some((value) => value?.toLowerCase().includes(search))),
-  );
+    const filters: CommercialTransactionFilters = {
+      search: nullIfBlank(query.search) ?? undefined,
+      status: query.status,
+      paymentMode: query.paymentMode,
+      environment: query.environment,
+      // A date input gives a calendar day and the endpoint compares timestamps, so
+      // the range is widened to whole days in this browser's timezone.
+      from: toTimestamp(query.from) ?? undefined,
+      to: toEndOfDayTimestamp(query.to) ?? undefined,
+      testOnly: query.testData === 'all' ? null : query.testData === 'test',
+      limit: TRANSACTION_WINDOW,
+    };
+    PlatformAdminService.listCommercialTransactions(filters)
+      .then((result) => {
+        if (!cancelled) setRows(result);
+      })
+      .catch((cause) => {
+        if (cancelled) return;
+        setRows([]);
+        setError(messageOf(cause));
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [permitted, refreshToken, retry, query]);
+
+  if (!permitted) {
+    return (
+      <StateBlock
+        variant="denied"
+        title="Payment records need platform:view_payments"
+        body="This section opens with platform:manage_payments or platform:view_payments, but list_platform_commercial_transactions and get_platform_commercial_transaction both require platform:view_payments. This account does not hold that key, so no request is made and no transaction is read. A platform owner can grant it from Users & roles."
+      />
+    );
+  }
+
+  if (error) {
+    return (
+      <StateBlock
+        variant="error"
+        title="Transactions unavailable"
+        body={error}
+        actions={
+          <Button variant="outline" className="btn-sm" onClick={() => setRetry((value) => value + 1)}>
+            Try again
+          </Button>
+        }
+      />
+    );
+  }
+
+  const filtersActive = hasActiveTransactionFilters(query);
+  const rangeInverted = query.from !== '' && query.to !== '' && query.from > query.to;
+
+  function applyFilters() {
+    setQuery((current) => ({ ...current, search: searchDraft.trim(), from: fromDraft, to: toDraft }));
+  }
+
+  function setQueryField<K extends keyof TransactionQuery>(key: K, value: TransactionQuery[K]) {
+    setQuery((current) => ({ ...current, [key]: value }));
+  }
+
+  function clearFilters() {
+    setQuery({ ...NO_TRANSACTION_QUERY });
+    setSearchDraft('');
+    setFromDraft('');
+    setToDraft('');
+  }
+
   return (
     <div>
-      <div className="plat-toolbar">
+      <form
+        className="plat-toolbar"
+        onSubmit={(event) => {
+          event.preventDefault();
+          applyFilters();
+        }}
+      >
         <div className="plat-field plat-field-grow">
           <label className="form-label" htmlFor="billing-transaction-search">Search transactions</label>
-          <SearchInput aria-label="Search transactions" id="billing-transaction-search"   value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Reference, business or document" />
+          <SearchInput
+            aria-label="Search transactions"
+            id="billing-transaction-search"
+            value={searchDraft}
+            onChange={(event) => setSearchDraft(event.target.value)}
+            placeholder="Reference, business, plan, document or gateway reference"
+          />
         </div>
+
         <div className="plat-field">
           <label className="form-label" htmlFor="billing-transaction-status">Status</label>
-          <select id="billing-transaction-status" className="select-input" value={status} onChange={(event) => setStatus(event.target.value)}>
+          <select
+            id="billing-transaction-status"
+            className="select-input"
+            value={query.status}
+            onChange={(event) => setQueryField('status', event.target.value)}
+          >
             <option value="all">All statuses</option>
-            {[...new Set(rows.map((row) => row.status))].sort().map((value) => <option key={value} value={value}>{humaniseToken(value)}</option>)}
+            {TRANSACTION_STATUSES.map((value) => (
+              <option key={value} value={value}>{humaniseToken(value)}</option>
+            ))}
           </select>
         </div>
-      </div>
+
+        <div className="plat-field">
+          <label className="form-label" htmlFor="billing-transaction-mode">Payment mode</label>
+          <select
+            id="billing-transaction-mode"
+            className="select-input"
+            value={query.paymentMode}
+            onChange={(event) => setQueryField('paymentMode', event.target.value)}
+          >
+            <option value="all">Any mode</option>
+            {TRANSACTION_PAYMENT_MODES.map((mode) => (
+              <option key={mode.value} value={mode.value}>{mode.label}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="plat-field">
+          <label className="form-label" htmlFor="billing-transaction-environment">Environment</label>
+          <select
+            id="billing-transaction-environment"
+            className="select-input"
+            value={query.environment}
+            onChange={(event) => setQueryField('environment', event.target.value)}
+          >
+            <option value="all">Any environment</option>
+            {TRANSACTION_ENVIRONMENTS.map((environment) => (
+              <option key={environment.value} value={environment.value}>{environment.label}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="plat-field">
+          <label className="form-label" htmlFor="billing-transaction-from">From</label>
+          <input
+            id="billing-transaction-from"
+            className="form-input"
+            type="date"
+            value={fromDraft}
+            onChange={(event) => setFromDraft(event.target.value)}
+          />
+        </div>
+
+        <div className="plat-field">
+          <label className="form-label" htmlFor="billing-transaction-to">To</label>
+          <input
+            id="billing-transaction-to"
+            className="form-input"
+            type="date"
+            value={toDraft}
+            onChange={(event) => setToDraft(event.target.value)}
+          />
+        </div>
+
+        <div className="plat-field">
+          <label className="form-label" htmlFor="billing-transaction-test">Test data</label>
+          <select
+            id="billing-transaction-test"
+            className="select-input"
+            value={query.testData}
+            onChange={(event) => setQueryField('testData', event.target.value as TestDataFilter)}
+          >
+            <option value="all">Test and production</option>
+            <option value="production">Production only</option>
+            <option value="test">Test only</option>
+          </select>
+        </div>
+
+        <Button type="submit" variant="neutral" className="btn-sm">Apply filters</Button>
+        {filtersActive && (
+          <Button type="button" variant="ghost" className="btn-sm" onClick={clearFilters}>Clear filters</Button>
+        )}
+      </form>
+
+      <p className="form-hint">
+        Search and dates apply when you submit; the dropdowns apply as soon as they change. Every filter runs in the
+        database before the row limit, so nothing matching is hidden behind a newer attempt that does not match.
+      </p>
+
+      {rangeInverted && (
+        <p className="form-hint">
+          The From date is after the To date, so no attempt can fall inside the range and the table is empty until one
+          of them is changed.
+        </p>
+      )}
+
       <DataTable
         columns={[
-          { key: 'reference', header: 'Reference', label: '', render: (row) => <><span className="data-table-primary mono">{row.reference}</span>{row.isTestData && <Badge tone="warning">Test</Badge>}</> },
-          { key: 'business', header: 'Business', render: (row) => <><span className="data-table-primary">{row.businessName}</span><span className="data-table-secondary">{row.productName ?? 'Product unavailable'} · {row.planName ?? 'Plan unavailable'}</span></> },
-          { key: 'amount', header: 'Amount', numeric: true, render: (row) => row.amountMinor === null ? '—' : formatMoney(row.amountMinor / 100, row.currency) },
-          { key: 'method', header: 'Method', render: (row) => row.paymentMode ? humaniseToken(row.paymentMode) : '—' },
-          { key: 'status', header: 'Status', render: (row) => <><StatusBadge status={row.status} />{row.failureReason && <span className="data-table-secondary">{row.failureReason}</span>}</> },
-          { key: 'date', header: 'Date', render: (row) => formatDateTime(row.createdAt) },
-          { key: 'document', header: 'Document', render: (row) => row.receiptNumber ?? row.invoiceNumber ?? '—' },
+          {
+            key: 'reference',
+            header: 'Reference',
+            label: '',
+            render: (row) => (
+              <>
+                <span className="data-table-primary mono">{row.reference}</span>
+                {row.isTestData && <Badge tone="warning">Test</Badge>}
+              </>
+            ),
+          },
+          {
+            key: 'business',
+            header: 'Business',
+            render: (row) => (
+              <>
+                <span className="data-table-primary">{row.businessName}</span>
+                {row.businessIsSandbox && <Badge tone="workspace">sandbox</Badge>}
+                <span className="data-table-secondary">
+                  {row.productName ?? 'Product unavailable'} · {row.planName ?? 'No plan recorded'}
+                  {row.planVersion === null ? '' : ` · v${row.planVersion}`}
+                </span>
+              </>
+            ),
+          },
+          {
+            key: 'amount',
+            header: 'Amount',
+            numeric: true,
+            render: (row) => (row.amountMinor === null ? '—' : formatMoney(row.amountMinor / 100, row.currency)),
+          },
+          {
+            key: 'status',
+            header: 'Status',
+            render: (row) => (
+              <>
+                <StatusBadge status={row.status} />
+                {row.failureReason && <span className="data-table-secondary">{row.failureReason}</span>}
+              </>
+            ),
+          },
+          {
+            key: 'environment',
+            header: 'Environment',
+            render: (row) => (
+              <>
+                <span className="data-table-primary">
+                  {row.environment ? humaniseToken(row.environment) : 'Not recorded'}
+                </span>
+                <span className="data-table-secondary">
+                  {row.paymentMode ? `${humaniseToken(row.paymentMode)} mode` : 'Mode not recorded'}
+                  {row.billingCycle ? ` · ${humaniseToken(row.billingCycle)}` : ''}
+                </span>
+              </>
+            ),
+          },
+          {
+            key: 'references',
+            header: 'Gateway reference',
+            render: (row) =>
+              row.gatewayReference || row.providerReference ? (
+                <>
+                  {row.gatewayReference && (
+                    <span className="data-table-primary mono">{row.gatewayReference}</span>
+                  )}
+                  {row.providerReference && (
+                    <span className="data-table-secondary mono">provider {row.providerReference}</span>
+                  )}
+                </>
+              ) : (
+                <span className="data-table-secondary">None recorded</span>
+              ),
+          },
+          {
+            key: 'document',
+            header: 'Document',
+            render: (row) =>
+              row.receiptNumber || row.invoiceNumber ? (
+                <>
+                  <span className="data-table-primary mono">{row.receiptNumber ?? row.invoiceNumber}</span>
+                  <span className="data-table-secondary">
+                    {row.receiptNumber && row.invoiceNumber
+                      ? `receipt · invoice ${row.invoiceNumber}`
+                      : row.receiptNumber
+                        ? 'receipt'
+                        : 'invoice'}
+                  </span>
+                </>
+              ) : (
+                <span className="data-table-secondary">Not issued</span>
+              ),
+          },
+          {
+            key: 'date',
+            header: 'Date',
+            render: (row) => formatDateTime(row.createdAt),
+          },
         ]}
-        rows={filtered}
+        rows={rows}
         rowKey={(row) => row.reference}
         caption="Subscription payment transactions"
         stacked
         loading={loading}
-        empty={<StateBlock compact variant="empty" title={rows.length ? 'No matching transactions' : 'No transactions yet'} body={rows.length ? 'Change the search or status filter.' : 'Checkout attempts will appear here after a customer starts payment.'} />}
+        onRowClick={(row) => setDetailReference(row.reference)}
+        empty={
+          <StateBlock
+            compact
+            variant="empty"
+            title={filtersActive ? 'No attempt matches these filters' : 'No transactions yet'}
+            body={
+              filtersActive
+                ? 'The filters run in the database before the row limit, so an empty result means no attempt matches them at all rather than that a match is further down. Widen the date range or clear a filter.'
+                : 'Checkout attempts appear here once a customer starts a payment.'
+            }
+          />
+        }
+      />
+
+      <p className="form-hint">Select a row to open everything recorded for that attempt.</p>
+
+      <CommercialTransactionDetailDialog
+        reference={detailReference}
+        onClose={() => setDetailReference(null)}
       />
     </div>
+  );
+}
+
+/**
+ * One attempt, in the order an operator reads a payment: what was charged and for what,
+ * then what happened to it, then the evidence it settled on, then the documents it
+ * produced, then what it did to access, and finally whether it can be refunded.
+ *
+ * Every absence is named rather than left blank, because "no invoice" and "the invoice
+ * did not load" are different facts and only one of them is a problem to act on.
+ */
+function CommercialTransactionDetailDialog({
+  reference,
+  onClose,
+}: {
+  reference: string | null;
+  onClose: () => void;
+}) {
+  const [detail, setDetail] = useState<CommercialTransactionDetail | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    if (!reference) return;
+    setLoading(true);
+    setError(null);
+    try {
+      setDetail(await PlatformAdminService.getCommercialTransaction(reference));
+    } catch (cause) {
+      setDetail(null);
+      setError(messageOf(cause));
+    } finally {
+      setLoading(false);
+    }
+  }, [reference]);
+
+  useEffect(() => {
+    setDetail(null);
+    setError(null);
+    void load();
+  }, [load]);
+
+  const money = (minor: number | null | undefined, currency: string) =>
+    minor === null || minor === undefined ? '—' : formatMoney(minor / 100, currency);
+
+  const amountSummary = detail
+    ? (() => {
+        if (detail.amountMinor === null) return 'No amount recorded';
+        const total = formatMoney(detail.amountMinor / 100, detail.currency);
+        if (detail.setupFeeAmountMinor !== null && detail.setupFeeAmountMinor > 0) {
+          const fee = money(detail.setupFeeAmountMinor, detail.currency);
+          const recurring = money(detail.recurringAmountMinor, detail.currency);
+          return `${total} — ${recurring} recurring plus a one-off ${fee} setup fee`;
+        }
+        return total;
+      })()
+    : '';
+
+  const planLine = detail
+    ? detail.plan
+      ? `${detail.plan.displayName ?? 'Unnamed plan'} — version ${detail.plan.version ?? 'not recorded'}`
+      : detail.legacyPlanName
+        ? `${detail.legacyPlanName} — legacy plan row, no immutable version`
+        : 'No plan recorded'
+    : '';
+
+  const billedCycle = detail ? (detail.plan?.billingCycle ?? detail.billingCycle) : null;
+
+  const timelineEntries: TimelineEntry[] = (detail?.timeline ?? []).map((entry, index) => ({
+    id: `${entry.kind}-${entry.at}-${index}`,
+    title: entry.label,
+    meta: `${formatDateTime(entry.at)} · ${entry.source}`,
+    text: entry.detail ?? undefined,
+    tone:
+      entry.kind === 'failed' || entry.kind === 'abandoned'
+        ? 'danger'
+        : entry.kind === 'verified' || entry.kind === 'paid'
+          ? 'success'
+          : 'neutral',
+  }));
+
+  const effect = detail?.subscriptionEffect ?? null;
+  const periodLine =
+    effect && effect.currentPeriodStart && effect.currentPeriodEnd
+      ? `${formatDate(effect.currentPeriodStart)} – ${formatDate(effect.currentPeriodEnd)}`
+      : null;
+
+  return (
+    <Dialog
+      open={reference !== null}
+      onClose={onClose}
+      wide
+      title={reference ? `Transaction ${reference}` : 'Transaction'}
+      description="Everything recorded for this attempt: the settlement, the evidence it was verified against, the documents it produced and what it did to access."
+      footer={
+        <Button variant="outline" onClick={onClose}>
+          Close
+        </Button>
+      }
+    >
+      {loading && (
+        <div className="skeleton-inline" role="status" aria-label="Loading the transaction">
+          <span className="skeleton skeleton-text" />
+          <span className="skeleton skeleton-text" />
+          <span className="skeleton skeleton-text is-short" />
+        </div>
+      )}
+
+      {!loading && error && (
+        <StateBlock
+          variant="error"
+          title="Could not read this transaction"
+          body={error}
+          actions={
+            <Button variant="outline" className="btn-sm" onClick={() => void load()}>
+              Try again
+            </Button>
+          }
+        />
+      )}
+
+      {!loading && !error && detail && (
+        <>
+          <p className="plat-section-sub">The payment</p>
+          <DefList
+            rows={[
+              {
+                term: 'Status',
+                value: (
+                  <>
+                    <StatusBadge status={detail.status} />{' '}
+                    {detail.isTestData && <Badge tone="warning">Test</Badge>}
+                  </>
+                ),
+              },
+              { term: 'Amount', value: amountSummary, muted: detail.amountMinor === null },
+              {
+                term: 'Charged for',
+                value: (
+                  <>
+                    <span>{detail.product?.name ?? 'Not attributed to a catalogue product'}</span>
+                    <p className="data-table-secondary">{planLine}</p>
+                    <p className="data-table-secondary">
+                      {billedCycle ? `${humaniseToken(billedCycle)} billing cycle` : 'Billing cycle not recorded'}
+                    </p>
+                  </>
+                ),
+              },
+              {
+                term: 'Business',
+                value: detail.business ? (
+                  <>
+                    <span>{detail.business.name}</span>
+                    <p className="data-table-secondary">
+                      {detail.business.billingEmail ?? 'No billing email recorded'}
+                      {detail.business.isSandbox ? ' · sandbox business' : ''}
+                      {detail.business.billingStatus ? ` · billing ${detail.business.billingStatus}` : ''}
+                    </p>
+                  </>
+                ) : (
+                  <span className="is-locked">Not recorded</span>
+                ),
+              },
+              {
+                term: 'Environment',
+                value: detail.environment ? (
+                  humaniseToken(detail.environment)
+                ) : (
+                  <span className="is-locked">Not recorded on this attempt</span>
+                ),
+              },
+              {
+                term: 'Payment mode',
+                value: detail.paymentMode ? (
+                  humaniseToken(detail.paymentMode)
+                ) : (
+                  <span className="is-locked">Not recorded on this attempt</span>
+                ),
+              },
+              { term: 'Created', value: formatDateTime(detail.createdAt) },
+              {
+                term: 'Paid',
+                value: detail.paidAt ? formatDateTime(detail.paidAt) : <span className="is-locked">Not paid</span>,
+              },
+              {
+                term: 'Failure reason',
+                value: detail.failureReason ?? <span className="is-locked">None recorded</span>,
+                muted: detail.failureReason === null,
+              },
+            ]}
+          />
+
+          <p className="plat-section-sub">Timeline</p>
+          <p className="form-hint">
+            Each entry names the stored table and column it came from, so a recorded event is distinguishable from a
+            value derived for this view. An event that never happened is absent rather than blank.
+          </p>
+          <Timeline items={timelineEntries} />
+
+          <p className="plat-section-sub">Gateway and verification</p>
+          <DefList
+            rows={[
+              {
+                term: 'Gateway reference',
+                value: detail.gatewayReference ? (
+                  <span className="mono">{detail.gatewayReference}</span>
+                ) : (
+                  <span className="is-locked">None recorded</span>
+                ),
+                muted: detail.gatewayReference === null,
+              },
+              {
+                term: 'Provider reference',
+                value: detail.providerReference ? (
+                  <span className="mono">{detail.providerReference}</span>
+                ) : (
+                  <span className="is-locked">None recorded</span>
+                ),
+                muted: detail.providerReference === null,
+              },
+              {
+                term: 'Settlement verified',
+                value: detail.verifiedAt ? (
+                  formatDateTime(detail.verifiedAt)
+                ) : (
+                  <span className="is-locked">Not verified</span>
+                ),
+                muted: detail.verifiedAt === null,
+              },
+              {
+                term: 'Settled by',
+                value: detail.settledBy ? (
+                  humaniseToken(detail.settledBy)
+                ) : (
+                  <span className="is-locked">No settlement path recorded</span>
+                ),
+                muted: detail.settledBy === null,
+              },
+            ]}
+          />
+          <Disclosure summary="Raw verification data from the gateway">
+            {detail.verificationData ? (
+              <pre className="code-panel">{JSON.stringify(detail.verificationData, null, 2)}</pre>
+            ) : (
+              <StateBlock
+                variant="unavailable"
+                title="Not recorded"
+                body="No verification payload is stored against this attempt, so there is no evidence to show. That is a fact about the attempt, not a failed read."
+              />
+            )}
+          </Disclosure>
+
+          <p className="plat-section-sub">Invoice and receipt</p>
+          {detail.invoice ? (
+            <>
+              <DefList
+                rows={[
+                  { term: 'Invoice', value: <span className="mono">{detail.invoice.number}</span> },
+                  { term: 'Invoice status', value: <StatusBadge status={detail.invoice.status} /> },
+                  { term: 'Subtotal', value: money(detail.invoice.subtotalMinor, detail.invoice.currency) },
+                  { term: 'Total', value: money(detail.invoice.totalMinor, detail.invoice.currency) },
+                  {
+                    term: 'Billing email',
+                    value: detail.invoice.billingEmail ?? <span className="is-locked">None recorded</span>,
+                    muted: detail.invoice.billingEmail === null,
+                  },
+                  {
+                    term: 'Issued',
+                    value: detail.invoice.issuedAt ? (
+                      formatDateTime(detail.invoice.issuedAt)
+                    ) : (
+                      <span className="is-locked">No issue date recorded</span>
+                    ),
+                    muted: detail.invoice.issuedAt === null,
+                  },
+                  {
+                    term: 'Invoice paid',
+                    value: detail.invoice.paidAt ? (
+                      formatDateTime(detail.invoice.paidAt)
+                    ) : (
+                      <span className="is-locked">Not marked paid</span>
+                    ),
+                    muted: detail.invoice.paidAt === null,
+                  },
+                ]}
+              />
+              <DataTable
+                columns={[
+                  {
+                    key: 'line',
+                    header: 'Line',
+                    label: '',
+                    render: (line) => (
+                      <>
+                        <span className="data-table-primary">{line.description ?? humaniseToken(line.type)}</span>
+                        <span className="data-table-secondary">{humaniseToken(line.type)}</span>
+                      </>
+                    ),
+                  },
+                  {
+                    key: 'amount',
+                    header: 'Amount',
+                    numeric: true,
+                    render: (line) =>
+                      money(line.totalAmountMinor ?? line.unitAmountMinor, detail.invoice?.currency ?? detail.currency),
+                  },
+                ]}
+                rows={detail.invoice.lines}
+                rowKey={(line, index) => `${line.type}-${index}`}
+                caption={`Lines on invoice ${detail.invoice.number}`}
+                stacked
+                empty={<span className="data-table-secondary">No invoice lines recorded.</span>}
+              />
+            </>
+          ) : (
+            <StateBlock
+              variant="unavailable"
+              title="No invoice recorded"
+              body="An invoice is written when a payment settles, so a pending, failed or abandoned attempt has none. Nothing here is a placeholder for one."
+            />
+          )}
+
+          {detail.receipt ? (
+            <DefList
+              rows={[
+                { term: 'Receipt', value: <span className="mono">{detail.receipt.number}</span> },
+                { term: 'Receipt amount', value: money(detail.receipt.amountMinor, detail.receipt.currency) },
+                { term: 'Receipt mode', value: humaniseToken(detail.receipt.paymentMode) },
+                {
+                  term: 'Receipt reference',
+                  value: detail.receipt.providerReference ? (
+                    <span className="mono">{detail.receipt.providerReference}</span>
+                  ) : (
+                    <span className="is-locked">None recorded</span>
+                  ),
+                  muted: detail.receipt.providerReference === null,
+                },
+                {
+                  term: 'Receipt paid',
+                  value: detail.receipt.paidAt ? (
+                    formatDateTime(detail.receipt.paidAt)
+                  ) : (
+                    <span className="is-locked">Not marked paid</span>
+                  ),
+                  muted: detail.receipt.paidAt === null,
+                },
+              ]}
+            />
+          ) : (
+            <StateBlock
+              variant="unavailable"
+              title="No receipt recorded"
+              body="A receipt is written alongside the invoice when a payment settles, so an unsettled attempt has none."
+            />
+          )}
+
+          <p className="plat-section-sub">Subscription effect</p>
+          {effect ? (
+            <DefList
+              rows={[
+                { term: 'Subscription', value: <StatusBadge status={effect.status} /> },
+                {
+                  term: 'Current period',
+                  value: periodLine ?? <span className="is-locked">Period bounds not recorded</span>,
+                  muted: periodLine === null,
+                },
+                {
+                  term: 'Cancels at period end',
+                  value: effect.cancelAtPeriodEnd
+                    ? 'Yes — access ends at the end of the period'
+                    : 'No',
+                  muted: effect.cancelAtPeriodEnd === null,
+                },
+                {
+                  term: 'Entitlement',
+                  value: effect.entitlementStatus ? (
+                    <StatusBadge status={effect.entitlementStatus} />
+                  ) : (
+                    <span className="is-locked">No entitlement for this product</span>
+                  ),
+                  muted: effect.entitlementStatus === null,
+                },
+                {
+                  term: 'Access activated',
+                  value: effect.entitlementActivatedAt ? (
+                    formatDateTime(effect.entitlementActivatedAt)
+                  ) : (
+                    <span className="is-locked">Not recorded</span>
+                  ),
+                  muted: effect.entitlementActivatedAt === null,
+                },
+                {
+                  term: 'Access expires',
+                  value: effect.entitlementExpiresAt ? (
+                    `${formatDateTime(effect.entitlementExpiresAt)} · ${formatRelative(effect.entitlementExpiresAt)}`
+                  ) : (
+                    <span className="is-locked">No expiry recorded</span>
+                  ),
+                  muted: effect.entitlementExpiresAt === null,
+                },
+                {
+                  term: 'Entitlement plan version',
+                  value: effect.entitlementPlanVersionId ? (
+                    <span className="mono">{effect.entitlementPlanVersionId}</span>
+                  ) : (
+                    <span className="is-locked">Not recorded</span>
+                  ),
+                  muted: effect.entitlementPlanVersionId === null,
+                },
+              ]}
+            />
+          ) : (
+            <StateBlock
+              variant="unavailable"
+              title="No subscription or entitlement recorded"
+              body="This attempt did not settle into a subscription for the business, so there is no period, entitlement or expiry to report. One is created by settlement, not by opening checkout."
+            />
+          )}
+
+          <p className="plat-section-sub">Refunds</p>
+          {detail.refund && detail.refund.state === 'not_implemented' ? (
+            <StateBlock
+              variant="unavailable"
+              title="Refunds have no authorised flow in this system"
+              body={detail.refund.reason}
+            />
+          ) : (
+            <StateBlock
+              variant="unavailable"
+              title="Refund state not reported"
+              body="The endpoint reported no refund state for this attempt, so nothing here claims one either way."
+            />
+          )}
+        </>
+      )}
+    </Dialog>
   );
 }
 
@@ -2728,9 +3535,15 @@ export default function BillingArea() {
                 />
 
                 <p className="form-hint">
-                  Setup fee and trial length are plan attributes the customer Billing page shows as notes. Nothing
-                  applies either one yet: a checkout's transaction amount is the plan's own monthly or annual price, and
-                  activation leaves the entitlement's trial_ends_at NULL, so no trial is granted from this value.
+                  The setup fee is charged. A checkout is quoted as the published version&rsquo;s recurring price plus
+                  that version&rsquo;s setup fee, and settlement records the fee as its own invoice line. It applies
+                  once per product: a business with a successful payment for this product is quoted the recurring price
+                  alone. Because checkout quotes the immutable version rather than this row, an edit here reaches
+                  customers only through a new published version. Trial length is a plan attribute nothing applies:
+                  a trial is granted from the platform setting{' '}
+                  <span className="mono">billing.default_trial_days</span>, and{' '}
+                  <span className="mono">product_plan_versions.trial_days</span> is constrained to 0, so a per-plan
+                  trial cannot exist.
                 </p>
 
                 <div className="btn-row">
@@ -3019,7 +3832,7 @@ export default function BillingArea() {
             <SectionFailure message={revenue.error} onRetry={revenue.reload} />
           ) : (
             <>
-              {inbound.paymentsUnavailable && <p className="form-hint">The transaction table shows the newest 100 attempts. The period totals cover the full selected range.</p>}
+              {inbound.paymentsUnavailable && <p className="form-hint">Arrived from the failed-payments link: the transaction table below opens filtered to failed attempts. The period totals cover the full selected range.</p>}
 
               <KpiGrid>
                 <KpiCard
@@ -3045,8 +3858,12 @@ export default function BillingArea() {
                 />
               </KpiGrid>
 
-              <SectionHead title="Recent transactions" sub="Newest 100 payment attempts across the platform." />
-              <CommercialTransactionsPanel permitted={mayViewPaymentRecords} refreshToken={refreshToken} />
+              <SectionHead title="Recent transactions" sub="The newest 100 attempts matching the filters, across the platform." />
+              <CommercialTransactionsPanel
+                permitted={mayViewPaymentRecords}
+                refreshToken={refreshToken}
+                initialStatus={inbound.paymentsUnavailable ? 'failed' : 'all'}
+              />
 
               <div className="section-head">
                 <div className="section-head-text">
@@ -3076,7 +3893,11 @@ export default function BillingArea() {
 
               <Disclosure summary="Payment record notes">
                 <p>Pending means checkout began; only a verified settlement activates access. Invoice and receipt numbers appear in the transaction table when issued.</p>
-                <p>The table shows the newest 100 attempts. Revenue totals use the selected period and exclude sandbox transactions.</p>
+                <p>
+                  The table shows the newest 100 attempts that match its filters, not the newest 100 attempts of which
+                  some are then hidden: the filters run in the database before the row limit, so an empty result means
+                  no attempt matches at all. Revenue totals use the selected period and exclude sandbox transactions.
+                </p>
               </Disclosure>
             </>
           )}
