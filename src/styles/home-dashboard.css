@@ -14,7 +14,7 @@
   min-width: 0;
   border: var(--border-hairline) solid transparent;
   border-radius: var(--radius-control);
-  background: var(--color-surface);
+  background: var(--color-panel);
   transition: border-color var(--duration-quick) var(--ease-standard), box-shadow var(--duration-quick) var(--ease-standard);
 }
 
