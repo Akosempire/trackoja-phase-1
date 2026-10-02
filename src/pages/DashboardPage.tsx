@@ -408,11 +408,16 @@ export default function DashboardPage() {
               />
             )}
             <HomePanel title="Sales by payment method" subtitle="Completed sales today, by how customers paid.">
-              {donutSlices.length > 0 ? (
-                <HomeDonut slices={donutSlices} />
-              ) : (
-                <p className="hd-panel-note">No completed sales today, or the payment breakdown is unavailable.</p>
-              )}
+              <div className="hd-viz">
+                {donutSlices.length > 0 ? (
+                  <HomeDonut slices={donutSlices} />
+                ) : (
+                  <div className="hd-viz-empty" role="status">
+                    <p className="hd-viz-empty-title">No payment data yet</p>
+                    <p className="hd-viz-empty-body">Payment breakdown will appear after completed sales.</p>
+                  </div>
+                )}
+              </div>
             </HomePanel>
           </div>
 

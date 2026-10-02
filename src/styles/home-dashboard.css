@@ -416,3 +416,54 @@
   font-size: var(--text-body-sm);
   font-weight: 600;
 }
+
+/* --- Analytics row: visualization region + empty state ---------------------- */
+.hd-viz {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  flex: 1;
+  min-height: 260px;
+}
+
+.hd-viz-empty {
+  padding: var(--space-24);
+  text-align: center;
+}
+
+.hd-viz-empty-title {
+  margin: 0;
+  color: var(--color-text);
+  font-size: var(--text-body-sm);
+  font-weight: 600;
+}
+
+.hd-viz-empty-body {
+  margin: var(--space-4) 0 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-caption);
+}
+
+/* --- Sales performance panel, tightened to the Waya chart panel ------------- */
+/* The value integrates into the header instead of dominating the card. */
+.dashboard-revenue-total > strong {
+  font-size: var(--text-metric);
+  font-weight: 500;
+  line-height: var(--leading-tight);
+}
+
+.dashboard-revenue-controls .segmented-control button {
+  height: 28px;
+  padding: 0 var(--space-8);
+  font-size: var(--text-label);
+}
+
+/* The empty state sits directly on the chart grid, not in a bordered box. */
+.dashboard-revenue .dashboard-chart-empty .state-block {
+  border: none !important;
+  border-radius: 0;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: var(--space-8);
+  margin: var(--space-12);
+}
