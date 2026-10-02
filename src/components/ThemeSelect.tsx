@@ -8,7 +8,9 @@ export function readTheme(): ThemePreference {
     const value = localStorage.getItem(key);
     if (value === 'light' || value === 'dark') return value;
   } catch { /* Storage can be unavailable in private browsing. */ }
-  return 'system';
+  // The Waya dashboard is a light system by default. Falling back to the OS
+  // preference silently rendered the whole dashboard dark for anyone on a dark OS.
+  return 'light';
 }
 
 export function applyTheme(preference: ThemePreference) {

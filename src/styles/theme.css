@@ -49,11 +49,11 @@ a {
 }
 
 .btn-primary {
-  background: var(--brand);
-  color: white;
+  background: var(--color-neutral-action);
+  color: var(--color-on-neutral);
 }
 .btn-primary:hover:not(:disabled) {
-  background: var(--brand-h);
+  background: #333333;
 }
 .btn-primary:disabled {
   opacity: 0.6;
