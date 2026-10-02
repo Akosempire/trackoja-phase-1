@@ -56,8 +56,8 @@
 
 .segmented-control button:hover { color: var(--color-text-strong); }
 .segmented-control button.is-active {
-  color: var(--color-on-accent);
-  background: var(--color-accent);
+  color: var(--color-text-strong);
+  background: var(--color-surface);
   box-shadow: var(--shadow-xs);
 }
 
