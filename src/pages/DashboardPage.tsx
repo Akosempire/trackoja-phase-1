@@ -19,9 +19,7 @@ import { CustomerService } from '../services/customer.service';
 import { Button } from '../components/ui/Button';
 import { KpiCard, KpiGrid } from '../components/ui/KpiCard';
 import { PageLoader } from '../components/ui/PageLoader';
-import { SectionHead } from '../components/ui/SectionHead';
 import { StateBlock } from '../components/ui/StateBlock';
-import { HealthyStrip } from '../components/ui/AttentionList';
 import { getBusinessExperience, type DashboardMetric } from '../config/businessExperience';
 import { isResolvableMetric } from '../config/dashboardMetrics';
 import type { AuditLog, PaymentMethod, PaymentMethodBreakdown, Product, Sale, SalesSummary, Store, TopProduct } from '../types';
@@ -349,14 +347,17 @@ export default function DashboardPage() {
   return (
     <div className="page dash">
       <TrialStatus />
-      <div className="page-header dashboard-command-header">
-        <div>
-          <p className="dashboard-greeting">{store?.name ? `${store.name} workspace` : experience.displayName}</p>
-          <h1 className="page-title">{greetingForNow(profile?.firstName)}</h1>
-          <p className="page-subtitle">{experience.primaryQuestion}</p>
+      <div className="page-header waya-home-header">
+        <div className="waya-home-heading">
+          <p className="waya-home-context">{store?.name ? `${store.name} workspace` : experience.displayName}</p>
+          <h1 className="waya-home-title">Home</h1>
+          <p className="waya-home-sub">{greetingForNow(profile?.firstName)}. {experience.primaryQuestion}</p>
         </div>
-        <div className="dashboard-header-actions">
-          <Button variant="outline" onClick={loadDashboard}>Refresh</Button>
+        <div className="waya-home-actions">
+          {experience.secondaryActions.filter(action => action.implemented && canUseAction(action.route)).map(action => (
+            <Link key={action.route} className="btn btn-ghost btn-sm" to={action.route}>{action.label}</Link>
+          ))}
+          <Button variant="outline" className="btn-sm" onClick={loadDashboard}>Refresh</Button>
           {experience.primaryAction.implemented && canUseAction(experience.primaryAction.route) && (
             <Button onClick={() => navigate(experience.primaryAction.route === '/jobs' ? '/jobs?new=1' : experience.primaryAction.route)}>
               {experience.primaryAction.label}
@@ -392,11 +393,19 @@ export default function DashboardPage() {
         </div>
       ) : (
         <>
-          <section className={`dashboard-command-grid${canReadReports ? '' : ' dashboard-command-grid-compact'}`} aria-label="Business command center">
+          {homeMetrics.length > 0 && (
+            <section className="hd-metrics" aria-label="Key business metrics">
+              {homeMetrics.map((metric) => (
+                <HomeMetricCard key={metric.label} metric={metric} />
+              ))}
+            </section>
+          )}
+
+          <div className="hd-grid">
             {canReadReports && (
               <DashboardRevenuePanel
                 load={loadRevenue}
-                title="Sales revenue"
+                title="Sales performance"
                 breakdownTitle="Sales by payment method"
                 note="Completed sales only. Revenue is after discounts and includes tax; credit sales are not necessarily cash received."
                 emptyDescription={experience.emptyStates.dashboard}
@@ -405,101 +414,71 @@ export default function DashboardPage() {
                   : undefined}
               />
             )}
-            <aside className="dashboard-support-stack" aria-label="Business actions and activity">
-              {experience.secondaryActions.some(action => action.implemented && canUseAction(action.route)) && (
-                <section className="card dashboard-quick-actions" aria-labelledby="quick-actions-title">
-                  <SectionHead id="quick-actions-title" title="Quick actions" />
-                  <p className="section-sub">Keep your {experience.displayName.toLowerCase()} moving.</p>
-                  <div className="dashboard-action-list">
-                    {experience.secondaryActions.filter(action => action.implemented && canUseAction(action.route)).map(action => (
-                      <Link className="btn btn-outline" key={action.route} to={action.route}>{action.label}</Link>
-                    ))}
-                  </div>
-                </section>
+            <HomePanel title="Sales by payment method" subtitle="Completed sales today, by how customers paid.">
+              {donutSlices.length > 0 ? (
+                <HomeDonut slices={donutSlices} />
+              ) : (
+                <p className="hd-panel-note">No completed sales today, or the payment breakdown is unavailable.</p>
               )}
-              <section className="card dash-panel" aria-labelledby="recent-activity-title">
-                <SectionHead id="recent-activity-title" title="Recent activity" actions={<Link className="btn btn-ghost btn-sm" to="/activity">View all</Link>} />
-                {activity === null
-                  ? <StateBlock compact variant="error" title="Activity unavailable" actions={<Button variant="outline" onClick={loadDashboard}>Try again</Button>} />
-                  : <BusinessActivity logs={activity.slice(0, 3)} actorId={profile?.id} actorName={profile?.firstName} />}
-              </section>
-            </aside>
-          </section>
+            </HomePanel>
+          </div>
 
-          {homeMetrics.length > 0 && (
-            <section className="hd-home" aria-label="Business overview">
-              <div className="hd-metrics">
-                {homeMetrics.map((metric) => (
-                  <HomeMetricCard key={metric.label} metric={metric} />
-                ))}
-              </div>
-              <div className="hd-grid">
-                <HomePanel title="Sales by payment method" subtitle="Completed sales today, by how customers paid.">
-                  {donutSlices.length > 0 ? (
-                    <HomeDonut slices={donutSlices} />
-                  ) : (
-                    <p className="hd-panel-note">No completed sales today, or the payment breakdown is unavailable.</p>
-                  )}
-                </HomePanel>
-                <HomePanel title="Top products" subtitle="Best sellers today, as a share of today's revenue.">
-                  {topBars.length > 0 ? (
-                    <HomeBars total={formatMoney(totalRevenue)} bars={topBars} />
-                  ) : (
-                    <p className="hd-panel-note">No completed sales to rank yet.</p>
-                  )}
-                </HomePanel>
-                <HomePanel title="Recent activity" subtitle="The latest changes in this workspace.">
-                  {activity === null ? (
-                    <p className="hd-panel-note">Activity is unavailable.</p>
-                  ) : (
-                    <BusinessActivity logs={activity.slice(0, 3)} actorId={profile?.id} actorName={profile?.firstName} />
-                  )}
-                </HomePanel>
-                <HomePanel title={`${experience.terminology.stock} attention`} subtitle="Items at or below their reorder level.">
-                  {lowStock === null ? (
-                    <p className="hd-panel-note">Stock status is unavailable.</p>
-                  ) : lowStock.length === 0 ? (
-                    <p className="hd-panel-note">No low-stock {experience.terminology.lineItem.toLowerCase()} need attention.</p>
-                  ) : (
-                    <div className="list">
-                      {lowStock.slice(0, 4).map((product) => (
-                        <Link className="list-item" key={product.id} to={`/inventory/products/${product.id}`}>
-                          <div>
-                            <p className="list-item-title">{product.name}</p>
-                            <p className="list-item-subtitle">Available: {stockQuantity(product.stockQty, product.unit)}</p>
-                          </div>
-                          <span className={`badge ${product.stockQty <= 0 ? 'badge-danger' : 'badge-warning'}`}>{stockState(product)}</span>
-                        </Link>
-                      ))}
-                    </div>
-                  )}
-                </HomePanel>
-              </div>
-            </section>
-          )}
+          <div className="hd-grid">
+            <HomePanel title="Top products" subtitle="Best sellers today, as a share of today's revenue.">
+              {topBars.length > 0 ? (
+                <HomeBars total={formatMoney(totalRevenue)} bars={topBars} />
+              ) : (
+                <p className="hd-panel-note">No completed sales to rank yet.</p>
+              )}
+            </HomePanel>
+            <HomePanel title="Recent activity" subtitle="The latest changes in this workspace.">
+              {activity === null ? (
+                <p className="hd-panel-note">Activity is unavailable.</p>
+              ) : (
+                <BusinessActivity logs={activity.slice(0, 4)} actorId={profile?.id} actorName={profile?.firstName} />
+              )}
+            </HomePanel>
+          </div>
 
-          <section className="dashboard-attention" aria-labelledby="dashboard-attention-title">
-            <SectionHead id="dashboard-attention-title" title="Needs attention" />
-            {attentionItems.length === 0 ? (
-              <HealthyStrip>{partialFailures > 0 ? "Some checks are unavailable. Retry above for a complete overview." : "No urgent business issues need attention right now."}</HealthyStrip>
-            ) : (
-              <div className="dashboard-attention-grid">
-                {attentionItems.slice(0, 4).map((item) => (
-                  <Link className="dashboard-attention-card" key={item.title} to={item.to}>
-                    <strong>{item.title}</strong>
-                    <span>{item.body}</span>
-                  </Link>
-                ))}
-              </div>
-            )}
-          </section>
+          <div className="hd-grid">
+            <HomePanel title={`${experience.terminology.stock} attention`} subtitle="Items at or below their reorder level.">
+              {lowStock === null ? (
+                <p className="hd-panel-note">Stock status is unavailable.</p>
+              ) : lowStock.length === 0 ? (
+                <p className="hd-panel-note">No low-stock {experience.terminology.lineItem.toLowerCase()} need attention.</p>
+              ) : (
+                <div className="list">
+                  {lowStock.slice(0, 4).map((product) => (
+                    <Link className="list-item" key={product.id} to={`/inventory/products/${product.id}`}>
+                      <div>
+                        <p className="list-item-title">{product.name}</p>
+                        <p className="list-item-subtitle">Available: {stockQuantity(product.stockQty, product.unit)}</p>
+                      </div>
+                      <span className={`badge ${product.stockQty <= 0 ? 'badge-danger' : 'badge-warning'}`}>{stockState(product)}</span>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </HomePanel>
+            <HomePanel title="Needs attention" subtitle="Actionable issues across this workspace.">
+              {attentionItems.length === 0 ? (
+                <p className="hd-panel-note">No urgent issues need attention right now.</p>
+              ) : (
+                <div className="hd-attention">
+                  {attentionItems.slice(0, 4).map((item) => (
+                    <Link className="hd-attention-item" key={item.title} to={item.to}>
+                      <strong>{item.title}</strong>
+                      <span>{item.body}</span>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </HomePanel>
+          </div>
 
           {operationalMetrics.length > 0 && (
-            <section className="owner-metrics" aria-label={`${experience.displayName} metrics`}>
-              <div className="owner-dashboard-snapshot">
-                <h2>Operational focus</h2>
-                <p>These figures change based on the type of business you selected during onboarding.</p>
-              </div>
+            <section className="hd-operational" aria-label={`${experience.displayName} metrics`}>
+              <h2 className="hd-operational-title">Operational focus</h2>
               <KpiGrid>
                 {operationalMetrics.map(({ metric, value, sub }) => {
                   const tone = metric.tone === 'warn' ? 'warning' : metric.tone === 'danger' ? 'danger' : 'default';
@@ -518,39 +497,6 @@ export default function DashboardPage() {
               </KpiGrid>
             </section>
           )}
-
-          <div className="dashboard-operations-grid">
-            {canReadInventory && (
-              <section className="card dash-panel" aria-labelledby="stock-attention-title">
-                <SectionHead
-                  id="stock-attention-title"
-                  title={`${experience.terminology.stock} attention`}
-                  actions={<Link className="btn btn-ghost btn-sm" to="/inventory/products">View {experience.terminology.lineItem.toLowerCase()}</Link>}
-                />
-                {lowStock === null ? (
-                  <StateBlock compact variant="error" title="Stock status unavailable" body="Inventory could not be loaded." actions={<Button variant="outline" className="btn-sm" onClick={loadDashboard}>Try again</Button>} />
-                ) : trackedProducts?.length === 0 ? (
-                  <StateBlock compact title="No stock tracked yet" body={`Add your ${experience.terminology.lineItem.toLowerCase()}s to start monitoring stock.`}
-                    actions={canUseAction('/inventory/products/new') ? <Link className="btn btn-outline btn-sm" to="/inventory/products/new">Add {experience.terminology.lineItem.toLowerCase()}</Link> : undefined} />
-                ) : lowStock.length === 0 ? (
-                  <HealthyStrip>No low-stock {experience.terminology.lineItem.toLowerCase()} need attention.</HealthyStrip>
-                ) : (
-                  <div className="list">
-                    {lowStock.slice(0, 3).map((product) => (
-                      <Link className="list-item" key={product.id} to={`/inventory/products/${product.id}`}>
-                        <div>
-                          <p className="list-item-title">{product.name}</p>
-                          <p className="list-item-subtitle">Available: {stockQuantity(product.stockQty, product.unit)}. Reorder level: {stockQuantity(product.reorderLevel, product.unit)}</p>
-                        </div>
-                        <span className={`badge ${product.stockQty <= 0 ? 'badge-danger' : 'badge-warning'}`}>{stockState(product)}</span>
-                      </Link>
-                    ))}
-                  </div>
-                )}
-              </section>
-            )}
-
-          </div>
         </>
       )}
     </div>
