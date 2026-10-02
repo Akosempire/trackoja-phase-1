@@ -67,6 +67,6 @@ it('uses sales and customer meanings instead of wallet or gross/net placeholders
   expect(overview).toContain('Sales revenue today');
   expect(overview).toContain('\u20a622,500');
   expect(overview).toContain('\u20a67,500');
-  expect(overview).toContain('Customers');
+  expect(overview).toContain('Stock alerts');
   expect(host.textContent).not.toMatch(/Withdraw funds|Gross Volume|Net Volume|New Customers|USD|Last withdrawal/);
 });

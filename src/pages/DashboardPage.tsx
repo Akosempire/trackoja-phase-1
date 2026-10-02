@@ -286,8 +286,6 @@ export default function DashboardPage() {
     return true;
   };
 
-  const trackedProducts = products?.filter((product) => product.trackInventory) ?? null;
-  const outOfStockCount = trackedProducts?.filter((product) => product.stockQty <= 0).length ?? null;
   const uncategorizedProducts = products?.filter((product) => !product.categoryId).length ?? null;
   const averageSale = summary && summary.transactionCount > 0 ? summary.totalRevenue / summary.transactionCount : 0;
   const homeMetrics: HomeMetric[] = [
@@ -295,7 +293,6 @@ export default function DashboardPage() {
     canReadReports && summary ? { label: 'Transactions', value: formatNumber(summary.transactionCount) } : null,
     canReadReports && summary ? { label: 'Average sale', value: formatMoney(averageSale) } : null,
     canReadInventory && lowStock ? { label: `${experience.terminology.stock} alerts`, value: formatNumber(lowStock.length) } : null,
-    canReadCustomers && customerCount !== null ? { label: `${experience.terminology.customer}s`, value: formatNumber(customerCount) } : null,
   ].filter((item): item is HomeMetric => item !== null);
 
   const methodTone: Record<PaymentMethod, HomeSlice['tone']> = {
@@ -323,15 +320,11 @@ export default function DashboardPage() {
 
   const duplicateMetricKeys = new Set(['sales_today', 'transactions_today', 'low_stock', 'clients']);
   const operationalMetrics = resolved.filter(({ metric }) => !duplicateMetricKeys.has(metric.key));
-  const lowStockAvailable = lowStock?.filter((product) => product.stockQty > 0).length ?? 0;
 
+  // Needs attention holds only issues that have no dedicated dashboard section.
+  // Out-of-stock and low-stock products live in Stock attention, so they are not
+  // repeated here (one issue, one home).
   const attentionItems = [
-    canReadInventory && outOfStockCount !== null && outOfStockCount > 0
-      ? { title: `${outOfStockCount} ${experience.terminology.lineItem.toLowerCase()}${outOfStockCount === 1 ? '' : 's'} out of stock`, body: 'Review stock before the next sale.', to: '/inventory/products' }
-      : null,
-    canReadInventory && lowStockAvailable > 0
-      ? { title: `${lowStockAvailable} low-stock ${experience.terminology.lineItem.toLowerCase()}${lowStockAvailable === 1 ? '' : 's'}`, body: 'Restock items before they run out.', to: '/inventory/products' }
-      : null,
     canReadInventory && uncategorizedProducts !== null && uncategorizedProducts > 0
       ? { title: `${uncategorizedProducts} uncategorized ${experience.terminology.lineItem.toLowerCase()}${uncategorizedProducts === 1 ? '' : 's'}`, body: 'Categories make checkout and reports easier to scan.', to: '/inventory/categories' }
       : null,

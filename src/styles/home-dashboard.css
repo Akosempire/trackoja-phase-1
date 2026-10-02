@@ -318,14 +318,17 @@
 }
 
 @media (max-width: 700px) {
-  .hd-metrics { grid-template-columns: minmax(0, 1fr); }
-  .hd-metric { min-height: 132px; }
+  .waya-home-header { flex-direction: column; align-items: flex-start; gap: var(--space-12); }
+  .waya-home-actions { width: 100%; }
+  .hd-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .hd-metric { min-height: 0; }
   .hd-metric,
   .hd-panel { padding: var(--space-16); }
-  .hd-panel { min-height: 340px; }
-  .hd-chart { overflow-x: auto; }
-  .hd-chart svg { min-width: 480px; }
-  .hd-chart-labels { min-width: 480px; }
+  .hd-panel { min-height: 0; height: auto; }
+}
+
+@media (max-width: 480px) {
+  .hd-metrics { grid-template-columns: minmax(0, 1fr); }
 }
 
 @media (prefers-reduced-motion: reduce) {
