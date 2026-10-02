@@ -2199,3 +2199,83 @@
   color: var(--t1);
 }
 
+/* ============================================================
+   Product form (Add/Edit product): grouped sections
+   ============================================================ */
+.product-form {
+  display: grid;
+  gap: var(--space-12);
+}
+
+.product-form-section {
+  padding: var(--space-20);
+  border: var(--border-hairline) solid var(--border);
+  border-radius: var(--r1);
+  background: var(--surf);
+}
+
+.product-form-section-title {
+  margin: 0 0 var(--space-4);
+  font-size: var(--text-body-sm);
+  font-weight: 600;
+  color: var(--t1);
+}
+
+.product-form-section-sub {
+  margin: 0 0 var(--space-16);
+  color: var(--t2);
+  font-size: var(--text-caption);
+}
+
+.currency-input {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+}
+
+.currency-input > span {
+  color: var(--t3);
+  font-size: var(--text-body);
+}
+
+.currency-input .form-input {
+  flex: 1;
+}
+
+.toggle-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  margin-bottom: var(--space-16);
+  cursor: pointer;
+  font-size: var(--text-body-sm);
+  color: var(--t1);
+}
+
+.toggle-row input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--brand);
+}
+
+.barcode-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+}
+
+.barcode-row .form-input {
+  flex: 1;
+}
+
+.required-mark {
+  color: var(--danger);
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-8);
+  padding-top: var(--space-16);
+}
+
