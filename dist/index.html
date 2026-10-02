@@ -21,11 +21,11 @@
       try { var appearance=localStorage.getItem('trackoja-theme'); document.documentElement.dataset.theme=appearance==='dark'||(appearance!=='light'&&matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light'; } catch (_) { document.documentElement.dataset.theme=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'; }
       window.trackojaBootTimer=setTimeout(function(){ var message=document.getElementById('boot-message'); if(message){message.textContent='TrackOja could not finish loading. Check your connection and try again.'; document.getElementById('boot-retry').hidden=false;} },20000);
     </script>
-    <script type="module" crossorigin src="/assets/index-354eccd5.js"></script>
+    <script type="module" crossorigin src="/assets/index-40bae08a.js"></script>
     <link rel="modulepreload" crossorigin href="/assets/react-3ea9b78b.js">
     <link rel="modulepreload" crossorigin href="/assets/supabase-387795e1.js">
     <link rel="modulepreload" crossorigin href="/assets/icons-be907804.js">
-    <link rel="stylesheet" href="/assets/index-0c541d74.css">
+    <link rel="stylesheet" href="/assets/index-ab1af02d.css">
   <link rel="manifest" href="/manifest.webmanifest"></head>
   <body>
     <div id="root"><main class="startup-screen" role="status"><strong>TrackOja</strong><p id="boot-message">Opening your workspace…</p><button id="boot-retry" hidden onclick="location.reload()">Retry</button><noscript>Enable JavaScript to open TrackOja.</noscript></main></div>
