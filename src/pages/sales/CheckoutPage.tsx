@@ -1,5 +1,4 @@
 import { formatMoney } from '../../utils/format';
-import { SearchInput } from '../../components/ui/SearchInput';
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
@@ -10,7 +9,6 @@ import { SaleService } from '../../services/sale.service';
 import { CustomerService } from '../../services/customer.service';
 import { StoreService } from '../../services/store.service';
 import { Button } from '../../components/ui/Button';
-import { FormField } from '../../components/ui/FormField';
 import { PageLoader } from '../../components/ui/PageLoader';
 import { StateBlock } from '../../components/ui/StateBlock';
 import { BarcodeScanner } from '../../components/BarcodeScanner';
@@ -18,6 +16,8 @@ import { OfflineSalesService, isNetworkError } from '../../services/offlineSales
 import { setCartCount } from '../../utils/cart-count';
 import { usePermissions } from '../../hooks/usePermissions';
 import { useToast } from '../../components/ui/Toast';
+import { Card, Empty, Page, btn, cn, inputClass } from '../../components/kit';
+import { ArrowLeftIcon, ChevronRightIcon, ScanIcon, SearchIcon } from '../../components/icons';
 import { MerchantPaymentService, describeAttempt, type MerchantAttempt, type MoniepointConnection, type MoniepointTerminal } from '../../services/merchantPayment.service';
 import type { Customer, CreateSaleRequest, PaymentMethod, Product, ProductCategory, StoreSettings, OrderType } from '../../types';
 
@@ -33,13 +33,28 @@ interface CartLine {
   stockQty: number;
 }
 
+// In Nigeria "POS" means the card terminal on the counter, so card payments are
+// labelled that way. Moniepoint-integrated terminals get their own option below.
 const PAYMENT_METHODS: { value: PaymentMethod; label: string }[] = [
   { value: 'cash', label: 'Cash' },
-  { value: 'card', label: 'Card' },
   { value: 'transfer', label: 'Transfer' },
+  { value: 'card', label: 'POS / card' },
+  { value: 'credit', label: 'On credit' },
   { value: 'other', label: 'Other' },
-  { value: 'credit', label: 'Credit (customer account)' },
 ];
+
+/** Exact amount plus the next few round notes a customer is likely to hand over. */
+function quickCash(total: number): number[] {
+  if (total <= 0) return [];
+  const steps = [500, 1000, 2000, 5000, 10000];
+  const out = new Set<number>([Math.ceil(total)]);
+  for (const step of steps) {
+    const v = Math.ceil(total / step) * step;
+    if (v > total) out.add(v);
+    if (out.size >= 4) break;
+  }
+  return [...out].sort((a, b) => a - b);
+}
 
 const VERIFIABLE_METHODS: PaymentMethod[] = ['card', 'transfer', 'other'];
 
@@ -78,6 +93,7 @@ export default function CheckoutPage() {
   const [showCustomerSearch, setShowCustomerSearch] = useState(false);
   const [discountTotal, setDiscountTotal] = useState('0');
   const [showDiscount, setShowDiscount] = useState(false);
+  const [cartOpen, setCartOpen] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | 'moniepoint_pos'>('cash');
   const [posConnection, setPosConnection] = useState<MoniepointConnection | null>(null);
   const [posTerminals, setPosTerminals] = useState<MoniepointTerminal[]>([]);
@@ -282,7 +298,8 @@ export default function CheckoutPage() {
   const discount = Number(discountTotal) || 0;
   const total = useMemo(() => Math.max(round2(subtotal - discount + taxTotal), 0), [subtotal, discount, taxTotal]);
 
-  const amountDue = paymentMethod === 'cash' ? Number(amountTendered) || 0 : total;
+  // An empty "amount received" means the customer paid the exact total.
+  const amountDue = paymentMethod === 'cash' ? (amountTendered.trim() === '' ? total : Number(amountTendered) || 0) : total;
   const changeDue = paymentMethod === 'cash' ? Math.max(round2(amountDue - total), 0) : 0;
 
   const requireCustomer = storeSettings?.requireCustomerForSale ?? false;
@@ -394,316 +411,356 @@ export default function CheckoutPage() {
 
   if (loading) return <PageLoader />;
   if (loadError) return (
-    <StateBlock
-      variant="error"
-      title="Could not load checkout"
-      body={loadError}
-      actions={<Button variant="outline" onClick={() => setLoadAttempt((attempt) => attempt + 1)}>Try again</Button>}
-    />
+    <Page>
+      <Card>
+        <StateBlock
+          variant="error"
+          title="Could not load checkout"
+          body={loadError}
+          actions={<Button variant="outline" onClick={() => setLoadAttempt((attempt) => attempt + 1)}>Try again</Button>}
+        />
+      </Card>
+    </Page>
   );
 
+  const itemCount = cart.reduce((sum, line) => sum + line.quantity, 0);
+  const submitDisabled = !canSubmit || (paymentMethod === 'moniepoint_pos' && (!posTerminalId || !posConnection?.erpEnabled ||
+    !['configured', 'connected'].includes(posConnection.status) || !posConnection.amountUnitConfirmed || !posConnection.approvalCodesConfirmed));
+  const methodOptions: { value: PaymentMethod | 'moniepoint_pos'; label: string; disabled?: boolean }[] = [
+    ...PAYMENT_METHODS.map((m) => ({ value: m.value, label: m.label, disabled: m.value === 'credit' && !selectedCustomer })),
+    ...(posConnection ? [{ value: 'moniepoint_pos' as const, label: 'Moniepoint POS' }] : []),
+  ];
+  const sectionLabel = 'm-0 mb-2 text-xs font-semibold uppercase tracking-[.06em] text-ink-3';
+
   return (
-    <div className="checkout-page">
-      {posAttempt && <div className="card" role="status" style={{ marginBottom: 'var(--space-16)' }}>
-        <h2 className="list-item-title">{posAttempt.status === 'successful' ? 'Payment verified' :
-          posAttempt.status === 'reconciliation_required' ? 'Payment needs review' :
-          posAttempt.status === 'failed' || posAttempt.status === 'cancelled' ? 'POS payment did not complete' :
-          'Waiting for Moniepoint payment'}</h2>
-        <p className="page-subtitle">{formatMoney(Number(posAttempt.expectedAmount))} · Terminal ••••{posAttempt.terminalLastFour} · {posAttempt.merchantReference}</p>
-        <p className="page-subtitle">Status: {posAttempt.status.replaceAll('_', ' ')}{posChecking ? ' · Checking…' : ''}</p>
-        <p className="page-subtitle">{describeAttempt(posAttempt)}</p>
-        {['sending', 'pending', 'unresolved', 'reconciliation_required'].includes(posAttempt.status) &&
-          <p className="page-subtitle">Do not collect another payment until this transaction has been verified. A network error can mean the terminal received the request.</p>}
-        <div className="btn-row">
-          {posAttempt.status !== 'successful' && <Button variant="outline" loading={posChecking}
-            onClick={async () => {
-              setPosChecking(true);
-              try { const result = await MerchantPaymentService.check(posAttempt.id); setPosAttempt(result.attempt);
-                if (result.attempt.status === 'successful') navigate(`/sales/${result.attempt.saleId}`);
-              } catch (cause) { toast.error('Status check unavailable', { description: cause instanceof Error ? cause.message : undefined }); }
-              finally { setPosChecking(false); }
-            }}>Check payment status</Button>}
-          <Button variant="ghost" onClick={() => navigate('/payments')}>View transactions</Button>
-          {['failed', 'cancelled'].includes(posAttempt.status) && <Button variant="ghost" onClick={() => {
-            setPosAttempt(null); setCart([]); setCheckoutKey(crypto.randomUUID()); setRequestKey(crypto.randomUUID());
-          }}>Start a new sale</Button>}
+    <div className="mx-auto w-full max-w-[1440px] px-4 pb-40 pt-4 sm:px-6 lg:px-8 lg:pb-8 lg:pt-6">
+      {posAttempt && (
+        <div className={cn('mb-4 rounded-xl border p-4', posAttempt.status === 'successful' ? 'border-success/30 bg-success-soft' :
+          ['failed', 'cancelled'].includes(posAttempt.status) ? 'border-danger/30 bg-danger-soft' : 'border-warn/30 bg-warn-soft')} role="status">
+          <h2 className="m-0 text-[15px] font-semibold text-ink">{posAttempt.status === 'successful' ? 'Payment verified' :
+            posAttempt.status === 'reconciliation_required' ? 'Payment needs review' :
+            posAttempt.status === 'failed' || posAttempt.status === 'cancelled' ? 'POS payment did not complete' :
+            'Waiting for Moniepoint payment'}</h2>
+          <p className="m-0 mt-1 text-[13px] text-ink-2">{formatMoney(Number(posAttempt.expectedAmount))} · Terminal ••••{posAttempt.terminalLastFour} · {posAttempt.merchantReference}</p>
+          <p className="m-0 mt-1 text-[13px] text-ink-2">Status: {posAttempt.status.replaceAll('_', ' ')}{posChecking ? ' · Checking…' : ''}</p>
+          <p className="m-0 mt-1 text-[13px] text-ink-2">{describeAttempt(posAttempt)}</p>
+          {['sending', 'pending', 'unresolved', 'reconciliation_required'].includes(posAttempt.status) &&
+            <p className="m-0 mt-2 text-[13px] font-medium text-warn-ink">Do not collect another payment until this transaction has been verified. A network error can mean the terminal received the request.</p>}
+          <div className="mt-3 flex flex-wrap gap-2">
+            {posAttempt.status !== 'successful' && <Button variant="outline" className="btn-sm" loading={posChecking}
+              onClick={async () => {
+                setPosChecking(true);
+                try { const result = await MerchantPaymentService.check(posAttempt.id); setPosAttempt(result.attempt);
+                  if (result.attempt.status === 'successful') navigate(`/sales/${result.attempt.saleId}`);
+                } catch (cause) { toast.error('Status check unavailable', { description: cause instanceof Error ? cause.message : undefined }); }
+                finally { setPosChecking(false); }
+              }}>Check payment status</Button>}
+            <Button variant="ghost" className="btn-sm" onClick={() => navigate('/payments')}>View transactions</Button>
+            {['failed', 'cancelled'].includes(posAttempt.status) && <Button variant="ghost" className="btn-sm" onClick={() => {
+              setPosAttempt(null); setCart([]); setCheckoutKey(crypto.randomUUID()); setRequestKey(crypto.randomUUID());
+            }}>Start a new sale</Button>}
+          </div>
         </div>
-      </div>}
-      {/* Mobile-only sticky jump bar */}
-      {cart.length > 0 && (
-        <button
-          type="button"
-          className="cart-sticky-bar"
-          onClick={() => document.getElementById('checkout-receipt')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-        >
-          <span className="cart-sticky-bar-count">{cart.length} item{cart.length === 1 ? '' : 's'}</span>
-          <span className="cart-sticky-bar-total">{formatMoney(total)}</span>
-          <span className="cart-sticky-bar-action">View cart ↓</span>
-        </button>
       )}
 
-      <div className="checkout-shell">
-        {/* ── LEFT PANEL: Product discovery ── */}
-        <div className="checkout-products">
-          <div className="checkout-products-header">
-            <h1 className="page-title">{config.saleLabel}</h1>
-            <p className="page-subtitle">{products.length} products</p>
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_400px]">
+        {/* Product discovery */}
+        <section className="min-w-0" aria-label="Products">
+          <div className="mb-4 flex items-end justify-between gap-3">
+            <div>
+              <h1 className="m-0 text-2xl font-semibold text-ink">{config.saleLabel}</h1>
+              <p className="m-0 mt-0.5 text-sm text-ink-3">{products.length} {config.productLabel.toLowerCase()} · tap to add</p>
+            </div>
           </div>
 
-          {error && <div className="alert alert-error">{error}</div>}
-          {scanError && <div className="alert alert-error">{scanError}</div>}
+          {error && <div className="mb-3 rounded-lg bg-danger-soft px-4 py-2.5 text-[13px] text-danger" role="alert">{error}</div>}
+          {scanError && <div className="mb-3 rounded-lg bg-danger-soft px-4 py-2.5 text-[13px] text-danger" role="alert">{scanError}</div>}
 
-          <div className="control-row search-input-row">
-            <div>
-              <SearchInput
-                aria-label="Search products by name, SKU, or barcode"
-                placeholder="Search by name, SKU, or barcode"
-                value={search}
-                onChange={(e) => {
-                  setSearch(e.target.value);
-                  setScanError(null);
-                }}
-              />
+          <div className="sticky top-14 z-10 -mx-4 bg-canvas/95 px-4 pb-3 pt-1 backdrop-blur sm:-mx-6 sm:px-6 lg:static lg:mx-0 lg:bg-transparent lg:px-0 lg:backdrop-blur-none">
+            <div className="flex gap-2">
+              <div className="relative min-w-0 flex-1">
+                <SearchIcon width={17} height={17} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-3" />
+                <input
+                  type="search"
+                  className={cn(inputClass, 'h-11 pl-9 text-[15px]')}
+                  aria-label="Search products by name, SKU, or barcode"
+                  placeholder="Search name, SKU or barcode"
+                  value={search}
+                  onChange={(e) => { setSearch(e.target.value); setScanError(null); }}
+                />
+              </div>
+              <button type="button" className={cn(btn('primary'), 'h-11 px-4')} onClick={() => { setScanError(null); setScanning(true); }}>
+                <ScanIcon width={18} height={18} /><span className="hidden sm:inline">Scan</span><span className="sr-only sm:hidden">Scan a barcode</span>
+              </button>
             </div>
-            <Button
-              type="button"
-              variant="primary"
-              onClick={() => { setScanError(null); setScanning(true); }}
-            >
-              Scan
-            </Button>
+
+            {categories.length > 0 && (
+              <div className="mt-3 flex gap-2 overflow-x-auto pb-1" role="group" aria-label="Filter by category">
+                {[{ id: '', name: 'All' }, ...categories].map((c) => (
+                  <button key={c.id || 'all'} type="button" aria-pressed={categoryId === c.id}
+                    className={cn('h-8 shrink-0 rounded-full border px-3.5 text-[13px] font-medium transition-colors',
+                      categoryId === c.id ? 'border-ink bg-ink text-surface' : 'border-line-strong bg-surface text-ink-2 hover:text-ink')}
+                    onClick={() => setCategoryId(c.id)}>
+                    {c.name}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {scanning && <BarcodeScanner onDetect={handleScan} onClose={() => setScanning(false)} />}
 
-          {categories.length > 0 && (
-            <div className="chip-row">
-              <button type="button" className={`chip${categoryId === '' ? ' active' : ''}`} onClick={() => setCategoryId('')}>
-                All
-              </button>
-              {categories.map((c) => (
-                <button key={c.id} type="button" className={`chip${categoryId === c.id ? ' active' : ''}`} onClick={() => setCategoryId(c.id)}>
-                  {c.name}
-                </button>
-              ))}
-            </div>
-          )}
-
           {displayedProducts.length === 0 ? (
-            <StateBlock
-              compact
+            <Empty
               title={products.length === 0 ? `No ${config.productLabel.toLowerCase()} yet` : 'No matching products'}
               body={products.length === 0 ? 'Add your first item to start taking sales.' : 'Change the search or category filter and try again.'}
-              actions={products.length === 0 && hasPermission('product:create') && <Button variant="outline" onClick={() => navigate('/inventory/products/new')}>Add {config.productLabel.toLowerCase()}</Button>}
+              action={products.length === 0 && hasPermission('product:create') && <Button variant="outline" onClick={() => navigate('/inventory/products/new')}>Add {config.productLabel.toLowerCase()}</Button>}
             />
           ) : (
-            <div className="product-grid">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
               {displayedProducts.map((product) => {
                 const outOfStock = product.trackInventory && product.stockQty <= 0;
+                const low = product.trackInventory && !outOfStock && product.stockQty <= product.reorderLevel;
+                const inCart = cart.find((line) => line.productId === product.id)?.quantity ?? 0;
                 return (
                   <button
                     key={product.id}
                     type="button"
-                    className="product-card"
+                    className={cn('group relative flex min-w-0 flex-col rounded-xl border bg-surface p-3 text-left shadow-card transition',
+                      inCart ? 'border-brand ring-2 ring-brand/20' : 'border-line hover:border-line-strong',
+                      outOfStock && 'cursor-not-allowed opacity-55')}
                     disabled={outOfStock}
                     onClick={() => addToCart(product)}
+                    aria-label={`${product.name}, ${outOfStock ? 'out of stock' : formatMoney(product.sellingPrice)}${inCart ? `, ${inCart} in sale` : ''}`}
                   >
                     {product.imageUrl ? (
-                      <img src={product.imageUrl} alt="" className="product-card-image" />
+                      <img src={product.imageUrl} alt="" className="aspect-[4/3] w-full rounded-lg object-cover" />
                     ) : (
-                      <div className="product-card-placeholder">{product.name.charAt(0).toUpperCase()}</div>
+                      <span className="flex aspect-[4/3] w-full items-center justify-center rounded-lg bg-tray text-2xl font-semibold text-ink-3" aria-hidden="true">{product.name.charAt(0).toUpperCase()}</span>
                     )}
-                    <span className="product-card-name">{product.name}</span>
-                    <span className="product-card-price">
-                      {outOfStock ? 'Out of stock' : `${formatMoney(product.sellingPrice)}`}
+                    {inCart > 0 && <span className="absolute right-2 top-2 inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-brand px-1.5 text-xs font-semibold text-white" aria-hidden="true">{inCart}</span>}
+                    <span className="mt-2.5 line-clamp-2 min-h-10 text-sm font-medium leading-5 text-ink">{product.name}</span>
+                    <span className="mt-1 flex items-center justify-between gap-2">
+                      <span className="text-[15px] font-semibold tabular-nums text-ink">{outOfStock ? 'Out of stock' : formatMoney(product.sellingPrice)}</span>
+                      {product.trackInventory && !outOfStock && <span className={cn('text-xs tabular-nums', low ? 'font-semibold text-warn-ink' : 'text-ink-3')}>{product.stockQty} left</span>}
                     </span>
                   </button>
                 );
               })}
             </div>
           )}
-        </div>
+        </section>
 
-        {/* ── RIGHT PANEL: Live receipt / order summary ── */}
-        <div className="checkout-receipt" id="checkout-receipt">
-          <div className="checkout-receipt-header">
-            <span className="checkout-receipt-title">Order</span>
-            {cart.length > 0 && (
-              <span className="checkout-receipt-count">{cart.length} item{cart.length === 1 ? '' : 's'}</span>
-            )}
-          </div>
+        {/* Current sale: a sticky panel on desktop, a full-screen sheet on phones */}
+        <section
+          id="checkout-receipt"
+          aria-label="Current sale"
+          className={cn('flex-col bg-surface lg:sticky lg:top-24 lg:flex lg:max-h-[calc(100dvh-7rem)] lg:rounded-xl lg:border lg:border-line lg:shadow-card',
+            cartOpen ? 'fixed inset-0 z-40 flex' : 'hidden')}
+        >
+          <header className="flex h-14 shrink-0 items-center justify-between gap-3 border-b border-line px-4 lg:px-5">
+            <div className="flex items-center gap-2">
+              <button type="button" className="inline-flex size-9 items-center justify-center rounded-lg text-ink-2 hover:bg-hover lg:hidden" aria-label="Back to products" onClick={() => setCartOpen(false)}>
+                <ArrowLeftIcon width={18} height={18} />
+              </button>
+              <h2 className="m-0 text-[15px] font-semibold text-ink">Current sale</h2>
+            </div>
+            {cart.length > 0 && <span className="text-[13px] text-ink-3">{itemCount} item{itemCount === 1 ? '' : 's'}</span>}
+          </header>
 
           {cart.length === 0 ? (
-            <div className="checkout-receipt-empty">Tap a product to add it to the order.</div>
+            <div className="flex flex-1 flex-col items-center justify-center px-6 py-16 text-center">
+              <span className="inline-flex size-12 items-center justify-center rounded-full bg-tray text-ink-3"><ScanIcon width={22} height={22} /></span>
+              <p className="m-0 mt-3 text-sm font-semibold text-ink">No items yet</p>
+              <p className="m-0 mt-1 text-[13px] text-ink-3">Scan a barcode or tap a product to add it.</p>
+            </div>
           ) : (
             <>
-              {/* Line items */}
-              <div className="co-lines">
-                {cart.map((line) => (
-                  <div key={line.productId} className="co-line">
-                    <div className="co-line-top">
-                      <span className="co-line-name">{line.name}</span>
-                      <span className="co-line-total">{formatMoney((line.unitPrice * line.quantity))}</span>
-                    </div>
-                    <div className="co-line-bottom">
-                      <div className="qty-stepper">
-                        <button type="button" onClick={() => updateQuantity(line.productId, -1)} aria-label={`Decrease ${line.name} quantity`}>−</button>
-                        <span aria-live="polite" aria-label={`${line.quantity} ${line.unit}`}>{line.quantity}</span>
-                        <button type="button" onClick={() => updateQuantity(line.productId, 1)} disabled={line.trackInventory && line.quantity >= line.stockQty} aria-label={`Increase ${line.name} quantity`}>+</button>
+              <div className="flex-1 overflow-y-auto">
+                <ul className="m-0 list-none divide-y divide-line p-0" aria-label="Items in this sale">
+                  {cart.map((line) => (
+                    <li key={line.productId} className="px-4 py-3 lg:px-5">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="m-0 truncate text-sm font-medium text-ink">{line.name}</p>
+                          <p className="m-0 text-xs text-ink-3">{formatMoney(line.unitPrice)} each</p>
+                        </div>
+                        <span className="shrink-0 text-sm font-semibold tabular-nums text-ink">{formatMoney(line.unitPrice * line.quantity)}</span>
                       </div>
-                      <span className="co-line-unit">{formatMoney(line.unitPrice)} ea.</span>
-                      <button type="button" className="co-line-remove" onClick={() => removeLine(line.productId)}>✕</button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <div className="receipt-divider" />
-
-              {/* Restaurant: order type */}
-              {isRestaurant && (
-                <div className="co-section">
-                  <p className="co-section-label">Order type</p>
-                  <div className="order-type-row">
-                    {(['dine_in', 'takeaway', 'delivery'] as OrderType[]).map((type) => {
-                      const labels: Record<OrderType, string> = { dine_in: '🪑 Dine-in', takeaway: '🥡 Takeaway', delivery: '🛵 Delivery', standard: '' };
-                      return (
-                        <button key={type} type="button" className={`order-type-btn${orderType === type ? ' active' : ''}`} onClick={() => setOrderType(type)}>
-                          {labels[type]}
-                        </button>
-                      );
-                    })}
-                  </div>
-                  {orderType === 'dine_in' && (
-                    <input className="form-input" style={{ marginTop: 'var(--space-8)' }} aria-label="Table number (optional)" placeholder="Table number (optional)" value={tableNumber} onChange={(e) => setTableNumber(e.target.value)} />
-                  )}
-                </div>
-              )}
-
-              {/* Customer */}
-              <div className="co-section">
-                {selectedCustomer ? (
-                  <div className="co-customer">
-                    <div>
-                      <p className="co-customer-name">{selectedCustomer.name}</p>
-                      <p className="co-customer-sub">
-                        {selectedCustomer.phone || selectedCustomer.email || 'No contact'} · {formatMoney(remainingCredit)} credit
-                      </p>
-                      {loyaltyPreview > 0 && <p className="co-customer-sub">+{loyaltyPreview} loyalty pts</p>}
-                    </div>
-                    <button type="button" className="co-line-remove" aria-label="Remove customer" onClick={clearCustomer}>✕</button>
-                  </div>
-                ) : (showCustomerSearch || requireCustomer) ? (
-                  <>
-                    <p className="co-section-label">Customer {requireCustomer ? '(required)' : ''}</p>
-                    <SearchInput
-                      aria-label="Search customers"
-                      placeholder="Search by name or phone"
-                      value={customerSearch}
-                      onChange={(e) => setCustomerSearch(e.target.value)}
-                    />
-                    {filteredCustomers.length > 0 && (
-                      <div className="list" style={{ marginTop: 'var(--space-4)' }}>
-                        {filteredCustomers.map((c) => (
-                          <button key={c.id} type="button" className="list-item" style={{ width: '100%', cursor: 'pointer', font: 'inherit' }} onClick={() => selectCustomer(c)}>
-                            <div>
-                              <p className="list-item-title">{c.name}</p>
-                              <p className="list-item-subtitle">{c.phone || c.email || 'No contact info'}</p>
-                            </div>
-                          </button>
-                        ))}
+                      <div className="mt-2 flex items-center justify-between">
+                        <div className="inline-flex items-center rounded-lg border border-line-strong">
+                          <button type="button" className="inline-flex size-9 items-center justify-center text-lg text-ink-2 hover:text-ink" onClick={() => updateQuantity(line.productId, -1)} aria-label={`Decrease ${line.name} quantity`}>−</button>
+                          <span className="min-w-8 text-center text-sm font-semibold tabular-nums" aria-live="polite" aria-label={`${line.quantity} ${line.unit}`}>{line.quantity}</span>
+                          <button type="button" className="inline-flex size-9 items-center justify-center text-lg text-ink-2 hover:text-ink disabled:opacity-40" onClick={() => updateQuantity(line.productId, 1)} disabled={line.trackInventory && line.quantity >= line.stockQty} aria-label={`Increase ${line.name} quantity`}>+</button>
+                        </div>
+                        <button type="button" className="text-[13px] font-medium text-ink-3 hover:text-danger" onClick={() => removeLine(line.productId)} aria-label={`Remove ${line.name}`}>Remove</button>
                       </div>
-                    )}
-                    {!requireCustomer && (
-                      <button type="button" className="co-add-btn" style={{ marginTop: 'var(--space-6)' }} onClick={() => setShowCustomerSearch(false)}>Cancel</button>
-                    )}
-                  </>
-                ) : (
-                  <button type="button" className="co-add-btn" onClick={() => setShowCustomerSearch(true)}>+ Add customer</button>
-                )}
-              </div>
-
-              {/* Discount */}
-              <div className="co-section">
-                {(showDiscount || discount > 0) ? (
-                  <FormField id="discount-total" label="Discount (₦)" type="number" value={discountTotal} onChange={setDiscountTotal} />
-                ) : (
-                  <button type="button" className="co-add-btn" onClick={() => setShowDiscount(true)}>+ Add discount</button>
-                )}
-              </div>
-
-              <div className="receipt-divider" />
-
-              {/* Totals */}
-              <div className="co-totals">
-                <div className="co-total-row"><span>Subtotal</span><span>{formatMoney(subtotal)}</span></div>
-                {discount > 0 && <div className="co-total-row"><span>Discount</span><span>−{formatMoney(discount)}</span></div>}
-                {taxTotal > 0 && <div className="co-total-row"><span>Tax</span><span>{formatMoney(taxTotal)}</span></div>}
-                <div className="co-total-row grand"><span>Total</span><span>{formatMoney(total)}</span></div>
-              </div>
-
-              <div className="receipt-divider" />
-
-              {/* Payment */}
-              <div className="co-section">
-                <p className="co-section-label">Payment</p>
-                <select
-                  className="select-input"
-                  value={paymentMethod}
-                  onChange={(e) => { setPaymentMethod(e.target.value as PaymentMethod); setPendingVerification(false); }}
-                  disabled={posSaleLocked}
-                >
-                  {PAYMENT_METHODS.map((m) => (
-                    <option key={m.value} value={m.value} disabled={m.value === 'credit' && !selectedCustomer}>{m.label}</option>
+                    </li>
                   ))}
-                  {posConnection && <option value="moniepoint_pos">Moniepoint POS</option>}
-                </select>
+                </ul>
 
-                {paymentMethod === 'cash' ? (
-                  <FormField id="amount-tendered" label="Amount tendered (₦)" type="number" value={amountTendered} onChange={setAmountTendered} placeholder={String(total)} />
-                ) : paymentMethod === 'credit' ? (
-                  <p className="page-subtitle" style={{ marginTop: 'var(--space-8)' }}>{formatMoney(total)} added to {selectedCustomer?.name}'s balance.</p>
-                ) : paymentMethod === 'moniepoint_pos' ? (
-                  <div className="form-group">
-                    <label className="form-label" htmlFor="moniepoint-terminal">Terminal</label>
-                    <select id="moniepoint-terminal" className="select-input" value={posTerminalId}
-                      disabled={posSaleLocked} onChange={(event) => setPosTerminalId(event.target.value)}>
-                      <option value="">Choose a terminal</option>
-                      {posTerminals.filter((terminal) => terminal.status === 'active').map((terminal) =>
-                        <option key={terminal.id} value={terminal.id}>{terminal.name} · ••••{terminal.serialLastFour}</option>)}
-                    </select>
-                    {(!posConnection?.erpEnabled || !posConnection.amountUnitConfirmed || !posConnection.approvalCodesConfirmed) &&
-                      <p className="form-hint">Moniepoint must be connected with ERP integration, amount units, and approval codes confirmed before POS checkout is available.</p>}
+                <div className="space-y-4 border-t border-line px-4 py-4 lg:px-5">
+                  {isRestaurant && (
+                    <div>
+                      <p className={sectionLabel}>Order type</p>
+                      <div className="grid grid-cols-3 gap-2">
+                        {(['dine_in', 'takeaway', 'delivery'] as OrderType[]).map((type) => {
+                          const labels: Record<OrderType, string> = { dine_in: 'Dine-in', takeaway: 'Takeaway', delivery: 'Delivery', standard: '' };
+                          return (
+                            <button key={type} type="button" aria-pressed={orderType === type}
+                              className={cn('h-9 rounded-md border text-[13px] font-medium', orderType === type ? 'border-brand bg-brand-soft text-brand-ink' : 'border-line-strong text-ink-2')}
+                              onClick={() => setOrderType(type)}>
+                              {labels[type]}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      {orderType === 'dine_in' && (
+                        <input className={cn(inputClass, 'mt-2')} aria-label="Table number (optional)" placeholder="Table number (optional)" value={tableNumber} onChange={(e) => setTableNumber(e.target.value)} />
+                      )}
+                    </div>
+                  )}
+
+                  <div>
+                    {selectedCustomer ? (
+                      <div className="flex items-center gap-3 rounded-lg bg-subtle p-3">
+                        <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-full bg-brand-soft text-xs font-semibold text-brand-ink" aria-hidden="true">{selectedCustomer.name.charAt(0).toUpperCase()}</span>
+                        <div className="min-w-0 flex-1">
+                          <p className="m-0 truncate text-sm font-medium text-ink">{selectedCustomer.name}</p>
+                          <p className="m-0 truncate text-xs text-ink-3">
+                            {selectedCustomer.phone || selectedCustomer.email || 'No contact'} · {formatMoney(remainingCredit)} credit{loyaltyPreview > 0 ? ` · +${loyaltyPreview} pts` : ''}
+                          </p>
+                        </div>
+                        <button type="button" className="text-[13px] font-medium text-ink-3 hover:text-ink" aria-label="Remove customer" onClick={clearCustomer}>Change</button>
+                      </div>
+                    ) : (showCustomerSearch || requireCustomer) ? (
+                      <>
+                        <p className={sectionLabel}>Customer {requireCustomer ? '(required)' : ''}</p>
+                        <input type="search" className={inputClass} aria-label="Search customers" placeholder="Search by name or phone" value={customerSearch} onChange={(e) => setCustomerSearch(e.target.value)} autoFocus={!requireCustomer} />
+                        {filteredCustomers.length > 0 && (
+                          <ul className="m-0 mt-1 list-none overflow-hidden rounded-lg border border-line p-0">
+                            {filteredCustomers.map((c) => (
+                              <li key={c.id}>
+                                <button type="button" className="block w-full px-3 py-2 text-left hover:bg-subtle" onClick={() => selectCustomer(c)}>
+                                  <span className="block text-sm font-medium text-ink">{c.name}</span>
+                                  <span className="block text-xs text-ink-3">{c.phone || c.email || 'No contact info'}</span>
+                                </button>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                        {!requireCustomer && <button type="button" className="mt-2 text-[13px] font-medium text-ink-3" onClick={() => setShowCustomerSearch(false)}>Cancel</button>}
+                      </>
+                    ) : (
+                      <div className="flex flex-wrap gap-x-4 gap-y-2">
+                        <button type="button" className="text-[13px] font-semibold text-brand" onClick={() => setShowCustomerSearch(true)}>+ Add customer</button>
+                        {!(showDiscount || discount > 0) && <button type="button" className="text-[13px] font-semibold text-brand" onClick={() => setShowDiscount(true)}>+ Add discount</button>}
+                      </div>
+                    )}
+                    {(selectedCustomer || showCustomerSearch || requireCustomer) && !(showDiscount || discount > 0) && (
+                      <button type="button" className="mt-3 text-[13px] font-semibold text-brand" onClick={() => setShowDiscount(true)}>+ Add discount</button>
+                    )}
                   </div>
-                ) : (
-                  <FormField id="payment-reference" label="Reference (optional)" value={reference} onChange={setReference} />
-                )}
 
-                {paymentMethod !== 'moniepoint_pos' && VERIFIABLE_METHODS.includes(paymentMethod) && (
-                  <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-8)', marginTop: 'var(--space-8)' }}>
-                    <input type="checkbox" checked={pendingVerification} onChange={(e) => setPendingVerification(e.target.checked)} />
-                    Awaiting confirmation
-                  </label>
-                )}
+                  {(showDiscount || discount > 0) && (
+                    <label className="block">
+                      <span className={sectionLabel}>Discount (₦)</span>
+                      <input id="discount-total" type="number" inputMode="decimal" min={0} className={inputClass} value={discountTotal} onChange={(e) => setDiscountTotal(e.target.value)} />
+                    </label>
+                  )}
 
-                {paymentMethod === 'cash' && (
-                  <div className="co-total-row" style={{ marginTop: 'var(--space-10)', fontWeight: 600 }}>
-                    <span>Change due</span>
-                    <span>{formatMoney(changeDue)}</span>
+                  <dl className="m-0 space-y-1.5 text-sm">
+                    <div className="flex justify-between text-ink-2"><dt>Subtotal</dt><dd className="m-0 tabular-nums">{formatMoney(subtotal)}</dd></div>
+                    {discount > 0 && <div className="flex justify-between text-ink-2"><dt>Discount</dt><dd className="m-0 tabular-nums">−{formatMoney(discount)}</dd></div>}
+                    {taxTotal > 0 && <div className="flex justify-between text-ink-2"><dt>Tax</dt><dd className="m-0 tabular-nums">{formatMoney(taxTotal)}</dd></div>}
+                    <div className="flex items-baseline justify-between border-t border-line pt-3 text-ink"><dt className="text-[15px] font-semibold">Total</dt><dd className="m-0 text-2xl font-semibold tabular-nums">{formatMoney(total)}</dd></div>
+                  </dl>
+
+                  <div className="pt-1">
+                    <p className={sectionLabel} id="payment-method-label">Payment</p>
+                    <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-labelledby="payment-method-label">
+                      {methodOptions.map((m) => (
+                        <button key={m.value} type="button" role="radio" aria-checked={paymentMethod === m.value}
+                          disabled={posSaleLocked || m.disabled}
+                          title={m.value === 'credit' && !selectedCustomer ? 'Add a customer to sell on credit' : undefined}
+                          className={cn('h-10 rounded-md border px-1 text-[13px] font-medium transition-colors disabled:opacity-40',
+                            paymentMethod === m.value ? 'border-brand bg-brand-soft text-brand-ink' : 'border-line-strong bg-surface text-ink-2 hover:text-ink')}
+                          onClick={() => { setPaymentMethod(m.value); setPendingVerification(false); }}>
+                          {m.label}
+                        </button>
+                      ))}
+                    </div>
+
+                    <div className="mt-3">
+                      {paymentMethod === 'cash' ? (
+                        <>
+                          <label className="block">
+                            <span className="mb-1 block text-[13px] font-medium text-ink-2">Amount received (₦)</span>
+                            <input id="amount-tendered" type="number" inputMode="decimal" min={0} className={cn(inputClass, 'h-11 text-[15px]')} value={amountTendered} onChange={(e) => setAmountTendered(e.target.value)} placeholder={String(total)} />
+                          </label>
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {quickCash(total).map((amount) => (
+                              <button key={amount} type="button" className="h-8 rounded-full border border-line-strong px-3 text-[13px] font-medium tabular-nums text-ink-2 hover:text-ink"
+                                onClick={() => setAmountTendered(String(amount))}>{amount === Math.ceil(total) ? 'Exact' : formatMoney(amount)}</button>
+                            ))}
+                          </div>
+                          <div className="mt-3 flex items-baseline justify-between rounded-lg bg-subtle px-3 py-2">
+                            <span className="text-sm font-medium text-ink-2">Change</span>
+                            <span className="text-lg font-semibold tabular-nums text-ink">{formatMoney(changeDue)}</span>
+                          </div>
+                        </>
+                      ) : paymentMethod === 'credit' ? (
+                        <p className="m-0 rounded-lg bg-subtle px-3 py-2 text-[13px] text-ink-2">{formatMoney(total)} will be added to {selectedCustomer?.name}'s balance.</p>
+                      ) : paymentMethod === 'moniepoint_pos' ? (
+                        <label className="block">
+                          <span className="mb-1 block text-[13px] font-medium text-ink-2">Terminal</span>
+                          <select id="moniepoint-terminal" className={inputClass} value={posTerminalId} disabled={posSaleLocked} onChange={(event) => setPosTerminalId(event.target.value)}>
+                            <option value="">Choose a terminal</option>
+                            {posTerminals.filter((terminal) => terminal.status === 'active').map((terminal) =>
+                              <option key={terminal.id} value={terminal.id}>{terminal.name} · ••••{terminal.serialLastFour}</option>)}
+                          </select>
+                          {(!posConnection?.erpEnabled || !posConnection.amountUnitConfirmed || !posConnection.approvalCodesConfirmed) &&
+                            <span className="mt-1 block text-xs text-ink-3">Moniepoint must be connected with ERP integration, amount units, and approval codes confirmed before POS checkout is available.</span>}
+                        </label>
+                      ) : (
+                        <label className="block">
+                          <span className="mb-1 block text-[13px] font-medium text-ink-2">{paymentMethod === 'card' ? 'POS receipt / terminal ref (optional)' : 'Reference (optional)'}</span>
+                          <input id="payment-reference" className={inputClass} value={reference} onChange={(e) => setReference(e.target.value)} />
+                        </label>
+                      )}
+                      {paymentMethod !== 'moniepoint_pos' && VERIFIABLE_METHODS.includes(paymentMethod) && (
+                        <label className="mt-2 flex items-center gap-2 text-[13px] text-ink-2">
+                          <input type="checkbox" className="size-4 accent-[var(--color-accent)]" checked={pendingVerification} onChange={(e) => setPendingVerification(e.target.checked)} />
+                          Not confirmed yet (check the alert later)
+                        </label>
+                      )}
+                    </div>
                   </div>
-                )}
+                </div>
               </div>
 
-              <Button onClick={handleCompleteSale} loading={saving}
-                disabled={!canSubmit || (paymentMethod === 'moniepoint_pos' && (!posTerminalId || !posConnection?.erpEnabled ||
-                  !['configured', 'connected'].includes(posConnection.status) || !posConnection.amountUnitConfirmed || !posConnection.approvalCodesConfirmed))}
-                style={{ width: '100%', marginTop: 'var(--space-8)' }}>
-                {paymentMethod === 'moniepoint_pos' ? `Send ${formatMoney(total)} to POS` : `Complete sale — ${formatMoney(total)}`}
-              </Button>
+              <div className="shrink-0 border-t border-line p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] lg:px-5 lg:pb-4">
+                <Button onClick={handleCompleteSale} loading={saving} disabled={submitDisabled} className="btn-lg w-full">
+                  {paymentMethod === 'moniepoint_pos' ? `Send ${formatMoney(total)} to POS` : `Complete sale · ${formatMoney(total)}`}
+                </Button>
+              </div>
             </>
           )}
-        </div>
+        </section>
       </div>
+
+      {/* Phone: a bar above the tabs that opens the sale */}
+      {cart.length > 0 && !cartOpen && (
+        <button
+          type="button"
+          className="fixed inset-x-3 bottom-[calc(76px+env(safe-area-inset-bottom))] z-30 flex h-14 items-center justify-between gap-3 rounded-xl bg-contrast px-4 text-white shadow-pop lg:hidden"
+          onClick={() => setCartOpen(true)}
+        >
+          <span className="text-sm"><span className="font-semibold">{itemCount}</span> item{itemCount === 1 ? '' : 's'}</span>
+          <span className="text-[15px] font-semibold tabular-nums">{formatMoney(total)}</span>
+          <span className="inline-flex items-center gap-1 text-sm font-semibold">Review <ChevronRightIcon width={16} height={16} /></span>
+        </button>
+      )}
     </div>
   );
 }
