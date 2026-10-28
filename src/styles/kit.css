@@ -39,7 +39,7 @@
   .auth-form-row { display: grid; gap: 0 16px; }
   @media (min-width: 640px) { .auth-form-row { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
-  .list { display: flex; flex-direction: column; }
+  .list { display: flex; flex-direction: column; list-style: none; margin: 0; padding: 0; }
   .list-item { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--color-border); color: inherit; text-decoration: none; background: transparent; }
   .list-item:last-child { border-bottom: 0; }
   a.list-item:hover, button.list-item:hover { background: var(--color-subtle); }
