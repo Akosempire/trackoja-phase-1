@@ -45,6 +45,11 @@ mock('OfflineSalesService', 'subscribe', () => () => {});
 mock('OfflineSalesService', 'getPendingSales', () => []);
 mock('RbacService', 'getUserPermissions', []);
 
+// Per-area sample data: each tests/visual/fixtures/*.ts default-exports (mock, F) => void.
+type Mock = (svc: string, key: string, value: unknown) => void;
+const areaFixtures = import.meta.glob('./fixtures/*.ts', { eager: true }) as Record<string, { default?: (mock: Mock, f: typeof F) => void }>;
+for (const mod of Object.values(areaFixtures)) mod.default?.(mock, F);
+
 const params = new URLSearchParams(location.search);
 document.documentElement.dataset.theme = params.get('theme') ?? 'light';
 try { localStorage.setItem('trackoja-theme', params.get('theme') ?? 'light'); } catch { /* preview only */ }

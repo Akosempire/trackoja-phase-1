@@ -9,9 +9,9 @@ import type { ReactNode } from 'react';
  */
 export function Disclosure({ summary, children }: { summary: string; children: ReactNode }) {
   return (
-    <details className="disclosure">
-      <summary>{summary}</summary>
-      <div className="disclosure-body">{children}</div>
+    <details className="disclosure group rounded-lg border border-line bg-surface">
+      <summary className="cursor-pointer list-none px-4 py-3 text-[13px] font-semibold text-ink-2 hover:text-ink">{summary}</summary>
+      <div className="disclosure-body border-t border-line px-4 py-3 text-[13px] text-ink-2">{children}</div>
     </details>
   );
 }

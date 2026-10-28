@@ -41,21 +41,21 @@ export function Pagination({
   }
 
   return (
-    <div className="pager">
-      <span className="pager-status">{status}</span>
-      <div className="pager-controls">
+    <div className="pager mt-4 flex flex-wrap items-center justify-between gap-3">
+      <span className="pager-status text-[13px] text-ink-3">{status}</span>
+      <div className="pager-controls flex items-center gap-2">
         <button
           type="button"
-          className="btn btn-outline btn-sm"
+          className="btn btn-outline btn-sm inline-flex h-8 items-center rounded-md border border-line-strong bg-surface px-3 text-[13px] font-semibold text-ink disabled:opacity-40"
           onClick={() => onPageChange(page - 1)}
           disabled={cannotGoBack}
         >
           <span className="btn-label">Previous</span>
         </button>
-        <span className="pager-status">Page {page}</span>
+        <span className="pager-status text-[13px] text-ink-2">Page {page}</span>
         <button
           type="button"
-          className="btn btn-outline btn-sm"
+          className="btn btn-outline btn-sm inline-flex h-8 items-center rounded-md border border-line-strong bg-surface px-3 text-[13px] font-semibold text-ink disabled:opacity-40"
           onClick={() => onPageChange(page + 1)}
           disabled={cannotGoForward}
         >

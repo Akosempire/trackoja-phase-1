@@ -1,3 +1,4 @@
+import { inputClass } from '../kit';
 import type { InputHTMLAttributes } from 'react';
 
 type SearchInputProps = Omit<InputHTMLAttributes<HTMLInputElement>, 'type'> & {
@@ -6,5 +7,5 @@ type SearchInputProps = Omit<InputHTMLAttributes<HTMLInputElement>, 'type'> & {
 
 /** The same token-backed search field for merchant and platform directories. */
 export function SearchInput({ className, ...props }: SearchInputProps) {
-  return <input type="search" className={['form-input', 'search-input', className].filter(Boolean).join(' ')} {...props} />;
+  return <input type="search" className={['form-input', 'search-input', inputClass, className].filter(Boolean).join(' ')} {...props} />;
 }

@@ -13,11 +13,11 @@ export interface DefRow {
  */
 export function DefList({ rows, className }: { rows: DefRow[]; className?: string }) {
   return (
-    <dl className={['def-list', className].filter(Boolean).join(' ')}>
+    <dl className={['def-list m-0 divide-y divide-line', className].filter(Boolean).join(' ')}>
       {rows.map((row) => (
-        <div className="def-row" key={row.term}>
-          <dt className="def-term">{row.term}</dt>
-          <dd className={row.muted ? 'def-value is-muted' : 'def-value'}>{row.value}</dd>
+        <div className="def-row flex flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5 py-2.5 first:pt-0 last:pb-0" key={row.term}>
+          <dt className="def-term text-[13px] text-ink-2">{row.term}</dt>
+          <dd className={row.muted ? 'def-value is-muted m-0 text-sm text-ink-3' : 'def-value m-0 min-w-0 text-right text-sm font-medium text-ink'}>{row.value}</dd>
         </div>
       ))}
     </dl>

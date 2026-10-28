@@ -19,5 +19,6 @@
 @import "./home-dashboard.css" layer(legacy);
 @import "./platform-overview.css" layer(legacy);
 @import "./reports.css" layer(legacy);
+@import "./kit.css";
 @import "./tally.css";
 @import "./print.css";
