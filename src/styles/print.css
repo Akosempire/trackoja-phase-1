@@ -1,0 +1,13 @@
+/* Printing: only the document prints, never the app around it. Receipts print
+   on 80 mm or 58 mm thermal rolls (or A4) depending on html[data-paper]. */
+@media print {
+  .tl-side, .tl-header, .tl-topbar, .tl-tabbar, .tl-back, .no-print, .offline-banner { display: none !important; }
+  html, body, .tl-shell, .tl-main, .tl-content { background: #fff !important; }
+  .tl-content > * { padding: 0 !important; margin: 0 !important; max-width: none !important; }
+  .print-sheet, .print-sheet * { color: #000 !important; }
+  .print-sheet { box-shadow: none !important; border: 0 !important; border-radius: 0 !important; margin: 0 auto !important; color: #000 !important; }
+  html[data-paper="80mm"] .print-sheet { width: 72mm !important; padding: 0 !important; font-size: 12px; }
+  html[data-paper="58mm"] .print-sheet { width: 48mm !important; padding: 0 !important; font-size: 11px; }
+}
+html[data-paper="80mm"] { --paper: 80mm; }
+@page { margin: 4mm; }

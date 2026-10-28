@@ -21,10 +21,15 @@ export const customers = [
   { id: 'cu1', storeId: 'fixture-store', name: 'Mrs Bisi Adeyemi', phone: '08031234567', email: 'bisi@example.com', totalSpent: 48500, visitCount: 9, balance: 0, createdAt: iso(40000) },
   { id: 'cu2', storeId: 'fixture-store', name: 'Chidi Okafor', phone: '08129876543', email: '', totalSpent: 12600, visitCount: 3, balance: 4000, createdAt: iso(20000) },
 ];
-const line = (p: typeof products[number], qty: number) => ({ id: `${p.id}-l`, productId: p.id, productName: p.name, sku: p.sku, quantity: qty, unitPrice: p.sellingPrice, discount: 0, taxAmount: 0, lineTotal: qty * p.sellingPrice });
+const line = (saleId: string, p: typeof products[number], qty: number) => ({ id: `${saleId}-${p.id}`, saleId, productId: p.id, productName: p.name, sku: p.sku, quantity: qty, unitPrice: p.sellingPrice, taxRate: 0, taxAmount: 0, discountAmount: 0, lineTotal: qty * p.sellingPrice, refundedQuantity: 0, createdAt: iso(10) });
+const pay = (saleId: string, method: string, amount: number, extra: Record<string, unknown> = {}) => [{ id: `${saleId}-pay`, saleId, method, amount, verificationStatus: 'verified', createdAt: iso(10), ...extra }];
+const sale = (id: string, num: string, mins: number, status: string, method: string, items: ReturnType<typeof line>[], extra: Record<string, unknown> = {}) => {
+  const subtotal = items.reduce((a, l) => a + l.lineTotal, 0);
+  return { id, storeId: 'fixture-store', saleNumber: num, status, subtotal, discountTotal: 0, taxTotal: 0, total: subtotal, amountPaid: subtotal, changeDue: 0, refundedAmount: 0, loyaltyPointsEarned: 0, createdBy: 'fixture-user', createdAt: iso(mins), items, payments: pay(id, method, subtotal), refunds: [], cashierName: 'Ada', ...extra };
+};
 export const sales = [
-  { id: 's1', storeId: 'fixture-store', receiptNumber: 'RCP-000128', status: 'completed', paymentMethod: 'transfer', subtotal: 14700, discount: 0, taxTotal: 0, total: 14700, amountPaid: 14700, changeDue: 0, cashierId: 'fixture-user', cashierName: 'Ada', customerId: 'cu1', customerName: 'Mrs Bisi Adeyemi', createdAt: iso(25), items: [line(products[4], 1), line(products[5], 1)] },
-  { id: 's2', storeId: 'fixture-store', receiptNumber: 'RCP-000127', status: 'completed', paymentMethod: 'cash', subtotal: 2200, discount: 0, taxTotal: 0, total: 2200, amountPaid: 3000, changeDue: 800, cashierId: 'fixture-user', cashierName: 'Ada', createdAt: iso(70), items: [line(products[0], 2), line(products[1], 2), line(products[0], 1)] },
-  { id: 's3', storeId: 'fixture-store', receiptNumber: 'RCP-000126', status: 'completed', paymentMethod: 'pos', subtotal: 5000, discount: 0, taxTotal: 0, total: 5000, amountPaid: 5000, changeDue: 0, cashierId: 'fixture-user', cashierName: 'Tunde', createdAt: iso(140), items: [line(products[2], 2)] },
-  { id: 's4', storeId: 'fixture-store', receiptNumber: 'RCP-000125', status: 'voided', paymentMethod: 'cash', subtotal: 900, discount: 0, taxTotal: 0, total: 900, amountPaid: 900, changeDue: 0, cashierId: 'fixture-user', cashierName: 'Tunde', createdAt: iso(300), items: [line(products[6], 1)] },
+  sale('s1', '000128', 25, 'completed', 'transfer', [line('s1', products[4], 1), line('s1', products[5], 1)], { customerId: 'cu1', customerName: 'Mrs Bisi Adeyemi' }),
+  { ...sale('s2', '000127', 70, 'completed', 'cash', [line('s2', products[0], 3), line('s2', products[1], 2), line('s2', products[7], 1)]), amountPaid: 4000, changeDue: 100 },
+  sale('s3', '000126', 140, 'completed', 'card', [line('s3', products[2], 2)]),
+  { ...sale('s4', '000125', 300, 'voided', 'cash', [line('s4', products[6], 1)]), voidReason: 'Wrong item scanned' },
 ];

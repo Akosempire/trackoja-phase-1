@@ -9,23 +9,23 @@ import { StoreService } from '../../services/store.service';
 import { CustomerService } from '../../services/customer.service';
 import { MerchantPaymentService } from '../../services/merchantPayment.service';
 import { Button } from '../../components/ui/Button';
-import { FormField } from '../../components/ui/FormField';
+import { Card, CardHead, Page, cn, inputClass } from '../../components/kit';
+import { APP_NAME } from '../../config/brand';
 import { PageLoader } from '../../components/ui/PageLoader';
 import type { Customer, PaymentMethod, Sale, Store } from '../../types';
 
+type Paper = '80mm' | '58mm' | 'a4';
+
+const PAYMENT_LABEL: Record<string, string> = { cash: 'cash', card: 'POS / card', transfer: 'transfer', credit: 'credit', other: 'other' };
+
 const REFUND_METHODS: { value: PaymentMethod; label: string }[] = [
   { value: 'cash', label: 'Cash' },
-  { value: 'card', label: 'Card' },
+  { value: 'card', label: 'POS / card' },
   { value: 'transfer', label: 'Transfer' },
   { value: 'other', label: 'Other' },
   { value: 'credit', label: 'Credit (customer account)' },
 ];
 
-const VERIFY_CLASS: Record<string, string> = {
-  verified: 'badge-success',
-  pending: 'badge-warning',
-  rejected: 'badge-danger',
-};
 
 export default function ReceiptPage() {
   const { saleId } = useParams<{ saleId: string }>();
@@ -49,6 +49,12 @@ export default function ReceiptPage() {
   const [refundMethod, setRefundMethod] = useState<PaymentMethod>('cash');
   const [refundReason, setRefundReason] = useState('');
   const [refunding, setRefunding] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [paper, setPaper] = useState<Paper>(() => {
+    try { const saved = localStorage.getItem('trackoja-paper'); if (saved === '58mm' || saved === 'a4') return saved; } catch { /* default */ }
+    return '80mm';
+  });
+  useEffect(() => { try { localStorage.setItem('trackoja-paper', paper); } catch { /* session only */ } }, [paper]);
 
   const isMoniepointSale = sale?.payments?.some((payment) => payment.provider === 'moniepoint') ?? false;
   const canRefund = hasPermission('sales:refund') && !isMoniepointSale;
@@ -128,7 +134,7 @@ export default function ReceiptPage() {
   };
 
   if (loading) return <PageLoader />;
-  if (!sale) return <div className="page">{error && <div className="alert alert-error">{error}</div>}</div>;
+  if (!sale) return <Page width="form">{error && <div className="rounded-lg bg-danger-soft px-4 py-3 text-sm text-danger" role="alert">{error}</div>}</Page>;
 
   const isVoided = sale.status === 'voided';
   const isPending = sale.status === 'pending_payment';
@@ -136,264 +142,194 @@ export default function ReceiptPage() {
   const refundableItems = (sale.items ?? []).filter((item) => item.quantity - item.refundedQuantity > 0);
   const refundMethodOptions = REFUND_METHODS.filter((m) => m.value !== 'credit' || !!sale.customerId);
   const pendingPayments = (sale.payments ?? []).filter((p) => p.verificationStatus === 'pending');
+  const when = new Date(sale.createdAt).toLocaleString('en-NG', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  const row = 'flex justify-between gap-3';
+
+  const print = () => {
+    document.documentElement.dataset.paper = paper;
+    window.print();
+  };
+  const share = async () => {
+    const lines = [
+      `${store?.name ?? 'Receipt'} · #${sale.saleNumber}`,
+      when,
+      ...(sale.items ?? []).map((item) => `${item.quantity} × ${item.productName}  ${formatMoney(item.lineTotal)}`),
+      `Total: ${formatMoney(sale.total)}`,
+      'Thank you for your business',
+    ].join('\n');
+    try {
+      if (navigator.share) await navigator.share({ title: `Receipt #${sale.saleNumber}`, text: lines });
+      else { await navigator.clipboard.writeText(lines); setCopied(true); setTimeout(() => setCopied(false), 2000); }
+    } catch { /* The person closed the share sheet. */ }
+  };
 
   return (
-    <div className="page rp-page">
-      {error && <div className="alert alert-error no-print">{error}</div>}
+    <Page width="form" className="rp-page">
+      {error && <div className="no-print mb-4 rounded-lg bg-danger-soft px-4 py-3 text-sm text-danger" role="alert">{error}</div>}
 
-      {/* Status banner */}
-      <div className={`rp-status-bar no-print ${isVoided || isPending ? 'rp-status-voided' : 'rp-status-done'}`}>
-        <div className={`rp-status-icon ${isVoided ? 'rp-icon-voided' : 'rp-icon-done'}`}>
+      {/* Status */}
+      <div className={cn('no-print mb-4 flex items-center gap-3 rounded-xl p-4', isVoided || isPending ? 'bg-warn-soft' : 'bg-success-soft')}>
+        <span className={cn('inline-flex size-10 shrink-0 items-center justify-center rounded-full text-lg font-bold text-white', isVoided ? 'bg-danger' : isPending ? 'bg-warn' : 'bg-success')} aria-hidden="true">
           {isPending ? '…' : isVoided ? '✕' : '✓'}
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="m-0 text-[15px] font-semibold text-ink">{isPending ? 'Awaiting verified payment' : isVoided ? 'Sale voided' : 'Sale complete'}</p>
+          <p className="m-0 text-[13px] text-ink-2">Receipt #{sale.saleNumber} · {when}</p>
         </div>
-        <div className="rp-status-text">
-          <p className="rp-status-title">
-            {isPending ? 'Awaiting verified payment' : isVoided ? 'Sale Voided' : 'Sale Complete'}
-          </p>
-          <p className="rp-status-sub">Receipt #{sale.saleNumber} · {new Date(sale.createdAt).toLocaleString()}</p>
-        </div>
-        <div className="rp-status-amount">
-          {formatMoney(sale.total)}
-        </div>
+        <p className="m-0 text-xl font-semibold tabular-nums text-ink">{formatMoney(sale.total)}</p>
       </div>
 
-      {/* Action bar */}
-      <div className="rp-actions no-print">
-        {hasPermission('sales:create') && <Button onClick={() => navigate('/sales/checkout')}>
-          {recordSaleAction(category)}
-        </Button>}
-        <Button variant="outline" disabled={isPending} onClick={() => window.print()}>
-          Print
-        </Button>
+      {/* Actions */}
+      <div className="no-print mb-6 flex flex-wrap items-center gap-2">
+        {hasPermission('sales:create') && <Button onClick={() => navigate('/sales/checkout')}>{recordSaleAction(category)}</Button>}
+        <Button variant="outline" disabled={isPending} onClick={print}>Print</Button>
+        <select aria-label="Paper size" className="h-10 rounded-md border border-line-strong bg-surface px-2 text-sm text-ink" value={paper} onChange={(e) => setPaper(e.target.value as Paper)} disabled={isPending}>
+          <option value="80mm">80 mm roll</option>
+          <option value="58mm">58 mm roll</option>
+          <option value="a4">A4</option>
+        </select>
+        <Button variant="outline" disabled={isPending} onClick={share}>{copied ? 'Copied' : 'Share'}</Button>
         {canRefund && !isVoided && !isPending && remainingBalance > 0 && (
-          <Button variant="outline" onClick={() => setShowRefund((v) => !v)}>
-            {showRefund ? 'Cancel' : 'Refund'}
-          </Button>
+          <Button variant="outline" onClick={() => setShowRefund((v) => !v)}>{showRefund ? 'Cancel refund' : 'Refund'}</Button>
         )}
-        <Button variant="ghost" onClick={() => navigate('/sales')}>
-          Sales
-        </Button>
       </div>
-      {isPending && <div className="alert alert-warning no-print" role="status">
+      {isPending && <div className="no-print mb-4 rounded-lg bg-warn-soft px-4 py-3 text-[13px] text-warn-ink" role="status">
         This sale has no verified payment. Do not issue a receipt or collect another payment until its POS status is checked.
       </div>}
-      {isMoniepointSale && <div className="alert alert-warning no-print" role="status">
-        Moniepoint refunds are not available in TrackOja. Confirm any return with Moniepoint and contact support for reconciliation.
+      {isMoniepointSale && <div className="no-print mb-4 rounded-lg bg-warn-soft px-4 py-3 text-[13px] text-warn-ink" role="status">
+        Moniepoint refunds are not available here. Confirm any return with Moniepoint and contact support for reconciliation.
       </div>}
 
-      {/* ── Receipt card ── */}
-      {!isPending && <div className="rp-card">
-        {/* Store header */}
-        <div className="rp-store-header">
-          <div className="rp-store-avatar">
-            {(store?.name ?? 'S')[0].toUpperCase()}
-          </div>
-          <h2 className="rp-store-name">{store?.name ?? 'Store'}</h2>
-          {store?.address && <p className="rp-store-meta">{store.address}</p>}
-          {store?.phone && <p className="rp-store-meta">{store.phone}</p>}
-        </div>
+      {/* Receipt */}
+      {!isPending && <article className="print-sheet mx-auto w-full max-w-[400px] rounded-xl border border-line bg-surface px-6 py-7 font-mono text-[13px] leading-5 text-ink shadow-card" aria-label={`Receipt ${sale.saleNumber}`}>
+        <header className="text-center font-sans">
+          <h2 className="m-0 text-lg font-semibold">{store?.name ?? 'Store'}</h2>
+          {store?.address && <p className="m-0 text-xs text-ink-2">{store.address}</p>}
+          {store?.phone && <p className="m-0 text-xs text-ink-2">{store.phone}</p>}
+        </header>
 
-        <hr className="receipt-divider" />
+        <div className="my-4 border-t border-dashed border-line-strong" />
+        <dl className="m-0 space-y-0.5 text-xs">
+          <div className={row}><dt>Receipt</dt><dd className="m-0">#{sale.saleNumber}</dd></div>
+          <div className={row}><dt>Date</dt><dd className="m-0">{when}</dd></div>
+          {cashierName && <div className={row}><dt>Cashier</dt><dd className="m-0">{cashierName}</dd></div>}
+          {posTerminalLastFour && <div className={row}><dt>POS terminal</dt><dd className="m-0">••••{posTerminalLastFour}</dd></div>}
+          {(customer?.name ?? sale.customerName) && <div className={row}><dt>Customer</dt><dd className="m-0 truncate">{customer?.name ?? sale.customerName}</dd></div>}
+        </dl>
 
-        {/* Meta row */}
-        <div className="rp-meta">
-          <div className="rp-meta-row">
-            <span>Receipt</span>
-            <span>#{sale.saleNumber}</span>
-          </div>
-          <div className="rp-meta-row">
-            <span>Date</span>
-            <span>{new Date(sale.createdAt).toLocaleString()}</span>
-          </div>
-          {cashierName && <div className="rp-meta-row"><span>Cashier</span><span>{cashierName}</span></div>}
-          {posTerminalLastFour && <div className="rp-meta-row"><span>POS terminal</span><span>••••{posTerminalLastFour}</span></div>}
-          {(customer?.name ?? sale.customerName) && (
-            <div className="rp-meta-row">
-              <span>Customer</span>
-              <span>{customer?.name ?? sale.customerName}</span>
-            </div>
-          )}
-        </div>
-
-        <hr className="receipt-divider" />
-
-        {/* Line items */}
-        <div className="rp-items">
+        <div className="my-4 border-t border-dashed border-line-strong" />
+        <ul className="m-0 list-none space-y-2 p-0">
           {(sale.items ?? []).map((item) => (
-            <div key={item.id} className="rp-item">
-              <div className="rp-item-info">
-                <span className="rp-item-name">{item.productName}</span>
-                {item.refundedQuantity > 0 && (
-                  <span className="rp-item-refunded">{item.refundedQuantity} refunded</span>
-                )}
-              </div>
-              <div className="rp-item-right">
-                <span className="rp-item-qty">×{item.quantity}</span>
-                <span className="rp-item-total">{formatMoney(item.lineTotal)}</span>
-              </div>
-            </div>
+            <li key={item.id}>
+              <div className={row}><span className="min-w-0">{item.productName}</span><span className="shrink-0 tabular-nums">{formatMoney(item.lineTotal)}</span></div>
+              <div className="text-xs text-ink-3">{item.quantity} × {formatMoney(item.unitPrice)}{item.refundedQuantity > 0 ? ` · ${item.refundedQuantity} refunded` : ''}</div>
+            </li>
           ))}
-        </div>
+        </ul>
 
-        <hr className="receipt-divider" />
+        <div className="my-4 border-t border-dashed border-line-strong" />
+        <dl className="m-0 space-y-0.5">
+          <div className={row}><dt>Subtotal</dt><dd className="m-0 tabular-nums">{formatMoney(sale.subtotal)}</dd></div>
+          {sale.discountTotal > 0 && <div className={row}><dt>Discount</dt><dd className="m-0 tabular-nums">−{formatMoney(sale.discountTotal)}</dd></div>}
+          {sale.taxTotal > 0 && <div className={row}><dt>Tax</dt><dd className="m-0 tabular-nums">{formatMoney(sale.taxTotal)}</dd></div>}
+          {sale.refundedAmount > 0 && <div className={cn(row, 'text-danger')}><dt>Refunded</dt><dd className="m-0 tabular-nums">−{formatMoney(sale.refundedAmount)}</dd></div>}
+          <div className={cn(row, 'pt-1 text-base font-bold')}><dt>Total</dt><dd className="m-0 tabular-nums">{formatMoney(sale.total)}</dd></div>
+        </dl>
 
-        {/* Totals */}
-        <div className="rp-totals">
-          <div className="rp-total-row">
-            <span>Subtotal</span>
-            <span>{formatMoney(sale.subtotal)}</span>
-          </div>
-          {sale.discountTotal > 0 && (
-            <div className="rp-total-row">
-              <span>Discount</span>
-              <span>−{formatMoney(sale.discountTotal)}</span>
-            </div>
-          )}
-          {sale.taxTotal > 0 && (
-            <div className="rp-total-row">
-              <span>Tax</span>
-              <span>{formatMoney(sale.taxTotal)}</span>
-            </div>
-          )}
-          {sale.refundedAmount > 0 && (
-            <div className="rp-total-row rp-row-refunded">
-              <span>Refunded</span>
-              <span>−{formatMoney(sale.refundedAmount)}</span>
-            </div>
-          )}
-          <div className="rp-grand-total">
-            <span>Total</span>
-            <span>{formatMoney(sale.total)}</span>
-          </div>
-        </div>
-
-        <hr className="receipt-divider" />
-
-        {/* Payments */}
-        <div className="rp-payments">
+        <div className="my-4 border-t border-dashed border-line-strong" />
+        <ul className="m-0 list-none space-y-1 p-0 text-xs">
           {(sale.payments ?? []).map((payment) => (
-            <div key={payment.id} className="rp-payment-row">
-              <div className="rp-payment-left">
-                <span className="rp-payment-method">{payment.method}</span>
-                {payment.provider && <span className="rp-payment-note"> · {payment.provider}</span>}
-                <span className={`badge ${VERIFY_CLASS[payment.verificationStatus] ?? 'badge-default'}`}>
-                  {payment.verificationStatus}
-                </span>
+            <li key={payment.id}>
+              <div className={row}>
+                <span>Paid by {PAYMENT_LABEL[payment.method] ?? payment.method}{payment.provider ? ` (${payment.provider})` : ''}{payment.verificationStatus !== 'verified' ? ` · ${payment.verificationStatus}` : ''}</span>
+                <span className="tabular-nums">{formatMoney(payment.amount)}</span>
               </div>
-              <span className="rp-payment-amount">{formatMoney(payment.amount)}</span>
-              {payment.provider && payment.reference && <span className="rp-payment-note">Ref: {payment.reference}</span>}
-            </div>
+              {payment.reference && <div className="text-ink-3">Ref: {payment.reference}</div>}
+            </li>
           ))}
-          {sale.changeDue > 0 && (
-            <div className="rp-payment-row">
-              <span className="rp-payment-method rp-change">Change given</span>
-              <span className="rp-payment-amount">{formatMoney(sale.changeDue)}</span>
-            </div>
-          )}
-          {sale.loyaltyPointsEarned > 0 && (
-            <div className="rp-payment-row">
-              <span className="rp-payment-method">Loyalty pts earned</span>
-              <span className="rp-payment-amount" style={{ color: 'var(--brand-l)' }}>
-                +{sale.loyaltyPointsEarned}
-              </span>
-            </div>
-          )}
-        </div>
+          {sale.changeDue > 0 && <li className={row}><span>Change given</span><span className="tabular-nums">{formatMoney(sale.changeDue)}</span></li>}
+          {sale.loyaltyPointsEarned > 0 && <li className={row}><span>Loyalty points earned</span><span>+{sale.loyaltyPointsEarned}</span></li>}
+        </ul>
 
-        {/* Refunds history */}
-        {(sale.refunds ?? []).length > 0 && (
-          <>
-            <hr className="receipt-divider" />
-            <div className="rp-payments">
-              <p className="rp-section-label">Refund history</p>
-              {(sale.refunds ?? []).map((refund) => (
-                <div key={refund.id} className="rp-payment-row">
-                  <div>
-                    <span className="rp-payment-method" style={{ textTransform: 'capitalize' }}>{refund.method}</span>
-                    <span className="rp-payment-note"> · {refund.reason} · {new Date(refund.createdAt).toLocaleDateString()}</span>
-                  </div>
-                  <span className="rp-payment-amount" style={{ color: 'var(--danger)' }}>−{formatMoney(refund.amount)}</span>
-                </div>
-              ))}
-            </div>
-          </>
-        )}
+        {(sale.refunds ?? []).length > 0 && <>
+          <div className="my-4 border-t border-dashed border-line-strong" />
+          <p className="m-0 mb-1 text-xs font-semibold">Refunds</p>
+          <ul className="m-0 list-none space-y-1 p-0 text-xs">
+            {(sale.refunds ?? []).map((refund) => (
+              <li key={refund.id} className={row}>
+                <span className="min-w-0">{refund.method} · {refund.reason} · {new Date(refund.createdAt).toLocaleDateString('en-NG')}</span>
+                <span className="shrink-0 tabular-nums text-danger">−{formatMoney(refund.amount)}</span>
+              </li>
+            ))}
+          </ul>
+        </>}
 
-        {/* Void reason */}
-        {isVoided && (
-          <>
-            <hr className="receipt-divider" />
-            <p className="rp-void-note">Voided: {sale.voidReason}</p>
-          </>
-        )}
+        {isVoided && <p className="m-0 mt-4 rounded-md bg-danger-soft px-3 py-2 text-xs text-danger">Voided: {sale.voidReason}</p>}
 
-        {/* Footer */}
-        <div className="rp-footer">
-          <p>Thank you for your business</p>
-          <p className="rp-footer-brand">Powered by TrackOja</p>
-        </div>
-      </div>}
+        <footer className="mt-6 text-center font-sans text-xs text-ink-3">
+          <p className="m-0">Thank you for your business</p>
+          <p className="m-0 mt-1">Powered by {APP_NAME}</p>
+        </footer>
+      </article>}
 
       {/* Verify pending payments */}
       {canRefund && pendingPayments.length > 0 && (
-        <div className="card no-print" style={{ marginTop: 'var(--space-16)' }}>
-          <p className="list-item-title" style={{ marginBottom: 'var(--space-8)' }}>Verify payments</p>
-          {pendingPayments.map((payment) => (
-            <div key={payment.id} className="list-item" style={{ padding: 'var(--space-8) 0' }}>
-              <div>
-                <p className="list-item-title" style={{ textTransform: 'capitalize' }}>
-                  {payment.method} · {formatMoney(payment.amount)}
-                </p>
-                {payment.reference && <p className="list-item-subtitle">Ref: {payment.reference}</p>}
-              </div>
-              <div className="btn-row">
-                <Button variant="ghost" className="btn-sm" loading={verifyingId === payment.id} onClick={() => handleVerifyPayment(payment.id, 'verified')}>Verify</Button>
-                <Button variant="ghost" className="btn-sm" loading={verifyingId === payment.id} onClick={() => handleVerifyPayment(payment.id, 'rejected')}>Reject</Button>
-              </div>
-            </div>
-          ))}
-        </div>
+        <Card className="no-print mt-6">
+          <CardHead title="Confirm payments" hint="Check your bank or POS alert, then confirm or reject." />
+          <ul className="m-0 list-none divide-y divide-line p-0">
+            {pendingPayments.map((payment) => (
+              <li key={payment.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
+                <div>
+                  <p className="m-0 text-sm font-medium text-ink">{PAYMENT_LABEL[payment.method] ?? payment.method} · {formatMoney(payment.amount)}</p>
+                  {payment.reference && <p className="m-0 text-xs text-ink-3">Ref: {payment.reference}</p>}
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="outline" className="btn-sm" loading={verifyingId === payment.id} onClick={() => handleVerifyPayment(payment.id, 'verified')}>Confirm</Button>
+                  <Button variant="ghost" className="btn-sm" loading={verifyingId === payment.id} onClick={() => handleVerifyPayment(payment.id, 'rejected')}>Reject</Button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </Card>
       )}
 
-      {/* Refund form */}
+      {/* Refund */}
       {showRefund && canRefund && !isVoided && !isPending && remainingBalance > 0 && (
-        <div className="card no-print" style={{ marginTop: 'var(--space-16)' }}>
-          <p className="list-item-title" style={{ marginBottom: 'var(--space-4)' }}>Process refund</p>
-          <p className="page-subtitle" style={{ marginBottom: 'var(--space-12)' }}>{formatMoney(remainingBalance)} available</p>
-
+        <Card className="no-print mt-6">
+          <CardHead title="Refund" hint={`${formatMoney(remainingBalance)} can still be refunded`} />
           {refundableItems.length > 0 && (
-            <div style={{ marginBottom: 'var(--space-12)' }}>
-              <p className="form-label">Items to return (optional)</p>
-              {refundableItems.map((item) => {
-                const max = item.quantity - item.refundedQuantity;
-                return (
-                  <div key={item.id} className="rp-payment-row" style={{ padding: 'var(--space-6) 0' }}>
-                    <span>{item.productName} (max {max})</span>
-                    <input className="form-input" style={{ width: 'var(--space-80)' }} aria-label={`Return quantity for ${item.productName}`} type="number" min={0} max={max}
-                      value={refundItems[item.id] ?? ''} onChange={(e) => setRefundItemQty(item.id, Number(e.target.value) || 0, max)} />
-                  </div>
-                );
-              })}
+            <div className="mb-4">
+              <p className="m-0 mb-2 text-[13px] font-medium text-ink-2">Items coming back (optional)</p>
+              <ul className="m-0 list-none space-y-2 p-0">
+                {refundableItems.map((item) => {
+                  const max = item.quantity - item.refundedQuantity;
+                  return (
+                    <li key={item.id} className="flex items-center justify-between gap-3">
+                      <span className="min-w-0 text-sm text-ink">{item.productName} <span className="text-ink-3">(up to {max})</span></span>
+                      <input className={cn(inputClass, 'w-20')} aria-label={`Return quantity for ${item.productName}`} type="number" min={0} max={max}
+                        value={refundItems[item.id] ?? ''} onChange={(e) => setRefundItemQty(item.id, Number(e.target.value) || 0, max)} />
+                    </li>
+                  );
+                })}
+              </ul>
             </div>
           )}
-
-          <FormField id="refund-amount" label="Amount (₦)" type="number" value={refundAmount} onChange={setRefundAmount} placeholder={String(remainingBalance)} />
-
-          <div className="form-group">
-            <label className="form-label" htmlFor="refund-method">Method</label>
-            <select id="refund-method" className="select-input" value={refundMethod} onChange={(e) => setRefundMethod(e.target.value as PaymentMethod)}>
-              {refundMethodOptions.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
-            </select>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="block"><span className="mb-1 block text-[13px] font-medium text-ink-2">Amount (₦)</span>
+              <input id="refund-amount" type="number" inputMode="decimal" className={inputClass} value={refundAmount} onChange={(e) => setRefundAmount(e.target.value)} placeholder={String(remainingBalance)} /></label>
+            <label className="block"><span className="mb-1 block text-[13px] font-medium text-ink-2">Method</span>
+              <select id="refund-method" className={inputClass} value={refundMethod} onChange={(e) => setRefundMethod(e.target.value as PaymentMethod)}>
+                {refundMethodOptions.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
+              </select></label>
           </div>
-
-          <FormField id="refund-reason" label="Reason" value={refundReason} onChange={setRefundReason} placeholder="Why is this refund being issued?" />
-
-          <div className="btn-row">
-            <Button variant="ghost" className="btn-sm" loading={refunding} onClick={handleRefund}>Process refund</Button>
-            <Button variant="ghost" className="btn-sm" onClick={() => setShowRefund(false)}>Cancel</Button>
+          <label className="mt-3 block"><span className="mb-1 block text-[13px] font-medium text-ink-2">Reason</span>
+            <input id="refund-reason" className={inputClass} value={refundReason} onChange={(e) => setRefundReason(e.target.value)} placeholder="Why is this refund being issued?" /></label>
+          <div className="mt-4 flex gap-2">
+            <Button variant="danger" loading={refunding} onClick={handleRefund}>Process refund</Button>
+            <Button variant="ghost" onClick={() => setShowRefund(false)}>Cancel</Button>
           </div>
-        </div>
+        </Card>
       )}
-    </div>
+    </Page>
   );
 }

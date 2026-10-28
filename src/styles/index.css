@@ -20,3 +20,4 @@
 @import "./platform-overview.css" layer(legacy);
 @import "./reports.css" layer(legacy);
 @import "./tally.css";
+@import "./print.css";
