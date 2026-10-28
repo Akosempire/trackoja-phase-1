@@ -87,5 +87,4 @@ export default (mock: Mock, F: Fixtures) => {
     { id: 'term-2', name: 'Back till', storeId: 'fixture-store', serialLastFour: '1093', status: 'active', isDefault: false, registerId: null, verifiedAt: null },
   ]);
   mock('MerchantPaymentService', 'registers', [{ id: 'reg-1', name: 'Counter 1', status: 'active' }, { id: 'reg-2', name: 'Counter 2', status: 'active' }]);
-  mock('DeviceService', 'getDevice', { id: 'term-1', name: 'Front counter' });
 };

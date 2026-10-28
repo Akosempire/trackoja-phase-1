@@ -7,13 +7,16 @@ import { Button } from '../../components/ui/Button';
 import { FormField } from '../../components/ui/FormField';
 import { PageLoader } from '../../components/ui/PageLoader';
 import { StateBlock } from '../../components/ui/StateBlock';
+import { Avatar, Card, CardHead, Page, PageHeader, Pill, cn, inputClass } from '../../components/kit';
 import type { Role, StoreMemberWithDetails } from '../../types';
 
-const STATUS_BADGES: Record<string, string> = {
-  active: 'badge-success',
-  invited: 'badge-warning',
-  suspended: 'badge-danger',
+const STATUS_TONES: Record<string, 'success' | 'warn' | 'danger' | 'neutral'> = {
+  active: 'success',
+  invited: 'warn',
+  suspended: 'danger',
 };
+
+const roleLabel = (name?: string) => (name ?? '').replace('_', ' ');
 
 export default function StaffPage() {
   const { user, profile } = useAuth();
@@ -101,108 +104,116 @@ export default function StaffPage() {
   if (loading || permsLoading) return <PageLoader />;
 
   return (
-    <div className="page">
-      <div className="page-header">
-        <div>
-          <h1 className="page-title">Staff</h1>
-          <p className="page-subtitle">
-            {members.length} team member{members.length === 1 ? '' : 's'}
-          </p>
-        </div>
-        {canInvite && (
-          <Button className="btn-sm" onClick={() => setShowInvite((v) => !v)}>
+    <Page>
+      <PageHeader
+        title="Staff"
+        subtitle={`${members.length} team member${members.length === 1 ? '' : 's'}`}
+        actions={canInvite && (
+          <Button variant={showInvite ? 'outline' : 'primary'} onClick={() => setShowInvite((v) => !v)}>
             {showInvite ? 'Cancel' : 'Invite staff'}
           </Button>
         )}
-      </div>
+      />
 
-      {error && <div className="alert alert-error">{error}</div>}
+      {error && <div className="mb-4 rounded-lg bg-danger-soft px-4 py-3 text-sm text-danger" role="alert">{error}</div>}
 
       {showInvite && canInvite && (
-        <form className="card" onSubmit={handleInvite}>
-          <FormField
-            id="invite-email"
-            label="Email"
-            type="email"
-            value={inviteEmail}
-            onChange={setInviteEmail}
-            placeholder="staff@example.com"
-            required
-          />
-          <div className="form-group">
-            <label className="form-label" htmlFor="invite-role">
-              Role
-            </label>
-            <select id="invite-role" className="select-input" value={inviteRoleId} onChange={(e) => setInviteRoleId(e.target.value)}>
-              {roles.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {r.name.replace('_', ' ')}
-                </option>
-              ))}
-            </select>
-          </div>
-          <p className="form-hint">They'll see this store as soon as they sign up or log in with this email address.</p>
-          <div className="btn-row">
-            <Button type="submit" loading={saving} className="btn-sm">
-              Send invite
-            </Button>
-          </div>
-        </form>
+        <Card className="mb-4 lg:mb-6">
+          <form onSubmit={handleInvite} aria-labelledby="invite-title">
+            <CardHead title={<span id="invite-title">Invite a team member</span>}
+              hint="They'll see this store as soon as they sign up or log in with this email address." />
+            <div className="grid gap-x-4 sm:grid-cols-[minmax(0,1fr)_200px]">
+              <FormField
+                id="invite-email"
+                label="Email"
+                type="email"
+                value={inviteEmail}
+                onChange={setInviteEmail}
+                placeholder="staff@example.com"
+                required
+              />
+              <div className="mb-4 flex min-w-0 flex-col gap-1.5">
+                <label className="text-[13px] font-medium text-ink-2" htmlFor="invite-role">
+                  Role
+                </label>
+                <select id="invite-role" className={cn(inputClass, 'capitalize')} value={inviteRoleId} onChange={(e) => setInviteRoleId(e.target.value)}>
+                  {roles.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {roleLabel(r.name)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="flex justify-end">
+              <Button type="submit" loading={saving} className="w-full sm:w-auto">
+                Send invite
+              </Button>
+            </div>
+          </form>
+        </Card>
       )}
 
       {members.length === 0 ? (
-        <StateBlock
-          title="No staff members yet"
-          body="Invite a team member and assign the access they need."
-        />
+        <Card>
+          <StateBlock
+            title="No staff members yet"
+            body="Invite a team member and assign the access they need."
+          />
+        </Card>
       ) : (
-        <div className="list">
-          {members.map((member) => {
-            const isSelf = member.userId === user?.id;
-            const isOwnerRow = member.roleName === 'owner';
-            const canEditRow = !isSelf && !isOwnerRow;
+        <Card padded={false} className="overflow-hidden">
+          <ul className="m-0 list-none divide-y divide-line p-0" aria-label="Team members">
+            {members.map((member) => {
+              const isSelf = member.userId === user?.id;
+              const isOwnerRow = member.roleName === 'owner';
+              const canEditRow = !isSelf && !isOwnerRow;
+              const display = member.name || member.invitedEmail || '';
 
-            return (
-              <div key={member.id} className="list-item">
-                <div>
-                  <p className="list-item-title">{member.name || member.invitedEmail}</p>
-                  <p className="list-item-subtitle">
-                    {member.status === 'invited' ? `Invited · ${member.invitedEmail}` : member.email}
-                  </p>
-                </div>
-                <div className="list-item-meta">
-                  <span className={`badge ${STATUS_BADGES[member.status] ?? 'badge-default'}`} style={{ textTransform: 'capitalize' }}>
-                    {member.status}
-                  </span>
-                  {canManage && canEditRow && member.status === 'active' ? (
-                    <select
-                      className="select-input"
-                      style={{ width: 'auto' }}
-                      value={member.roleId}
-                      onChange={(e) => handleRoleChange(member.id, e.target.value)}
-                    >
-                      {roles.map((r) => (
-                        <option key={r.id} value={r.id}>
-                          {r.name.replace('_', ' ')}
-                        </option>
-                      ))}
-                    </select>
-                  ) : (
-                    <span className="badge badge-default" style={{ textTransform: 'capitalize' }}>
-                      {(member.roleName ?? '').replace('_', ' ')}
-                    </span>
-                  )}
-                  {canRemove && (canEditRow || member.status === 'invited') && (
-                    <Button variant="ghost" className="btn-sm" onClick={() => handleRemove(member)}>
-                      {member.status === 'invited' ? 'Cancel' : 'Remove'}
-                    </Button>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
+              return (
+                <li key={member.id} className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:px-5">
+                  <div className="flex min-w-0 flex-1 items-center gap-3">
+                    <Avatar name={display} className={cn('rounded-full', member.status !== 'active' && 'bg-tray text-ink-2')} />
+                    <div className="min-w-0">
+                      <p className="m-0 truncate text-sm font-medium text-ink">
+                        {display}
+                        {isSelf && <span className="font-normal text-ink-3"> (you)</span>}
+                      </p>
+                      <p className="m-0 mt-0.5 truncate text-xs text-ink-3">
+                        {member.status === 'invited' ? `Invited · ${member.invitedEmail}` : member.email}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2 pl-[52px] sm:shrink-0 sm:pl-0">
+                    {member.status !== 'active' && <Pill tone={STATUS_TONES[member.status] ?? 'neutral'}><span className="capitalize">{member.status}</span></Pill>}
+                    {canManage && canEditRow && member.status === 'active' ? (
+                      <select
+                        className="h-9 rounded-md border border-line-strong bg-surface px-2.5 text-[13px] capitalize text-ink focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/15"
+                        aria-label={`Role for ${display}`}
+                        value={member.roleId}
+                        onChange={(e) => handleRoleChange(member.id, e.target.value)}
+                      >
+                        {roles.map((r) => (
+                          <option key={r.id} value={r.id}>
+                            {roleLabel(r.name)}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <Pill tone={isOwnerRow ? 'brand' : 'neutral'}><span className="capitalize">{roleLabel(member.roleName)}</span></Pill>
+                    )}
+                    {canRemove && (canEditRow || member.status === 'invited') && (
+                      <Button variant="ghost" className="btn-sm" onClick={() => handleRemove(member)}>
+                        {member.status === 'invited' ? 'Cancel' : 'Remove'}
+                      </Button>
+                    )}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </Card>
       )}
-    </div>
+    </Page>
   );
 }

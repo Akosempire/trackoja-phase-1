@@ -6,6 +6,7 @@ import { StateBlock } from '../components/ui/StateBlock';
 import { useToast } from '../components/ui/Toast';
 import { useAuth } from '../contexts/AuthContext';
 import { EntryService, type WorkspaceChoice } from '../services/entry.service';
+import { Avatar, Card } from '../components/kit';
 
 export default function WorkspaceSelectionPage() {
   const navigate = useNavigate();
@@ -40,16 +41,33 @@ export default function WorkspaceSelectionPage() {
     }
   }
 
-  return <main className="onboarding-shell workspace-selection">
-    <div className="onboarding-header"><span className="eyebrow">TrackOja</span>
-      <h1 className="onboarding-title">Choose a business</h1>
-      <p className="onboarding-subtitle">You belong to more than one workspace. Choose where you want to continue.</p>
-    </div>
-    {error ? <StateBlock variant="error" title="Businesses unavailable" body={error} /> :
-      <div className="onboarding-plan-grid">{workspaces.map((workspace) =>
-        <article className="card onboarding-plan-card" key={workspace.orgId}>
-          <div><h2>{workspace.orgName}</h2><p>{workspace.storeName ?? 'No active store'} · {workspace.role}</p></div>
-          <Button onClick={() => void select(workspace)} loading={selecting === workspace.orgId}>Open business</Button>
-        </article>)}</div>}
-  </main>;
+  return (
+    <main className="min-h-dvh bg-canvas px-4 py-10 sm:py-16">
+      <div className="mx-auto w-full max-w-[560px]">
+        <div className="mb-6 text-center sm:mb-8">
+          <p className="m-0 mb-1 text-[13px] font-semibold text-brand">TrackOja</p>
+          <h1 className="m-0 text-2xl font-semibold leading-8 tracking-tight text-ink lg:text-[28px] lg:leading-9">Choose a business</h1>
+          <p className="m-0 mt-1 text-sm text-ink-2">You belong to more than one workspace. Choose where you want to continue.</p>
+        </div>
+        {error ? (
+          <Card><StateBlock variant="error" title="Businesses unavailable" body={error} /></Card>
+        ) : (
+          <Card padded={false} className="overflow-hidden">
+            <ul className="m-0 list-none divide-y divide-line p-0">
+              {workspaces.map((workspace) => (
+                <li key={workspace.orgId} className="flex items-center gap-3 px-4 py-3.5 sm:px-5">
+                  <Avatar name={workspace.orgName} />
+                  <div className="min-w-0 flex-1">
+                    <h2 className="m-0 truncate text-[15px] font-semibold text-ink">{workspace.orgName}</h2>
+                    <p className="m-0 mt-0.5 truncate text-[13px] text-ink-3">{workspace.storeName ?? 'No active store'} · <span className="capitalize">{workspace.role.replace(/_/g, ' ')}</span></p>
+                  </div>
+                  <Button variant="outline" className="btn-sm shrink-0" onClick={() => void select(workspace)} loading={selecting === workspace.orgId}>Open business</Button>
+                </li>
+              ))}
+            </ul>
+          </Card>
+        )}
+      </div>
+    </main>
+  );
 }

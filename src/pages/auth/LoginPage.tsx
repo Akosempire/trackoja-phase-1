@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { AuthLayout } from '../../components/AuthLayout';
+import { AuthLayout, AuthNotice, authSubmitClass } from '../../components/AuthLayout';
+import { APP_NAME } from '../../config/brand';
 import { FormField } from '../../components/ui/FormField';
 import { Button } from '../../components/ui/Button';
 import { AuthService } from '../../services/auth.service';
@@ -32,14 +33,14 @@ export default function LoginPage() {
   return (
     <AuthLayout
       title="Welcome back"
-      subtitle="Sign in to your TrackOja account"
+      subtitle={`Sign in to your ${APP_NAME} account`}
       footer={
         <span>
           Don&apos;t have an account? <Link to="/signup">Create one</Link>
         </span>
       }
     >
-      {error && <div className="alert alert-error">{error}</div>}
+      {error && <AuthNotice>{error}</AuthNotice>}
       <form onSubmit={handleSubmit}>
         <FormField
           id="email"
@@ -60,12 +61,12 @@ export default function LoginPage() {
           autoComplete="current-password"
           required
         />
-        <div className="form-row-end">
-          <Link to="/forgot-password" className="btn-ghost">
+        <div className="-mt-1 mb-5 flex justify-end">
+          <Link to="/forgot-password" className="text-[13px] font-medium text-brand no-underline hover:underline">
             Forgot password?
           </Link>
         </div>
-        <Button type="submit" loading={loading}>
+        <Button type="submit" loading={loading} className={authSubmitClass}>
           Sign in
         </Button>
       </form>

@@ -6,6 +6,7 @@ import { PageLoader } from '../../components/ui/PageLoader';
 import { StatusBadge } from '../../components/ui/StatusBadge';
 import { DefList, type DefRow } from '../../components/ui/DefList';
 import { StateBlock } from '../../components/ui/StateBlock';
+import { Card, Page, btn, cn } from '../../components/kit';
 import { formatDate, formatMoneyMinor, humaniseToken } from '../../utils/format';
 
 /**
@@ -51,19 +52,21 @@ export default function BillingDocumentPage() {
 
   if (error) {
     return (
-      <div className="page bd-page">
-        <StateBlock
-          variant="error"
-          title="This document could not be loaded"
-          body={error}
-          actions={
-            <div className="btn-row">
-              <Button variant="outline" onClick={() => void load()}>Try again</Button>
-              <Link className="btn btn-ghost" to="/billing">Back to billing</Link>
-            </div>
-          }
-        />
-      </div>
+      <Page width="form">
+        <Card>
+          <StateBlock
+            variant="error"
+            title="This document could not be loaded"
+            body={error}
+            actions={
+              <div className="flex flex-wrap gap-2">
+                <Button variant="outline" className="btn-sm" onClick={() => void load()}>Try again</Button>
+                <Link className={btn('ghost', 'sm')} to="/billing">Back to billing</Link>
+              </div>
+            }
+          />
+        </Card>
+      </Page>
     );
   }
 
@@ -75,14 +78,16 @@ export default function BillingDocumentPage() {
    */
   if (!billingDocument) {
     return (
-      <div className="page bd-page">
-        <StateBlock
-          variant="empty"
-          title="No document with that number"
-          body="This number is not one of this business's invoices or receipts. Open Billing to see the documents that have been issued."
-          actions={<Link className="btn btn-outline" to="/billing">Back to billing</Link>}
-        />
-      </div>
+      <Page width="form">
+        <Card>
+          <StateBlock
+            variant="empty"
+            title="No document with that number"
+            body="This number is not one of this business's invoices or receipts. Open Billing to see the documents that have been issued."
+            actions={<Link className={btn('outline', 'sm')} to="/billing">Back to billing</Link>}
+          />
+        </Card>
+      </Page>
     );
   }
 
@@ -103,9 +108,9 @@ export default function BillingDocumentPage() {
 
   const rows: DefRow[] = [
     { term: 'Status', value: <StatusBadge status={billingDocument.status} /> },
-    { term: 'Invoice number', value: <span className="mono">{billingDocument.invoiceNumber}</span> },
+    { term: 'Invoice number', value: <span className="font-mono text-[13px]">{billingDocument.invoiceNumber}</span> },
   ];
-  if (receipt) rows.push({ term: 'Receipt number', value: <span className="mono">{receipt.receiptNumber}</span> });
+  if (receipt) rows.push({ term: 'Receipt number', value: <span className="break-all font-mono text-[13px]">{receipt.receiptNumber}</span> });
   rows.push({ term: 'Issued', value: formatDate(billingDocument.issuedAt) });
   /*
    * "Payment recorded", not "Paid": a void invoice keeps the paid_at its payment
@@ -122,114 +127,118 @@ export default function BillingDocumentPage() {
     muted: !billingDocument.billingEmail,
   });
   if (billingDocument.reference) {
-    rows.push({ term: 'Payment reference', value: <span className="mono">{billingDocument.reference}</span> });
+    rows.push({ term: 'Payment reference', value: <span className="break-all font-mono text-[13px]">{billingDocument.reference}</span> });
   }
 
   const receiptRows: DefRow[] = receipt ? [
-    { term: 'Receipt number', value: <span className="mono">{receipt.receiptNumber}</span> },
+    { term: 'Receipt number', value: <span className="break-all font-mono text-[13px]">{receipt.receiptNumber}</span> },
     { term: 'Amount received', value: amount(receipt.amountMinor, receipt.currency) },
     { term: 'Payment mode', value: humaniseToken(receipt.paymentMode) },
     { term: 'Payment date', value: formatDate(receipt.paidAt) },
     ...(receipt.providerReference
-      ? [{ term: 'Provider reference', value: <span className="mono">{receipt.providerReference}</span> }]
+      ? [{ term: 'Provider reference', value: <span className="break-all font-mono text-[13px]">{receipt.providerReference}</span> }]
       : []),
     ...(receipt.isTestData
       ? [{ term: 'Test record', value: 'This receipt was created by a test payment and is not a real charge.' }]
       : []),
   ] : [];
 
+  const label = 'm-0 mb-3 text-[11px] font-semibold uppercase tracking-wider text-ink-3';
+  const divider = <div className="my-6 border-t border-line" />;
+
   return (
-    <div className="page rp-page bd-page">
-      <div className="page-header">
-        <div>
-          <h1 className="page-title">{heading}</h1>
-          <p className="page-subtitle">{subtitle}</p>
+    <Page width="form" className="bd-page">
+      {/* On screen only: the paper version is the document itself. */}
+      <div className="no-print mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div className="min-w-0">
+          <h1 className="m-0 break-words text-2xl font-semibold leading-8 tracking-tight text-ink">{heading}</h1>
+          <p className="m-0 mt-1 text-sm text-ink-2">{subtitle}</p>
         </div>
-        {/* On screen only: the paper version is the document itself. */}
-        <div className="toolbar-group no-print">
+        <div className="flex flex-wrap items-center gap-2">
           <Button onClick={() => window.print()}>Print or save as PDF</Button>
-          <Link className="btn btn-outline" to="/billing">Back to billing</Link>
+          <Link className={btn('outline')} to="/billing">Back to billing</Link>
         </div>
       </div>
 
-      <div className="rp-card bd-sheet">
+      <article className="print-sheet bd-sheet rounded-xl border border-line bg-surface px-5 py-7 text-ink shadow-card sm:px-10 sm:py-10" aria-label={heading}>
         {billingDocument.isTestData && (
-          <p className="alert alert-warning bd-notice">
+          <p className="m-0 mb-6 rounded-lg border border-warn bg-warn-soft px-4 py-3 text-[13px] font-medium text-warn-ink" role="note">
             Test document. This was created by a test payment, so it is not a real charge and not evidence that money
             was received.
           </p>
         )}
 
-        <div className="rp-store-header">
-          <div className="rp-store-avatar" aria-hidden="true">
-            {(billingDocument.businessName ?? 'B')[0].toUpperCase()}
+        <header className="flex items-start justify-between gap-4">
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="inline-flex size-11 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-lg font-semibold text-brand-ink" aria-hidden="true">
+              {(billingDocument.businessName ?? 'B')[0].toUpperCase()}
+            </span>
+            <div className="min-w-0">
+              <h2 className="m-0 truncate text-lg font-semibold text-ink">{billingDocument.businessName ?? 'Billing document'}</h2>
+              <p className="m-0 text-[13px] text-ink-3">{openedByReceipt ? 'Payment receipt' : 'Invoice'}</p>
+            </div>
           </div>
-          <h2 className="rp-store-name">{billingDocument.businessName ?? 'Billing document'}</h2>
-          <p className="rp-store-meta">{openedByReceipt ? 'Payment receipt' : 'Invoice'}</p>
-        </div>
+          <p className="m-0 shrink-0 pt-1 text-right text-[13px] font-semibold tracking-wide text-ink-2">TrackOja</p>
+        </header>
 
-        <hr className="receipt-divider" />
+        {divider}
 
-        <div className="bd-block">
-          <DefList rows={rows} />
-        </div>
+        <DefList rows={rows} />
 
-        <hr className="receipt-divider" />
+        {divider}
 
-        <div className="rp-items">
-          <p className="rp-section-label">Charges</p>
+        <section aria-label="Charges">
+          <p className={label}>Charges</p>
           {billingDocument.lines.length === 0 ? (
-            <p className="section-sub">No line items are recorded for this invoice.</p>
+            <p className="m-0 text-sm text-ink-3">No line items are recorded for this invoice.</p>
           ) : (
-            billingDocument.lines.map((line, index) => (
-              <div className="rp-item" key={`${line.lineType}-${index}`}>
-                <div className="rp-item-info">
-                  <span className="rp-item-name">{line.description}</span>
-                  {/* A unit price is only worth stating when it is not the line total. */}
-                  {line.quantity > 1 && (
-                    <span className="rp-payment-note">{line.quantity} × {amount(line.unitAmountMinor)}</span>
-                  )}
-                </div>
-                <div className="rp-item-right">
-                  <span className="rp-item-total">{amount(line.totalAmountMinor)}</span>
-                </div>
-              </div>
-            ))
+            <ul className="m-0 list-none divide-y divide-line p-0">
+              {billingDocument.lines.map((line, index) => (
+                <li className="flex items-baseline justify-between gap-4 py-2.5 first:pt-0" key={`${line.lineType}-${index}`}>
+                  <div className="min-w-0">
+                    <p className="m-0 text-sm font-medium text-ink">{line.description}</p>
+                    {/* A unit price is only worth stating when it is not the line total. */}
+                    {line.quantity > 1 && (
+                      <p className="m-0 mt-0.5 text-xs tabular-nums text-ink-3">{line.quantity} × {amount(line.unitAmountMinor)}</p>
+                    )}
+                  </div>
+                  <span className="shrink-0 text-sm font-medium tabular-nums text-ink">{amount(line.totalAmountMinor)}</span>
+                </li>
+              ))}
+            </ul>
           )}
-        </div>
 
-        <hr className="receipt-divider" />
+          <dl className="m-0 mt-4 rounded-lg bg-subtle px-4 py-3">
+            <div className="flex items-baseline justify-between gap-4 text-[13px] text-ink-2">
+              <dt>Subtotal</dt>
+              <dd className="m-0 tabular-nums">{amount(billingDocument.subtotalMinor)}</dd>
+            </div>
+            <div className="mt-2 flex items-baseline justify-between gap-4 border-t border-line pt-2 text-ink">
+              <dt className="text-[15px] font-semibold">Total</dt>
+              <dd className="m-0 text-lg font-semibold tabular-nums">{amount(billingDocument.totalMinor)}</dd>
+            </div>
+          </dl>
+        </section>
 
-        <div className="rp-totals">
-          <div className="rp-total-row">
-            <span>Subtotal</span>
-            <span>{amount(billingDocument.subtotalMinor)}</span>
-          </div>
-          <div className="rp-grand-total">
-            <span>Total</span>
-            <span>{amount(billingDocument.totalMinor)}</span>
-          </div>
-        </div>
+        {divider}
 
-        <hr className="receipt-divider" />
-
-        <div className="bd-block">
-          <p className="rp-section-label">Receipt</p>
+        <section aria-label="Receipt">
+          <p className={label}>Receipt</p>
           {receipt ? (
             <DefList rows={receiptRows} />
           ) : (
-            <p className="section-sub">No receipt has been issued for this invoice.</p>
+            <p className="m-0 text-sm text-ink-3">No receipt has been issued for this invoice.</p>
           )}
-        </div>
+        </section>
 
-        <div className="rp-footer">
-          <p>
+        <footer className={cn('mt-8 border-t border-dashed border-line-strong pt-4 text-center text-xs text-ink-3')}>
+          <p className="m-0 break-all font-mono">
             {billingDocument.invoiceNumber}
             {receipt ? ` · ${receipt.receiptNumber}` : ''}
           </p>
-          <p className="rp-footer-brand">Powered by TrackOja</p>
-        </div>
-      </div>
-    </div>
+          <p className="m-0 mt-1">Powered by TrackOja</p>
+        </footer>
+      </article>
+    </Page>
   );
 }

@@ -29,8 +29,10 @@ describe('shared application layout', () => {
   it('uses a labelled stacked billing-contact form', () => {
     const billing = source('src/pages/billing/BillingPage.tsx');
 
-    expect(billing).toContain('<form className="form-stack"');
-    expect(billing).toContain('<div className="form-actions">');
+    // Usetally rebuild: a labelled form inside a kit Card, one field, a submit row.
+    expect(billing).toContain('<form aria-labelledby="billing-contact-title"');
+    expect(billing).toContain('id="billing-contact-title">Billing contact');
+    expect(billing).toContain('<FormField id="billing-email" label="Invoice and receipt email"');
     expect(billing).toContain('<Button type="submit"');
     expect(billing).not.toContain('<div className="plat-form-row">\n          <FormField id="billing-email"');
   });

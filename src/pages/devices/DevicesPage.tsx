@@ -1,5 +1,4 @@
-import { SectionHead } from '../../components/ui/SectionHead';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { usePermissions } from '../../hooks/usePermissions';
@@ -8,6 +7,8 @@ import { Button } from '../../components/ui/Button';
 import { FormField } from '../../components/ui/FormField';
 import { PageLoader } from '../../components/ui/PageLoader';
 import { StateBlock } from '../../components/ui/StateBlock';
+import { Card, CardHead, Page, PageHeader, Pill, cn, inputClass } from '../../components/kit';
+import { DevicesIcon } from '../../components/icons';
 import type { Device, DeviceType, DeviceStatus, DeviceConnectivity } from '../../types';
 
 const DEVICE_TYPES: { value: DeviceType; label: string }[] = [
@@ -21,13 +22,16 @@ const DEVICE_TYPES: { value: DeviceType; label: string }[] = [
 const DEVICE_STATUSES: DeviceStatus[] = ['pending', 'active', 'offline', 'maintenance', 'decommissioned'];
 const DEVICE_CONNECTIVITY: DeviceConnectivity[] = ['online', 'offline', 'bluetooth', 'wifi', 'cellular'];
 
-const STATUS_BADGES: Record<DeviceStatus, string> = {
-  pending: 'badge-default',
-  active: 'badge-success',
-  offline: 'badge-warning',
-  maintenance: 'badge-warning',
-  decommissioned: 'badge-danger',
+const STATUS_TONES: Record<DeviceStatus, 'neutral' | 'success' | 'warn' | 'danger'> = {
+  pending: 'neutral',
+  active: 'success',
+  offline: 'warn',
+  maintenance: 'warn',
+  decommissioned: 'danger',
 };
+
+const label = 'text-[13px] font-medium text-ink-2';
+const selectClass = cn(inputClass, 'disabled:bg-subtle disabled:text-ink-3');
 
 export default function DevicesPage() {
   const { user, profile } = useAuth();
@@ -50,6 +54,12 @@ export default function DevicesPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
 
   const canManage = hasPermission('devices:manage');
+  const formRef = useRef<HTMLDivElement>(null);
+
+  // On a phone the form sits below the list, so bring it into view when editing starts.
+  useEffect(() => {
+    if (editingId) formRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
+  }, [editingId]);
 
   const loadDevices = () => {
     if (!storeId) return;
@@ -137,148 +147,153 @@ export default function DevicesPage() {
 
   if (loading || permsLoading) return <PageLoader />;
 
+  const field = (id: string, text: string, control: React.ReactNode) => (
+    <div className="mb-4 flex min-w-0 flex-col gap-1.5">
+      <label className={label} htmlFor={id}>{text}</label>
+      {control}
+    </div>
+  );
+
   return (
-    <div className="page">
-      <div className="page-header">
-        <div>
-          <h1 className="page-title">Devices</h1>
-          <p className="page-subtitle">Payment terminals, scanners, printers, and other store hardware.</p>
-        </div>
-      </div>
+    <Page>
+      <PageHeader title="Devices" subtitle="Payment terminals, scanners, printers, and other store hardware." />
 
-      {error && <div className="alert alert-error">{error}</div>}
+      {error && <div className="mb-4 rounded-lg bg-danger-soft px-4 py-3 text-sm text-danger" role="alert">{error}</div>}
 
-      {canManage && (
-        <form className="card" onSubmit={handleSubmit}>
-          <SectionHead title={<>{editingId ? 'Edit device' : 'Register device'}</>} />
-          <FormField id="device-name" label="Name" value={name} onChange={setName} required />
-          <div className="form-group">
-            <label className="form-label" htmlFor="device-type">
-              Type
-            </label>
-            <select
-              id="device-type"
-              className="select-input"
-              value={type}
-              onChange={(e) => setType(e.target.value as DeviceType)}
-              disabled={!!editingId}
-            >
-              {DEVICE_TYPES.map((t) => (
-                <option key={t.value} value={t.value}>
-                  {t.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <FormField id="device-provider" label="Provider" value={provider} onChange={setProvider} placeholder="Optional, e.g. opay" />
-          <FormField id="device-serial" label="Serial number" value={serialNumber} onChange={setSerialNumber} placeholder="Optional" />
-          <FormField id="device-model" label="Model" value={model} onChange={setModel} placeholder="Optional" />
-
-          {editingId && (
-            <>
-              <div className="form-group">
-                <label className="form-label" htmlFor="device-status">
-                  Status
-                </label>
-                <select
-                  id="device-status"
-                  className="select-input"
-                  value={status}
-                  onChange={(e) => setStatus(e.target.value as DeviceStatus)}
-                >
-                  {DEVICE_STATUSES.map((s) => (
-                    <option key={s} value={s}>
-                      {s}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="form-group">
-                <label className="form-label" htmlFor="device-connectivity">
-                  Connectivity
-                </label>
-                <select
-                  id="device-connectivity"
-                  className="select-input"
-                  value={connectivity}
-                  onChange={(e) => setConnectivity(e.target.value as DeviceConnectivity | '')}
-                >
-                  <option value="">Unknown</option>
-                  {DEVICE_CONNECTIVITY.map((c) => (
-                    <option key={c} value={c}>
-                      {c}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <FormField
-                id="device-firmware"
-                label="Firmware version"
-                value={firmwareVersion}
-                onChange={setFirmwareVersion}
-                placeholder="Optional"
-              />
-            </>
-          )}
-
-          <div className="btn-row">
-            <Button type="submit" loading={saving} className="btn-sm">
-              {editingId ? 'Save changes' : 'Register device'}
-            </Button>
-            {editingId && (
-              <Button type="button" variant="ghost" onClick={resetForm} className="btn-sm">
-                Cancel
-              </Button>
-            )}
-          </div>
-        </form>
-      )}
-
-      {devices.length === 0 ? (
-        <StateBlock
-          title="No devices registered"
-          body="Register a payment terminal, scanner, printer, tablet, or mobile device above."
-        />
-      ) : (
-        <div className="list">
-          {devices.map((device) => (
-            <div key={device.id} className="list-item">
-              <div>
-                <Link to={`/devices/${device.id}`} className="list-item-title">
-                  {device.name}
-                </Link>
-                <p className="list-item-subtitle" style={{ textTransform: 'capitalize' }}>
-                  {device.type.replace('_', ' ')}
-                  {device.provider && ` · ${device.provider}`}
-                  {device.serialNumber && ` · SN: ${device.serialNumber}`}
-                </p>
-              </div>
-              <div className="list-item-meta">
-                <span className={`badge ${STATUS_BADGES[device.status]}`} style={{ textTransform: 'capitalize' }}>
-                  {device.status}
-                </span>
-                {device.connectivity && (
-                  <span className="badge badge-default" style={{ textTransform: 'capitalize' }}>
-                    {device.connectivity}
-                  </span>
-                )}
-                {canManage && (
-                  <div className="btn-row">
-                    <Button variant="ghost" className="btn-sm" onClick={() => startEdit(device)}>
-                      Edit
-                    </Button>
-                    {device.status !== 'decommissioned' && (
-                      <Button variant="ghost" className="btn-sm" onClick={() => handleDecommission(device)}>
-                        Decommission
-                      </Button>
+      <div className={cn('grid items-start gap-4 lg:gap-6', canManage && 'lg:grid-cols-[minmax(0,1fr)_360px]')}>
+        {devices.length === 0 ? (
+          <Card>
+            <StateBlock
+              title="No devices registered"
+              body="Register a payment terminal, scanner, printer, tablet, or mobile device to see it here."
+            />
+          </Card>
+        ) : (
+          <Card padded={false} className="overflow-hidden">
+            <ul className="m-0 list-none divide-y divide-line p-0" aria-label="Devices">
+              {devices.map((device) => (
+                <li key={device.id} className={cn('flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:gap-3 sm:px-5', editingId === device.id && 'bg-brand-soft/40')}>
+                  <div className="flex min-w-0 flex-1 items-center gap-3">
+                    <span aria-hidden="true" className={cn('inline-flex size-10 shrink-0 items-center justify-center rounded-lg',
+                      device.status === 'decommissioned' ? 'bg-tray text-ink-3' : 'bg-brand-soft text-brand-ink')}>
+                      <DevicesIcon width={18} height={18} />
+                    </span>
+                    <div className="min-w-0">
+                      <Link to={`/devices/${device.id}`} className="block truncate text-sm font-medium text-ink no-underline hover:text-brand">
+                        {device.name}
+                      </Link>
+                      <p className="m-0 mt-0.5 truncate text-xs text-ink-3">
+                        <span className="capitalize">{device.type.replace('_', ' ')}</span>
+                        {device.provider && ` · ${device.provider}`}
+                        {device.serialNumber && ` · SN: ${device.serialNumber}`}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1.5 pl-[52px] sm:shrink-0 sm:pl-0">
+                    <Pill tone={STATUS_TONES[device.status]}><span className="capitalize">{device.status}</span></Pill>
+                    {device.connectivity && <Pill><span className="capitalize">{device.connectivity}</span></Pill>}
+                    {canManage && (
+                      <>
+                        <Button variant="ghost" className="btn-sm" onClick={() => startEdit(device)}>
+                          Edit
+                        </Button>
+                        {device.status !== 'decommissioned' && (
+                          <Button variant="ghost" className="btn-sm" onClick={() => handleDecommission(device)}>
+                            Decommission
+                          </Button>
+                        )}
+                      </>
                     )}
                   </div>
-                )}
+                </li>
+              ))}
+            </ul>
+          </Card>
+        )}
+
+        {canManage && (
+          <div ref={formRef} className="min-w-0 scroll-mt-20 lg:sticky lg:top-6">
+          <Card>
+            <form onSubmit={handleSubmit} aria-labelledby="device-form-title">
+              <CardHead title={<span id="device-form-title">{editingId ? 'Edit device' : 'Register device'}</span>}
+                hint={editingId ? 'Type cannot be changed after registering' : 'Add hardware used in this store'} />
+              <FormField id="device-name" label="Name" value={name} onChange={setName} required />
+              {field('device-type', 'Type',
+                <select
+                  id="device-type"
+                  className={selectClass}
+                  value={type}
+                  onChange={(e) => setType(e.target.value as DeviceType)}
+                  disabled={!!editingId}
+                >
+                  {DEVICE_TYPES.map((t) => (
+                    <option key={t.value} value={t.value}>
+                      {t.label}
+                    </option>
+                  ))}
+                </select>)}
+              <FormField id="device-provider" label="Provider" value={provider} onChange={setProvider} placeholder="Optional, e.g. opay" />
+              <div className="grid gap-x-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+                <FormField id="device-serial" label="Serial number" value={serialNumber} onChange={setSerialNumber} placeholder="Optional" />
+                <FormField id="device-model" label="Model" value={model} onChange={setModel} placeholder="Optional" />
               </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
+
+              {editingId && (
+                <>
+                  <div className="grid gap-x-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+                    {field('device-status', 'Status',
+                      <select
+                        id="device-status"
+                        className={cn(selectClass, 'capitalize')}
+                        value={status}
+                        onChange={(e) => setStatus(e.target.value as DeviceStatus)}
+                      >
+                        {DEVICE_STATUSES.map((s) => (
+                          <option key={s} value={s}>
+                            {s}
+                          </option>
+                        ))}
+                      </select>)}
+                    {field('device-connectivity', 'Connectivity',
+                      <select
+                        id="device-connectivity"
+                        className={cn(selectClass, 'capitalize')}
+                        value={connectivity}
+                        onChange={(e) => setConnectivity(e.target.value as DeviceConnectivity | '')}
+                      >
+                        <option value="">Unknown</option>
+                        {DEVICE_CONNECTIVITY.map((c) => (
+                          <option key={c} value={c}>
+                            {c}
+                          </option>
+                        ))}
+                      </select>)}
+                  </div>
+                  <FormField
+                    id="device-firmware"
+                    label="Firmware version"
+                    value={firmwareVersion}
+                    onChange={setFirmwareVersion}
+                    placeholder="Optional"
+                  />
+                </>
+              )}
+
+              <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                {editingId && (
+                  <Button type="button" variant="ghost" onClick={resetForm}>
+                    Cancel
+                  </Button>
+                )}
+                <Button type="submit" loading={saving}>
+                  {editingId ? 'Save changes' : 'Register device'}
+                </Button>
+              </div>
+            </form>
+          </Card>
+          </div>
+        )}
+      </div>
+    </Page>
   );
 }

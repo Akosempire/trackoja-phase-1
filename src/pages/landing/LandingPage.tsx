@@ -1,5 +1,5 @@
 import { useBillingAvailability } from '../../hooks/useBillingAvailability';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import {
   ANNUAL_SAVINGS_LABEL,
@@ -20,13 +20,15 @@ import {
   toPricingPlans,
   visiblePricingFeatures,
   type BillingCycle,
+  type BusinessPreviewRow,
   type PricingPlan,
 } from './landingContent';
 import { SubscriptionService } from '../../services/subscription.service';
-import heroPhoneHand from '../../assets/landing/trackoja-hero-phone-hand.png';
 import { InstallAppAction } from '../../components/InstallAppAction';
-import { useRevealOnScroll } from './useRevealOnScroll';
+import { btn, cn } from '../../components/kit';
+import { APP_NAME } from '../../config/brand';
 import {
+  BrandLogo,
   IconArrowRight,
   IconCheck,
   IconClose,
@@ -35,7 +37,6 @@ import {
   IconReports,
   IconSales,
   IconStock,
-  TrackOjaLogo,
 } from './LandingIcons';
 
 const CAPABILITY_ICONS = [IconSales, IconStock, IconCustomers, IconReports];
@@ -53,9 +54,88 @@ type PricingState =
   | { status: 'ready'; plans: PricingPlan[] }
   | { status: 'unavailable'; cause: 'failed' | 'empty' };
 
+const container = 'mx-auto w-full max-w-[1160px] px-4 sm:px-6 lg:px-8';
+const sectionTitle = 'm-0 text-[26px] font-semibold leading-[34px] tracking-tight text-ink sm:text-[32px] sm:leading-10';
+const sectionCopy = 'm-0 mt-3 text-[15px] leading-6 text-ink-2';
+const surfaceCard = 'min-w-0 rounded-xl border border-line bg-surface shadow-card';
+const footerLink = 'text-sm text-ink-2 no-underline hover:text-ink';
+
+const TONE_TAG: Record<NonNullable<BusinessPreviewRow['tone']>, string> = {
+  ok: 'bg-success-soft text-success-ink',
+  warn: 'bg-warn-soft text-warn-ink',
+  info: 'bg-brand-soft text-brand-ink',
+};
+
+function Tag({ tone, children }: { tone?: BusinessPreviewRow['tone']; children: ReactNode }) {
+  return (
+    <span className={cn('inline-flex h-6 shrink-0 items-center whitespace-nowrap rounded-full px-2.5 text-xs font-medium tabular-nums',
+      tone ? TONE_TAG[tone] : 'bg-tray text-ink-2')}>{children}</span>
+  );
+}
+
+function PreviewRow({ label, meta, children }: { label: string; meta?: string; children?: ReactNode }) {
+  return (
+    <div className="flex items-center justify-between gap-3 py-2.5">
+      <div className="min-w-0">
+        <p className="m-0 truncate text-[13px] font-medium text-ink">{label}</p>
+        {meta && <p className="m-0 truncate text-xs text-ink-3">{meta}</p>}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function SectionHead({ eyebrow, title, copy, center }: { eyebrow?: string; title: string; copy?: string; center?: boolean }) {
+  return (
+    <div className={cn('mb-8 max-w-[640px] sm:mb-10', center && 'mx-auto text-center')}>
+      {eyebrow && <p className="m-0 mb-2 text-[13px] font-semibold text-brand">{eyebrow}</p>}
+      <h2 className={sectionTitle}>{title}</h2>
+      {copy && <p className={sectionCopy}>{copy}</p>}
+    </div>
+  );
+}
+
+/** The hero's product preview, drawn from the same sample rows the page shows below. */
+function HeroPreview() {
+  return (
+    <div role="img" aria-label={`Sample ${APP_NAME} screens: today's sales summary and a cashier's cart`} className="relative mx-auto w-full max-w-[460px] lg:mr-0">
+      <div className="rounded-2xl border border-line bg-tray p-3 shadow-pop sm:p-4">
+        <div className={cn(surfaceCard, 'p-4 sm:p-5')}>
+          <div className="flex items-center justify-between">
+            <p className="m-0 text-[13px] font-medium text-ink-2">Today</p>
+            <Tag tone="ok">Live</Tag>
+          </div>
+          <p className="m-0 mt-2 text-[30px] font-semibold leading-9 tracking-tight tabular-nums text-ink">{OWNER_VIEW_ROWS[0].value}</p>
+          <p className="m-0 text-xs text-ink-3">{OWNER_VIEW_ROWS[0].label}</p>
+          <div className="mt-4 grid grid-cols-3 gap-2">
+            {OWNER_VIEW_ROWS.slice(1).map((row) => (
+              <div key={row.label} className="min-w-0 rounded-lg bg-subtle px-2.5 py-2">
+                <p className="m-0 truncate text-[11px] text-ink-3">{row.label}</p>
+                <p className={cn('m-0 mt-0.5 text-[15px] font-semibold tabular-nums', 'tone' in row && row.tone === 'warn' ? 'text-warn-ink' : 'text-ink')}>{row.value}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className={cn(surfaceCard, 'mt-3 p-4 sm:p-5')}>
+          <p className="m-0 text-[13px] font-medium text-ink-2">Cart · {STAFF_VIEW_ROWS.length} items</p>
+          <div className="divide-y divide-line">
+            {STAFF_VIEW_ROWS.map((row) => (
+              <PreviewRow key={row.label} label={row.label} meta={row.meta}>
+                <span className="shrink-0 text-[13px] font-semibold tabular-nums text-ink">{row.value}</span>
+              </PreviewRow>
+            ))}
+          </div>
+          <div className="mt-2 flex h-11 items-center justify-between rounded-md bg-brand px-4 text-sm font-semibold text-white">
+            <span>Charge</span><span className="tabular-nums">{STAFF_VIEW_TOTAL}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function LandingPage() {
   const { billing: availability } = useBillingAvailability();
-  useRevealOnScroll();
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [billing, setBilling] = useState<BillingCycle>('monthly');
@@ -91,15 +171,6 @@ export default function LandingPage() {
     };
   }, []);
 
-  // useRevealOnScroll observes the [data-reveal] nodes that exist on mount, so
-  // cards that arrive with the fetch would stay at opacity 0. Reveal them here
-  // as they mount; the section head and toggle keep their scroll reveal.
-  useEffect(() => {
-    document
-      .querySelectorAll<HTMLElement>('#pricing .lp-price-grid [data-reveal]')
-      .forEach((node) => node.classList.add('is-revealed'));
-  }, [pricing]);
-
   const closeMenu = () => setMenuOpen(false);
 
   /** Arrow-key support for the business type tabs. */
@@ -114,40 +185,44 @@ export default function LandingPage() {
     document.getElementById(`lp-tab-${nextId}`)?.focus();
   };
 
+  const priceGridCols = pricing.status === 'ready' && pricing.plans.length <= 3
+    ? 'lg:grid-cols-3 lg:max-w-[960px]'
+    : 'lg:grid-cols-4';
+
   return (
-    <div className="lp">
-      <a className="skip-link" href="#lp-main">
+    <div className="min-h-dvh bg-canvas text-ink">
+      <a className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-surface focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-ink focus:shadow-pop" href="#lp-main">
         Skip to content
       </a>
 
       {/* ------------------------------------------------------------ nav */}
-      <header className="lp-nav">
-        <div className="lp-container lp-nav-inner">
-          <a className="lp-nav-brand" href="#lp-top" aria-label="TrackOja home">
-            <TrackOjaLogo />
+      <header className="sticky top-0 z-40 border-b border-line bg-surface/90 backdrop-blur">
+        <div className={cn(container, 'flex h-16 items-center justify-between gap-4')}>
+          <a className="rounded-md no-underline" href="#lp-top" aria-label={`${APP_NAME} home`}>
+            <BrandLogo />
           </a>
 
-          <nav className="lp-nav-links" aria-label="Primary">
+          <nav className="hidden items-center gap-1 lg:flex" aria-label="Primary">
             {NAV_LINKS.map((link) => (
-              <a key={link.href} href={link.href} className="lp-nav-link">
+              <a key={link.href} href={link.href} className={btn('ghost', 'sm')}>
                 {link.label}
               </a>
             ))}
           </nav>
 
-          <div className="lp-nav-actions">
-            <InstallAppAction className="lp-btn lp-btn-quiet" label="Install app" />
-            <Link className="lp-btn lp-btn-quiet" to="/login">
+          <div className="hidden items-center gap-2 lg:flex">
+            <InstallAppAction className={btn('ghost')} label="Install app" />
+            <Link className={btn('outline')} to="/login">
               Sign in
             </Link>
-            <Link className="lp-btn lp-btn-primary" to="/signup">
+            <Link className={btn('primary')} to="/signup">
               Get started
             </Link>
           </div>
 
           <button
             type="button"
-            className="lp-menu-button"
+            className="inline-flex size-10 items-center justify-center rounded-md text-ink hover:bg-hover lg:hidden"
             aria-expanded={menuOpen}
             aria-controls="lp-mobile-menu"
             aria-label={menuOpen ? 'Close menu' : 'Open menu'}
@@ -158,19 +233,19 @@ export default function LandingPage() {
         </div>
 
         {menuOpen && (
-          <div className="lp-mobile-menu" id="lp-mobile-menu">
-            <nav className="lp-mobile-links" aria-label="Mobile">
+          <div className="border-t border-line bg-surface px-4 pb-5 pt-2 lg:hidden" id="lp-mobile-menu">
+            <nav className="flex flex-col" aria-label="Mobile">
               {NAV_LINKS.map((link) => (
-                <a key={link.href} href={link.href} className="lp-mobile-link" onClick={closeMenu}>
+                <a key={link.href} href={link.href} className="flex h-12 items-center border-b border-line text-[15px] font-medium text-ink no-underline" onClick={closeMenu}>
                   {link.label}
                 </a>
               ))}
-              <Link className="lp-mobile-link" to="/login" onClick={closeMenu}>
+              <Link className="flex h-12 items-center border-b border-line text-[15px] font-medium text-ink no-underline" to="/login" onClick={closeMenu}>
                 Sign in
               </Link>
-              <InstallAppAction className="lp-mobile-link" label="Install app" />
+              <InstallAppAction className="flex h-12 w-full items-center border-0 border-b border-line bg-transparent p-0 text-left text-[15px] font-medium text-ink" label="Install app" />
             </nav>
-            <Link className="lp-btn lp-btn-primary lp-mobile-cta" to="/signup" onClick={closeMenu}>
+            <Link className={cn(btn('primary', 'lg'), 'mt-4 w-full')} to="/signup" onClick={closeMenu}>
               Get started
             </Link>
           </div>
@@ -181,73 +256,69 @@ export default function LandingPage() {
         <span id="lp-top" />
 
         {/* ---------------------------------------------------------- hero */}
-        <section className="lp-hero">
-          <div className="lp-container">
-            <div className="lp-hero-copy" data-reveal>
-              <p className="lp-eyebrow">Business management that fits the way you work</p>
-              <h1 className="lp-h1">Run your business, all in one place.</h1>
-              <p className="lp-lede">
-                Manage sales, products, customers, stock, and your team from your phone. Set up
-                TrackOja for your type of business and stay on top of every day.
+        <section className="border-b border-line bg-surface">
+          <div className={cn(container, 'grid items-center gap-10 py-12 sm:py-16 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] lg:gap-16 lg:py-24')}>
+            <div className="min-w-0">
+              <p className="m-0 inline-flex items-center gap-2 rounded-full bg-brand-soft px-3 py-1 text-[13px] font-medium text-brand-ink">
+                Point of sale and stock for small shops
               </p>
-              <div className="lp-hero-actions">
-                <Link className="lp-btn lp-btn-primary lp-btn-lg" to="/signup">
+              <h1 className="m-0 mt-5 text-[36px] font-semibold leading-[42px] tracking-tight text-ink sm:text-5xl sm:leading-[56px] lg:text-[56px] lg:leading-[64px]">
+                <span className="block">Sell faster.</span>
+                <span className="block">Track stock.</span>
+                <span className="block text-brand">Know your profit.</span>
+              </h1>
+              <p className="m-0 mt-5 max-w-[540px] text-base leading-7 text-ink-2 sm:text-[17px]">
+                {APP_NAME} records every sale, updates stock as you sell, and shows how the day
+                went, from the phone you already have. Set it up for your type of business in minutes.
+              </p>
+              <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+                <Link className={btn('primary', 'lg')} to="/signup">
                   Get started
-                  <IconArrowRight />
+                  <IconArrowRight width={18} />
                 </Link>
-                <a className="lp-btn lp-btn-outline lp-btn-lg" href="#how-it-works">
+                <a className={btn('outline', 'lg')} href="#how-it-works">
                   See how it works
                 </a>
               </div>
+              <ul className="m-0 mt-8 flex list-none flex-wrap gap-x-5 gap-y-2 p-0 text-[13px] text-ink-2">
+                {['Works on any phone', 'Cash, card and transfer', 'Owner and staff roles'].map((item) => (
+                  <li key={item} className="inline-flex items-center gap-1.5">
+                    <span className="text-success"><IconCheck width={16} /></span>
+                    {item}
+                  </li>
+                ))}
+              </ul>
             </div>
 
-            <div className="lp-hero-art" data-reveal>
-              <img
-                src={heroPhoneHand}
-                alt="TrackOja dashboard on a phone held in one hand"
-                width="1122"
-                height="1402"
-                fetchPriority="high"
-              />
-            </div>
+            <HeroPreview />
           </div>
         </section>
 
         {/* -------------------------------------------------- capabilities */}
-        <section className="lp-section" id="features">
-          <div className="lp-container">
-            <div className="lp-section-head" data-reveal>
-              <h2 className="lp-h2">Everything you need to stay on top of business.</h2>
-            </div>
+        <section className="scroll-mt-16 py-16 sm:py-20" id="features">
+          <div className={container}>
+            <SectionHead eyebrow="Features" title="Everything you need to stay on top of business." />
 
-            <div className="lp-grid lp-grid-4">
+            <div className="grid gap-4 md:grid-cols-2">
               {CAPABILITIES.map((capability, index) => {
                 const Icon = CAPABILITY_ICONS[index] ?? IconSales;
                 return (
-                  <article className="lp-card" key={capability.title} data-reveal>
-                    <span className="lp-card-icon" aria-hidden="true">
-                      <Icon />
+                  <article className={cn(surfaceCard, 'flex flex-col p-5')} key={capability.title}>
+                    <span className="inline-flex size-10 items-center justify-center rounded-lg bg-brand-soft text-brand-ink" aria-hidden="true">
+                      <Icon width={20} />
                     </span>
-                    <h3 className="lp-card-title">{capability.title}</h3>
-                    <p className="lp-card-copy">{capability.copy}</p>
+                    <h3 className="m-0 mt-4 text-[16px] font-semibold text-ink">{capability.title}</h3>
+                    <p className="m-0 mt-1 text-sm leading-[22px] text-ink-2">{capability.copy}</p>
 
-                    <div className="lp-fragment">
+                    <div className="mt-4 divide-y divide-line rounded-lg bg-subtle px-3">
                       {capability.fragment.map((row) => (
-                        <div className="lp-fragment-row" key={row.label}>
-                          <div className="lp-fragment-text">
-                            <p className="lp-fragment-title">{row.label}</p>
-                            <p className="lp-fragment-meta">{row.meta}</p>
-                          </div>
-                          {row.value && (
-                            <span className={`lp-tag${row.tone ? ` lp-tag-${row.tone}` : ''}`}>
-                              {row.value}
-                            </span>
-                          )}
-                        </div>
+                        <PreviewRow key={row.label} label={row.label} meta={row.meta}>
+                          {row.value && <Tag tone={row.tone}>{row.value}</Tag>}
+                        </PreviewRow>
                       ))}
                     </div>
 
-                    {capability.note && <p className="lp-card-note">{capability.note}</p>}
+                    {capability.note && <p className="m-0 mt-3 text-xs text-ink-3">{capability.note}</p>}
                   </article>
                 );
               })}
@@ -256,176 +327,154 @@ export default function LandingPage() {
         </section>
 
         {/* ------------------------------------------------ business types */}
-        <section className="lp-section lp-section-tint" id="businesses">
-          <div className="lp-container">
-            <div className="lp-section-head" data-reveal>
-              <h2 className="lp-h2">Built around your kind of business.</h2>
-              <p className="lp-section-copy">
-                Choose your business type during setup and work with tools that reflect how you
-                operate.
-              </p>
+        <section className="scroll-mt-16 border-y border-line bg-surface py-16 sm:py-20" id="businesses">
+          <div className={container}>
+            <SectionHead
+              eyebrow="Businesses"
+              title="Built around your kind of business."
+              copy="Choose your business type during setup and work with tools that reflect how you operate."
+            />
+
+            <div
+              className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0"
+              role="tablist"
+              aria-label="Business types"
+              onKeyDown={handleTabKeyDown}
+            >
+              {BUSINESS_TYPES.map((type) => {
+                const selected = type.id === activeBusinessId;
+                return (
+                  <button
+                    key={type.id}
+                    id={`lp-tab-${type.id}`}
+                    type="button"
+                    role="tab"
+                    aria-selected={selected}
+                    aria-controls={`lp-panel-${type.id}`}
+                    tabIndex={selected ? 0 : -1}
+                    className={cn('h-10 shrink-0 whitespace-nowrap rounded-full border px-4 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand',
+                      selected ? 'border-ink bg-ink text-surface' : 'border-line-strong bg-surface text-ink-2 hover:bg-hover hover:text-ink')}
+                    onClick={() => setActiveBusinessId(type.id)}
+                  >
+                    {type.tabLabel}
+                  </button>
+                );
+              })}
             </div>
 
-            <div className="lp-biz" data-reveal>
-              <div
-                className="lp-tabs"
-                role="tablist"
-                aria-label="Business types"
-                onKeyDown={handleTabKeyDown}
-              >
-                {BUSINESS_TYPES.map((type) => {
-                  const selected = type.id === activeBusinessId;
-                  return (
-                    <button
-                      key={type.id}
-                      id={`lp-tab-${type.id}`}
-                      type="button"
-                      role="tab"
-                      aria-selected={selected}
-                      aria-controls={`lp-panel-${type.id}`}
-                      tabIndex={selected ? 0 : -1}
-                      className={`lp-tab${selected ? ' is-active' : ''}`}
-                      onClick={() => setActiveBusinessId(type.id)}
-                    >
-                      {type.tabLabel}
-                    </button>
-                  );
-                })}
+            <div
+              className="mt-6 grid gap-6 rounded-2xl bg-tray p-4 focus-visible:outline-2 focus-visible:outline-brand sm:p-6 lg:grid-cols-2 lg:items-center lg:gap-10 lg:p-10"
+              id={`lp-panel-${activeBusiness.id}`}
+              role="tabpanel"
+              aria-labelledby={`lp-tab-${activeBusiness.id}`}
+              tabIndex={0}
+              key={activeBusiness.id}
+            >
+              <div className="min-w-0">
+                <h3 className="m-0 text-xl font-semibold text-ink">{activeBusiness.heading}</h3>
+                <p className="m-0 mt-2 text-[15px] leading-6 text-ink-2">{activeBusiness.workflow}</p>
+                <p className="m-0 mt-4 text-[13px] text-ink-3">
+                  You can change your business type later in Settings.
+                </p>
               </div>
 
-              <div
-                className="lp-tab-panel"
-                id={`lp-panel-${activeBusiness.id}`}
-                role="tabpanel"
-                aria-labelledby={`lp-tab-${activeBusiness.id}`}
-                tabIndex={0}
-                key={activeBusiness.id}
-              >
-                <div className="lp-biz-text">
-                  <h3 className="lp-card-title">{activeBusiness.heading}</h3>
-                  <p className="lp-biz-workflow">{activeBusiness.workflow}</p>
-                  <p className="lp-biz-note">
-                    You can change your business type later in Settings.
-                  </p>
-                </div>
-
-                <div className="lp-preview">
-                  <p className="lp-preview-title">{activeBusiness.previewTitle}</p>
-                  <div className="lp-preview-list">
-                    {activeBusiness.rows.map((row) => (
-                      <div className="lp-preview-row" key={row.label}>
-                        <div className="lp-fragment-text">
-                          <p className="lp-fragment-title">{row.label}</p>
-                          <p className="lp-fragment-meta">{row.meta}</p>
-                        </div>
-                        {row.value && <span className="lp-tag">{row.value}</span>}
-                        {!row.value && row.tone && (
-                          <span className={`lp-tag lp-tag-${row.tone}`}>
-                            {row.tone === 'ok' ? 'Ready' : row.tone === 'warn' ? 'Due' : 'New'}
-                          </span>
-                        )}
-                      </div>
-                    ))}
-                  </div>
+              <div className={cn(surfaceCard, 'p-4 sm:p-5')}>
+                <p className="m-0 text-[13px] font-medium text-ink-2">{activeBusiness.previewTitle}</p>
+                <div className="divide-y divide-line">
+                  {activeBusiness.rows.map((row) => (
+                    <PreviewRow key={row.label} label={row.label} meta={row.meta}>
+                      {row.value && <Tag>{row.value}</Tag>}
+                      {!row.value && row.tone && (
+                        <Tag tone={row.tone}>{row.tone === 'ok' ? 'Ready' : row.tone === 'warn' ? 'Due' : 'New'}</Tag>
+                      )}
+                    </PreviewRow>
+                  ))}
                 </div>
               </div>
-
-              <p className="lp-biz-others">
-                <span className="lp-biz-others-label">Also set up on TrackOja:</span>{' '}
-                {OTHER_BUSINESSES.join(' · ')} — and a flexible option for any other business.
-              </p>
             </div>
+
+            <p className="m-0 mt-6 text-sm leading-6 text-ink-2">
+              <span className="font-semibold text-ink">Also set up on {APP_NAME}:</span>{' '}
+              {OTHER_BUSINESSES.join(' · ')}, and a flexible option for any other business.
+            </p>
           </div>
         </section>
 
         {/* ------------------------------------------------- how it works */}
-        <section className="lp-section" id="how-it-works">
-          <div className="lp-container">
-            <div className="lp-section-head" data-reveal>
-              <h2 className="lp-h2">From setup to your next sale.</h2>
-            </div>
+        <section className="scroll-mt-16 py-16 sm:py-20" id="how-it-works">
+          <div className={container}>
+            <SectionHead eyebrow="How it works" title="From setup to your next sale." />
 
-            <ol className="lp-steps">
+            <ol className="m-0 grid list-none gap-4 p-0 lg:grid-cols-3">
               {STEPS.map((step, index) => (
-                <li className="lp-step" key={step.title} data-reveal>
-                  <span className="lp-step-number" aria-hidden="true">
+                <li className={cn(surfaceCard, 'p-5 sm:p-6')} key={step.title}>
+                  <span className="inline-flex size-9 items-center justify-center rounded-full bg-brand text-sm font-semibold text-white" aria-hidden="true">
                     {index + 1}
                   </span>
-                  <h3 className="lp-card-title">{step.title}</h3>
-                  <p className="lp-card-copy">{step.detail}</p>
+                  <h3 className="m-0 mt-4 text-[16px] font-semibold leading-6 text-ink">{step.title}</h3>
+                  <p className="m-0 mt-1.5 text-sm leading-[22px] text-ink-2">{step.detail}</p>
                 </li>
               ))}
             </ol>
 
-            <p className="lp-callout" data-reveal>
-              <strong>No setup fee on Standard.</strong> Standard customers add and update their own
-              products — you are not charged for onboarding when you manage your catalogue yourself.
+            <p className="m-0 mt-6 rounded-xl border border-brand-line bg-brand-soft px-5 py-4 text-sm leading-6 text-brand-ink">
+              <strong className="font-semibold">No setup fee on Standard.</strong> Standard customers add and update their own
+              products. You are not charged for onboarding when you manage your catalogue yourself.
             </p>
           </div>
         </section>
 
         {/* --------------------------------------------- owner and team */}
-        <section className="lp-section lp-section-tint" id="team">
-          <div className="lp-container">
-            <div className="lp-section-head" data-reveal>
-              <h2 className="lp-h2">
-                Give your team the tools they need. Keep the full picture in view.
-              </h2>
-            </div>
+        <section className="scroll-mt-16 border-y border-line bg-surface py-16 sm:py-20" id="team">
+          <div className={container}>
+            <SectionHead eyebrow="Your team" title="Give your team the tools they need. Keep the full picture in view." />
 
-            <div className="lp-team">
-              <article className="lp-team-card" data-reveal>
-                <span className="lp-team-label">Owner</span>
-                <h3 className="lp-team-title">Business overview</h3>
-                <div className="lp-preview">
-                  <p className="lp-preview-title">Today</p>
-                  <div className="lp-preview-list">
+            <div className="grid gap-4 lg:grid-cols-2">
+              <article className="min-w-0 rounded-2xl bg-tray p-4 sm:p-6">
+                <Tag tone="info">Owner</Tag>
+                <h3 className="m-0 mt-3 text-[16px] font-semibold text-ink">Business overview</h3>
+                <div className={cn(surfaceCard, 'mt-4 p-4 sm:p-5')}>
+                  <p className="m-0 text-[13px] font-medium text-ink-2">Today</p>
+                  <div className="divide-y divide-line">
                     {OWNER_VIEW_ROWS.map((row) => (
-                      <div className="lp-preview-row" key={row.label}>
-                        <p className="lp-fragment-title">{row.label}</p>
-                        <span className={`lp-tag${row.tone ? ` lp-tag-${row.tone}` : ''}`}>
-                          {row.value}
-                        </span>
-                      </div>
+                      <PreviewRow key={row.label} label={row.label}>
+                        <Tag tone={'tone' in row ? row.tone : undefined}>{row.value}</Tag>
+                      </PreviewRow>
                     ))}
                   </div>
-                  <p className="lp-preview-foot">
+                  <p className="m-0 mt-2 border-t border-line pt-3 text-xs text-ink-3">
                     Sales, stock, staff activity, and reports together in one view.
                   </p>
                 </div>
               </article>
 
-              <article className="lp-team-card" data-reveal>
-                <span className="lp-team-label lp-team-label-staff">Cashier</span>
-                <h3 className="lp-team-title">Checkout</h3>
-                <div className="lp-preview">
-                  <p className="lp-preview-title">Cart · 3 items</p>
-                  <div className="lp-preview-list">
+              <article className="min-w-0 rounded-2xl bg-tray p-4 sm:p-6">
+                <Tag tone="ok">Cashier</Tag>
+                <h3 className="m-0 mt-3 text-[16px] font-semibold text-ink">Checkout</h3>
+                <div className={cn(surfaceCard, 'mt-4 p-4 sm:p-5')}>
+                  <p className="m-0 text-[13px] font-medium text-ink-2">Cart · 3 items</p>
+                  <div className="divide-y divide-line">
                     {STAFF_VIEW_ROWS.map((row) => (
-                      <div className="lp-preview-row" key={row.label}>
-                        <div className="lp-fragment-text">
-                          <p className="lp-fragment-title">{row.label}</p>
-                          <p className="lp-fragment-meta">{row.meta}</p>
-                        </div>
-                        <span className="lp-tag">{row.value}</span>
-                      </div>
+                      <PreviewRow key={row.label} label={row.label} meta={row.meta}>
+                        <span className="shrink-0 text-[13px] font-semibold tabular-nums text-ink">{row.value}</span>
+                      </PreviewRow>
                     ))}
                   </div>
-                  <div className="lp-preview-total">
-                    <span>Total</span>
-                    <strong>{STAFF_VIEW_TOTAL}</strong>
+                  <div className="mt-2 flex items-center justify-between border-t border-line pt-3 text-sm">
+                    <span className="text-ink-2">Total</span>
+                    <strong className="font-semibold tabular-nums text-ink">{STAFF_VIEW_TOTAL}</strong>
                   </div>
                 </div>
               </article>
             </div>
 
-            <div className="lp-roles" data-reveal>
-              <p className="lp-roles-title">Sign in as the role that fits the job.</p>
-              <div className="lp-grid lp-grid-4">
+            <div className="mt-10">
+              <p className="m-0 mb-4 text-[15px] font-semibold text-ink">Sign in as the role that fits the job.</p>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 {TEAM_ROLES.map((item) => (
-                  <div className="lp-role" key={item.role}>
-                    <p className="lp-role-name">{item.role}</p>
-                    <p className="lp-role-detail">{item.detail}</p>
+                  <div className="rounded-xl border border-line p-4" key={item.role}>
+                    <p className="m-0 text-sm font-semibold text-ink">{item.role}</p>
+                    <p className="m-0 mt-1 text-[13px] leading-5 text-ink-2">{item.detail}</p>
                   </div>
                 ))}
               </div>
@@ -434,37 +483,34 @@ export default function LandingPage() {
         </section>
 
         {/* ----------------------------------------------------- pricing */}
-        <section className="lp-section" id="pricing">
-          <div className="lp-container">
-            <div className="lp-section-head lp-section-head-center" data-reveal>
-              <p className="lp-eyebrow">Pricing</p>
-              <h2 className="lp-h2">A plan for the way your business works</h2>
-              <p className="lp-section-copy">
-                Start on your own or get hands-on help as your operations grow.
-              </p>
-            </div>
+        <section className="scroll-mt-16 py-16 sm:py-20" id="pricing">
+          <div className={container}>
+            <SectionHead
+              center
+              eyebrow="Pricing"
+              title="A plan for the way your business works"
+              copy="Start on your own or get hands-on help as your operations grow."
+            />
 
-            <div className="lp-billing" data-reveal>
-              <div className="lp-toggle" role="group" aria-label="Billing period">
-                <button
-                  type="button"
-                  className={`lp-toggle-option${billing === 'monthly' ? ' is-active' : ''}`}
-                  aria-pressed={billing === 'monthly'}
-                  onClick={() => setBilling('monthly')}
-                >
-                  Monthly
-                </button>
-                <button
-                  type="button"
-                  className={`lp-toggle-option${billing === 'annual' ? ' is-active' : ''}`}
-                  aria-pressed={billing === 'annual'}
-                  onClick={() => setBilling('annual')}
-                >
-                  Annual
-                  <span className="lp-toggle-badge">{ANNUAL_SAVINGS_LABEL}</span>
-                </button>
+            <div className="mb-8 flex flex-col items-center gap-2">
+              <div className="inline-flex gap-0.5 rounded-lg bg-tray p-1" role="group" aria-label="Billing period">
+                {(['monthly', 'annual'] as const).map((cycle) => (
+                  <button
+                    key={cycle}
+                    type="button"
+                    className={cn('inline-flex h-9 items-center gap-2 rounded-md px-4 text-sm font-medium transition-colors',
+                      billing === cycle ? 'bg-surface text-ink shadow-card' : 'text-ink-2 hover:text-ink')}
+                    aria-pressed={billing === cycle}
+                    onClick={() => setBilling(cycle)}
+                  >
+                    {cycle === 'monthly' ? 'Monthly' : 'Annual'}
+                    {cycle === 'annual' && (
+                      <span className="rounded-full bg-success-soft px-2 py-0.5 text-[11px] font-semibold text-success-ink">{ANNUAL_SAVINGS_LABEL}</span>
+                    )}
+                  </button>
+                ))}
               </div>
-              <p className="lp-billing-note" aria-live="polite">
+              <p className="m-0 text-[13px] text-ink-3" aria-live="polite">
                 {billingNote(billing)}
               </p>
             </div>
@@ -474,20 +520,20 @@ export default function LandingPage() {
                 <p className="sr-only" role="status">
                   Loading published plans
                 </p>
-                <div className="lp-price-grid" aria-hidden="true">
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4" aria-hidden="true">
                   {PRICE_CARD_PLACEHOLDERS.map((card) => (
-                    <article className="lp-price-card" key={card}>
-                      <span className="skeleton skeleton-text is-short" />
-                      <span className="skeleton skeleton-text" />
-                      <span className="skeleton skeleton-text is-short" />
-                      <ul className="lp-price-features">
+                    <article className={cn(surfaceCard, 'flex flex-col gap-3 p-5')} key={card}>
+                      <span className="block h-5 w-24 animate-pulse rounded bg-tray" />
+                      <span className="block h-4 w-full animate-pulse rounded bg-tray" />
+                      <span className="block h-8 w-32 animate-pulse rounded bg-tray" />
+                      <ul className="m-0 list-none space-y-2 p-0">
                         {PRICE_FEATURE_PLACEHOLDERS.map((line) => (
                           <li key={line}>
-                            <span className="skeleton skeleton-text" />
+                            <span className="block h-3.5 w-full animate-pulse rounded bg-tray" />
                           </li>
                         ))}
                       </ul>
-                      <span className="skeleton skeleton-card" />
+                      <span className="block h-10 w-full animate-pulse rounded-md bg-tray" />
                     </article>
                   ))}
                 </div>
@@ -495,36 +541,35 @@ export default function LandingPage() {
             )}
 
             {pricing.status === 'ready' && (
-              <div className="lp-price-grid">
+              <div className={cn('mx-auto grid gap-4 sm:grid-cols-2', priceGridCols)}>
                 {pricing.plans.map((plan) => {
                   const price = priceFor(plan, billing);
                   const saving = monthsFree(plan.monthlyPrice, plan.annualPrice);
                   return (
                     <article
-                      className={`lp-price-card${plan.featured ? ' is-featured' : ''}`}
+                      className={cn(surfaceCard, 'relative flex flex-col p-5 sm:p-6', plan.featured && 'border-brand ring-2 ring-brand/20')}
                       key={plan.id}
-                      data-reveal
                     >
-                      {plan.featured && <span className="lp-price-flag">Recommended</span>}
-                      <h3 className="lp-price-name">{plan.name}</h3>
-                      <p className="lp-price-desc">{plan.description}</p>
+                      {plan.featured && <span className="absolute right-4 top-4 inline-flex h-6 items-center rounded-full bg-brand px-2.5 text-xs font-semibold text-white">Recommended</span>}
+                      <h3 className="m-0 pr-28 text-[17px] font-semibold text-ink">{plan.name}</h3>
+                      {plan.description && <p className="m-0 mt-1 text-[13px] leading-5 text-ink-2">{plan.description}</p>}
 
-                      <p className="lp-price-amount">
-                        <span className="lp-price-value">{price.amount}</span>
-                        {price.suffix && <span className="lp-price-suffix">{price.suffix}</span>}
+                      <p className="m-0 mt-5 flex flex-wrap items-baseline gap-1">
+                        <span className="text-[28px] font-semibold leading-9 tracking-tight tabular-nums text-ink">{price.amount}</span>
+                        {price.suffix && <span className="text-sm text-ink-3">{price.suffix}</span>}
                       </p>
-                      <p className="lp-price-meta">
+                      <p className="m-0 mt-1 text-[13px] text-ink-3">
                         {plan.userLimit}
                         {billing === 'annual' && saving > 0 && (
-                          <span className="lp-price-save"> · save {saving} months</span>
+                          <span className="font-medium text-success-ink"> · save {saving} months</span>
                         )}
                       </p>
 
-                      <ul className="lp-price-features">
+                      <ul className="m-0 mt-5 flex-1 list-none space-y-2.5 border-t border-line p-0 pt-5">
                         {visiblePricingFeatures(plan.features).map((feature) => (
-                          <li key={feature.key ?? feature.label}>
-                            <span className="lp-check" aria-hidden="true">
-                              <IconCheck />
+                          <li key={feature.key ?? feature.label} className="flex gap-2 text-[13px] leading-5 text-ink-2">
+                            <span className="mt-px shrink-0 text-success" aria-hidden="true">
+                              <IconCheck width={16} />
                             </span>
                             <span>{feature.label}</span>
                           </li>
@@ -532,15 +577,15 @@ export default function LandingPage() {
                       </ul>
 
                       {plan.onboardingNote && (
-                        <p className="lp-price-onboarding">{plan.onboardingNote}</p>
+                        <p className="m-0 mt-4 rounded-lg bg-subtle px-3 py-2 text-xs leading-5 text-ink-2">{plan.onboardingNote}</p>
                       )}
 
                       {plan.ctaHref.startsWith('mailto:') ? (
-                        <a className="lp-btn lp-btn-outline lp-price-cta" href={plan.ctaHref}>
+                        <a className={cn(btn('outline'), 'mt-5 w-full')} href={plan.ctaHref}>
                           {plan.ctaLabel}
                         </a>
                       ) : (
-                        <Link className="lp-btn lp-btn-primary lp-price-cta" to={plan.ctaHref}>
+                        <Link className={cn(btn(plan.featured ? 'primary' : 'outline'), 'mt-5 w-full')} to={plan.ctaHref}>
                           {availability?.trialEnabled && availability.paymentSystem !== 'LIVE' ? 'Start Free Trial' : plan.ctaLabel}
                         </Link>
                       )}
@@ -551,12 +596,12 @@ export default function LandingPage() {
             )}
 
             {pricing.status === 'unavailable' && (
-              <p className="lp-callout" role="status">
+              <p className="m-0 mx-auto max-w-[640px] rounded-xl border border-line bg-surface px-5 py-4 text-center text-sm leading-6 text-ink-2" role="status">
                 {pricing.cause === 'failed' ? (
                   <>
-                    We could not load our plans, so no price is shown here — we would rather say
+                    We could not load our plans, so no price is shown here. We would rather say
                     that than quote a figure that may be out of date. Email{' '}
-                    <a className="lp-footer-link" href={`mailto:${CONTACT_EMAIL}`}>
+                    <a className="font-medium text-brand" href={`mailto:${CONTACT_EMAIL}`}>
                       {CONTACT_EMAIL}
                     </a>{' '}
                     and we will confirm current pricing.
@@ -569,72 +614,73 @@ export default function LandingPage() {
                 )}
               </p>
             )}
-
           </div>
         </section>
 
         {/* --------------------------------------------------- final CTA */}
-        <section className="lp-final">
-          <div className="lp-container lp-final-inner" data-reveal>
-            <h2 className="lp-h2">A clearer way to run every day.</h2>
-            <p className="lp-lede">
-              Bring your sales, stock, customers, and team into one place.
-            </p>
-            <Link className="lp-btn lp-btn-primary lp-btn-lg" to="/signup">
-              Get started with TrackOja
-              <IconArrowRight />
-            </Link>
+        <section className="pb-16 sm:pb-20">
+          <div className={container}>
+            <div className="rounded-2xl bg-brand px-6 py-12 text-center sm:px-12 sm:py-16">
+              <h2 className="m-0 text-[26px] font-semibold leading-[34px] tracking-tight text-white sm:text-[32px] sm:leading-10">A clearer way to run every day.</h2>
+              <p className="m-0 mx-auto mt-3 max-w-[480px] text-[15px] leading-6 text-white/85">
+                Bring your sales, stock, customers, and team into one place.
+              </p>
+              <Link className="mt-8 inline-flex h-12 items-center justify-center gap-2 rounded-md bg-white px-5 text-[15px] font-semibold text-brand no-underline transition-colors hover:bg-white/90" to="/signup">
+                Get started with {APP_NAME}
+                <IconArrowRight width={18} />
+              </Link>
+            </div>
           </div>
         </section>
       </main>
 
       {/* -------------------------------------------------------- footer */}
-      <footer className="lp-footer">
-        <div className="lp-container lp-footer-inner">
-          <div className="lp-footer-brand">
-            <TrackOjaLogo />
-            <p className="lp-footer-copy">
-              TrackOja is a business management platform for small and growing businesses. Record
+      <footer className="border-t border-line bg-surface">
+        <div className={cn(container, 'grid grid-cols-3 gap-x-4 gap-y-10 py-12 lg:grid-cols-[minmax(0,2fr)_repeat(3,minmax(0,1fr))]')}>
+          <div className="col-span-3 max-w-[360px] lg:col-span-1">
+            <BrandLogo size="sm" />
+            <p className="m-0 mt-4 text-sm leading-[22px] text-ink-2">
+              {APP_NAME} is a business management platform for small and growing businesses. Record
               sales, track stock, keep customer records, and manage your team from your phone.
             </p>
           </div>
 
-          <nav className="lp-footer-col" aria-label="Product">
-            <p className="lp-footer-heading">Product</p>
+          <nav className="flex flex-col gap-2.5" aria-label="Product">
+            <p className="m-0 mb-1 text-[13px] font-semibold text-ink">Product</p>
             {NAV_LINKS.map((link) => (
-              <a key={link.href} href={link.href} className="lp-footer-link">
+              <a key={link.href} href={link.href} className={footerLink}>
                 {link.label}
               </a>
             ))}
           </nav>
 
-          <nav className="lp-footer-col" aria-label="Account">
-            <p className="lp-footer-heading">Account</p>
-            <Link className="lp-footer-link" to="/signup">
+          <nav className="flex flex-col gap-2.5" aria-label="Account">
+            <p className="m-0 mb-1 text-[13px] font-semibold text-ink">Account</p>
+            <Link className={footerLink} to="/signup">
               Get started
             </Link>
-            <Link className="lp-footer-link" to="/login">
+            <Link className={footerLink} to="/login">
               Sign in
             </Link>
-            <Link className="lp-footer-link" to="/forgot-password">
+            <Link className={footerLink} to="/forgot-password">
               Reset password
             </Link>
           </nav>
 
-          <div className="lp-footer-col">
-            <p className="lp-footer-heading">Legal</p>
-            <Link className="lp-footer-link" to="/privacy">
+          <div className="flex flex-col gap-2.5">
+            <p className="m-0 mb-1 text-[13px] font-semibold text-ink">Legal</p>
+            <Link className={footerLink} to="/privacy">
               Privacy
             </Link>
-            <Link className="lp-footer-link" to="/terms">
+            <Link className={footerLink} to="/terms">
               Terms
             </Link>
           </div>
         </div>
 
-        <div className="lp-container lp-footer-base">
-          <p>By {COMPANY_NAME}.</p>
-          <p>© {new Date().getFullYear()} TrackOja</p>
+        <div className={cn(container, 'flex flex-col gap-1 border-t border-line py-6 text-[13px] text-ink-3 sm:flex-row sm:justify-between')}>
+          <p className="m-0">By {COMPANY_NAME}.</p>
+          <p className="m-0">© {new Date().getFullYear()} {APP_NAME}</p>
         </div>
       </footer>
     </div>

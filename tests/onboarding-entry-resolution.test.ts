@@ -67,7 +67,8 @@ describe('resumable new-user onboarding', () => {
     expect(onboarding).toMatch(/Check payment status/);
   });
   it('uses a concise completion transition', () => {
-    expect(onboarding).toMatch(/ready to use TrackOja/);
+    // The product name comes from config/brand (APP_NAME), not a literal.
+    expect(onboarding).toMatch(/ready to use \{APP_NAME\}/);
     expect(onboarding).toMatch(/Go to Dashboard/);
   });
 });

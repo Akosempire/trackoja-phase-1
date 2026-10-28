@@ -2,8 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../../config/supabase';
 import { AuthService } from '../../services/auth.service';
-import { AuthLayout } from '../../components/AuthLayout';
-import { PageLoader } from '../../components/ui/PageLoader';
+import { AuthLayout, AuthNotice, authSubmitClass } from '../../components/AuthLayout';
+import { FormField } from '../../components/ui/FormField';
 import { Button } from '../../components/ui/Button';
 
 function parseHashError(): { code: string; description: string } | null {
@@ -77,42 +77,43 @@ export default function AuthCallbackPage() {
         footer={<Link to="/login">Back to sign in</Link>}
       >
         {resent ? (
-          <div className="alert alert-success">
+          <AuthNotice tone="success">
             New verification email sent to {resendEmail}. Check your inbox.
-          </div>
+          </AuthNotice>
         ) : (
           <>
             {resendEmail ? (
               <>
-                <p style={{ fontSize: 14, color: 'var(--t2)', marginBottom: 'var(--space-16)', textAlign: 'center' }}>
-                  We'll send a fresh link to <strong>{resendEmail}</strong>
+                <p className="m-0 mb-4 text-sm text-ink-2">
+                  We&apos;ll send a fresh link to <strong className="font-semibold text-ink">{resendEmail}</strong>
                 </p>
-                <Button onClick={handleResend} loading={resending}>
+                <Button onClick={handleResend} loading={resending} className={authSubmitClass}>
                   Resend verification email
                 </Button>
               </>
             ) : (
               <>
-                <p style={{ fontSize: 14, color: 'var(--t2)', marginBottom: 'var(--space-16)', textAlign: 'center' }}>
+                <p className="m-0 mb-4 text-sm text-ink-2">
                   Enter your email to get a new verification link.
                 </p>
-                <input
+                <FormField
+                  id="resendEmail"
+                  label="Email address"
                   type="email"
-                  className="input"
-                  placeholder="you@example.com"
                   value={resendEmail}
-                  onChange={(e) => setResendEmail(e.target.value)}
-                  style={{ marginBottom: 'var(--space-12)' }}
+                  onChange={setResendEmail}
+                  placeholder="you@example.com"
+                  autoComplete="email"
                 />
-                <Button onClick={handleResend} loading={resending} disabled={!resendEmail}>
+                <Button onClick={handleResend} loading={resending} disabled={!resendEmail} className={authSubmitClass}>
                   Resend verification email
                 </Button>
               </>
             )}
-            <div style={{ textAlign: 'center', marginTop: 'var(--space-12)' }}>
+            <div className="mt-4 text-center">
               <Link
                 to={`/verify-email${resendEmail ? `?email=${encodeURIComponent(resendEmail)}` : ''}`}
-                style={{ fontSize: 13, color: 'var(--t2)' }}
+                className="text-[13px] font-medium text-ink-2 no-underline hover:text-ink hover:underline"
               >
                 Enter code manually instead
               </Link>
@@ -125,7 +126,10 @@ export default function AuthCallbackPage() {
 
   return (
     <AuthLayout title="Verifying your email…" subtitle="Please wait while we confirm your account.">
-      <PageLoader />
+      <div role="status" aria-label="Verifying" className="flex items-center gap-3 rounded-md bg-subtle px-4 py-3 text-sm text-ink-2">
+        <span aria-hidden="true" className="size-4 shrink-0 animate-spin rounded-full border-2 border-line-strong border-t-brand" />
+        This usually takes a few seconds.
+      </div>
     </AuthLayout>
   );
 }

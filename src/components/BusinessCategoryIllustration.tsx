@@ -57,8 +57,8 @@ export function BusinessCategoryIllustration({ category, compact = false }: { ca
     top: `${50 - (bounds.top + bounds.bottom) * scale / 2}%`,
   };
   return (
-    <span className={`business-category-frame${compact ? ' is-compact' : ''}`} aria-hidden="true" data-category={category}>
-      <img src={illustrations[category]} alt="" draggable={false} decoding="async" width={bounds.width} height={bounds.height} className="business-category-illustration" style={imageStyle} />
+    <span className={`relative block shrink-0 overflow-hidden ${compact ? 'size-8' : 'mx-auto size-[72px] sm:size-20'}`} aria-hidden="true" data-category={category}>
+      <img src={illustrations[category]} alt="" draggable={false} decoding="async" width={bounds.width} height={bounds.height} className="absolute block max-w-none select-none object-contain" style={imageStyle} />
     </span>
   );
 }

@@ -1,7 +1,6 @@
 import { ImportPreview } from '../../components/ImportPreview';
-import { SectionHead } from '../../components/ui/SectionHead';
 import { useEffect, useRef, useState } from 'react';
-import { Link, Navigate } from 'react-router-dom';
+import { Navigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { usePermissions } from '../../hooks/usePermissions';
 import { ProductService } from '../../services/product.service';
@@ -9,6 +8,8 @@ import { CategoryService } from '../../services/category.service';
 import { BulkImportService } from '../../services/bulk-import.service';
 import { Button } from '../../components/ui/Button';
 import { PageLoader } from '../../components/ui/PageLoader';
+import { Card, Page, PageHeader, Pill, cn } from '../../components/kit';
+import type { ReactNode } from 'react';
 import type { BulkImportRow } from '../../services/bulk-import.service';
 import type { CreateProductRequest, ProductCategory } from '../../types';
 import { useToast } from '../../components/ui/Toast';
@@ -137,72 +138,107 @@ export default function BulkImportPage() {
     }
   };
 
+  const step = rows.length > 0 ? 3 : fileName ? 2 : 1;
+
   return (
-    <div className="page">
-      <div className="page-header">
-        <div>
-          <h1 className="page-title">Bulk import products</h1>
-          <p className="page-subtitle">Add many products at once from an Excel or CSV file</p>
-        </div>
-      </div>
+    <Page>
+      <PageHeader
+        title="Bulk import products"
+        subtitle="Add many products at once from an Excel or CSV file"
+      />
 
-      {error && <div className="alert alert-error">{error}</div>}
+      {error && <div className="mb-4 rounded-lg bg-danger-soft px-4 py-3 text-sm text-danger" role="alert">{error}</div>}
 
-      <div className="card">
-        <SectionHead title={<>1. Download the template</>} />
-        <p className="page-subtitle" style={{ marginBottom: 'var(--space-12)' }}>
-          Fill in one row per product. Required columns are Name, SKU, and Selling Price. Category names that don't
-          exist yet will be created automatically.
-        </p>
-        <Button type="button" variant="outline" className="btn-sm" onClick={handleDownloadTemplate}>
-          Download Excel template
-        </Button>
-      </div>
-
-      <div className="card">
-        <SectionHead title={<>2. Upload your file</>} />
-        <p className="page-subtitle" style={{ marginBottom: 'var(--space-12)' }}>
-          Accepts .xlsx, .xls, or .csv files exported from the template above.
-        </p>
-        <div className="btn-row">
-          <Button type="button" variant="outline" className="btn-sm" onClick={() => fileInputRef.current?.click()}>
-            Choose file
+      <ol className="m-0 flex list-none flex-col gap-3 p-0 lg:gap-4" aria-label="Import steps">
+        <ImportStep number={1} title="Download the template" state={step > 1 ? 'done' : 'current'}>
+          <p className="m-0 mb-4 max-w-2xl text-sm text-ink-2">
+            Fill in one row per product. Required columns are <strong className="font-semibold text-ink">Name</strong>,{' '}
+            <strong className="font-semibold text-ink">SKU</strong> and <strong className="font-semibold text-ink">Selling Price</strong>.
+            Category names that don't exist yet will be created automatically.
+          </p>
+          <Button type="button" variant="outline" onClick={handleDownloadTemplate}>
+            <svg aria-hidden="true" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 4v11m0 0-4-4m4 4 4-4M5 19h14" /></svg>
+            Download Excel template
           </Button>
-          {fileName && <span className="page-subtitle">{fileName}</span>}
-        </div>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".xlsx,.xls,.csv"
-          onChange={handleFileChange}
-          style={{ display: 'none' }}
-        />
-      </div>
+        </ImportStep>
 
-      {parsing && <PageLoader />}
-
-      {!parsing && rows.length > 0 && (
-        <div className="card">
-          <SectionHead title={<>3. Review and import</>} />
-          <div className="btn-row" style={{ marginBottom: 'var(--space-12)', flexWrap: 'wrap', gap: 'var(--space-6)' }}>
-            <span className="badge badge-success">{validRows.length} ready</span>
-            {invalidRows.length > 0 && <span className="badge badge-danger">{invalidRows.length} with errors</span>}
-            {newCategoryNames.length > 0 && (
-              <span className="badge badge-default">{newCategoryNames.length} new categories</span>
-            )}
+        <ImportStep number={2} title="Upload your file" state={step > 2 ? 'done' : step === 2 ? 'current' : 'next'}>
+          <div className="flex flex-col gap-3 rounded-lg border border-dashed border-line-strong bg-subtle px-4 py-5 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <p className="m-0 truncate text-sm font-medium text-ink">{fileName || 'No file chosen yet'}</p>
+              <p className="m-0 mt-0.5 text-xs text-ink-3">
+                {parsing ? 'Reading your file…' : 'Accepts .xlsx, .xls, or .csv files exported from the template above.'}
+              </p>
+            </div>
+            <Button type="button" variant={fileName ? 'outline' : 'primary'} className="shrink-0" loading={parsing}
+              onClick={() => fileInputRef.current?.click()}>
+              {fileName ? 'Choose another file' : 'Choose file'}
+            </Button>
           </div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".xlsx,.xls,.csv"
+            onChange={handleFileChange}
+            className="hidden"
+            aria-label="Product file"
+          />
+        </ImportStep>
 
-          <ImportPreview rows={rows} />
+        <ImportStep number={3} title="Review and import" state={step === 3 ? 'current' : 'next'}>
+          {!parsing && rows.length > 0 ? (
+            <>
+              <div className="mb-4 flex flex-wrap items-center gap-2">
+                <Pill tone="success">{validRows.length} ready</Pill>
+                {invalidRows.length > 0 && <Pill tone="danger">{invalidRows.length} with errors</Pill>}
+                {newCategoryNames.length > 0 && <Pill tone="neutral">{newCategoryNames.length} new categories</Pill>}
+              </div>
+              {invalidRows.length > 0 && (
+                <p className="m-0 mb-4 text-[13px] text-ink-2">
+                  Rows with errors are highlighted and will be skipped. Fix them in your file and upload it again, or import the ready rows now.
+                </p>
+              )}
 
-          <Button type="button" loading={importing} disabled={validRows.length === 0} onClick={handleImport}>
-            Import {validRows.length} product{validRows.length === 1 ? '' : 's'}
-          </Button>
+              <ImportPreview rows={rows} />
+
+              <div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-end">
+                <p className="m-0 text-xs text-ink-3 sm:mr-auto">
+                  {newCategoryNames.length > 0 ? `New categories: ${newCategoryNames.join(', ')}` : 'All categories already exist.'}
+                </p>
+                <Button type="button" loading={importing} disabled={validRows.length === 0} onClick={handleImport}>
+                  Import {validRows.length} product{validRows.length === 1 ? '' : 's'}
+                </Button>
+              </div>
+            </>
+          ) : (
+            <p className="m-0 text-sm text-ink-3">{parsing ? 'Checking each row…' : 'Upload a file to see each row checked before anything is saved.'}</p>
+          )}
+        </ImportStep>
+      </ol>
+    </Page>
+  );
+}
+
+function ImportStep({ number, title, state, children }: { number: number; title: string; state: 'done' | 'current' | 'next'; children: ReactNode }) {
+  return (
+    <li className="min-w-0" aria-current={state === 'current' ? 'step' : undefined}>
+      <Card className={cn(state === 'next' && 'bg-subtle shadow-none')}>
+        <div className="flex items-center gap-3">
+          <span aria-hidden="true"
+            className={cn('inline-flex size-8 shrink-0 items-center justify-center rounded-full text-sm font-semibold tabular-nums',
+              state === 'done' && 'bg-success-soft text-success-ink',
+              state === 'current' && 'bg-brand text-white',
+              state === 'next' && 'border border-line-strong bg-surface text-ink-3')}>
+            {state === 'done'
+              ? <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5" /></svg>
+              : number}
+          </span>
+          <h2 className={cn('m-0 text-[15px] font-semibold leading-[22px]', state === 'next' ? 'text-ink-3' : 'text-ink')}>
+            <span className="sr-only">Step {number}: </span>{title}
+          </h2>
         </div>
-      )}
-
-      <div className="btn-row" style={{ marginTop: 'var(--space-16)' }}>
-        <Link className="btn btn-ghost btn-sm" to="/inventory/products">Back to products</Link>
-      </div>
-    </div>
+        <div className="mt-3 min-w-0 sm:pl-11">{children}</div>
+      </Card>
+    </li>
   );
 }

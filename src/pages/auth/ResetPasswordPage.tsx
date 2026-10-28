@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { AuthLayout } from '../../components/AuthLayout';
+import { AuthLayout, AuthNotice, authSubmitClass } from '../../components/AuthLayout';
 import { FormField } from '../../components/ui/FormField';
 import { Button } from '../../components/ui/Button';
 import { AuthService } from '../../services/auth.service';
@@ -59,12 +59,12 @@ export default function ResetPasswordPage() {
         </span>
       }
     >
-      {error && <div className="alert alert-error">{error}</div>}
-      {success && <div className="alert alert-success">Password updated. Redirecting to sign in&hellip;</div>}
+      {error && <AuthNotice>{error}</AuthNotice>}
+      {success && <AuthNotice tone="success">Password updated. Redirecting to sign in&hellip;</AuthNotice>}
       {!ready && !success && (
-        <div className="alert alert-error">
+        <AuthNotice>
           This page must be opened from the password reset link in your email.
-        </div>
+        </AuthNotice>
       )}
       {ready && !success && (
         <form onSubmit={handleSubmit}>
@@ -87,7 +87,7 @@ export default function ResetPasswordPage() {
             autoComplete="new-password"
             required
           />
-          <Button type="submit" loading={loading}>
+          <Button type="submit" loading={loading} className={authSubmitClass}>
             Update password
           </Button>
         </form>

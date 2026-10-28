@@ -15,12 +15,13 @@ import { PageLoader } from '../../components/ui/PageLoader';
 import { Badge } from '../../components/ui/Badge';
 import { StatusBadge } from '../../components/ui/StatusBadge';
 import { Disclosure } from '../../components/ui/Disclosure';
-import { MeterList, type MeterItem } from '../../components/ui/MeterList';
-import { SectionHead } from '../../components/ui/SectionHead';
+import type { MeterItem } from '../../components/ui/MeterList';
 import { StateBlock } from '../../components/ui/StateBlock';
 import { useToast } from '../../components/ui/Toast';
 import { Dialog } from '../../components/ui/Dialog';
 import { FormField } from '../../components/ui/FormField';
+import { Card, CardHead, Page, PageHeader, btn, cn } from '../../components/kit';
+import { CheckIcon } from '../../components/icons';
 import { formatDate, formatMoney, formatMoneyMinor, formatNumber, formatRelative, formatSeatLimit } from '../../utils/format';
 import type { SubscriptionTransaction } from '../../types';
 
@@ -305,113 +306,132 @@ export default function BillingPage() {
 
   if (loading) return <PageLoader />;
 
+  const featureItem = (feature: PublishedPlan['features'][number]) => (
+    <li key={feature.key} className="flex items-start gap-2.5 text-sm text-ink">
+      <span className="mt-0.5 inline-flex size-4 shrink-0 items-center justify-center rounded-full bg-success-soft text-success-ink" aria-hidden="true">
+        <CheckIcon width={11} height={11} />
+      </span>
+      <span className="min-w-0">
+        {feature.label}
+        {feature.upcoming && <> <Badge tone="outline">soon</Badge></>}
+      </span>
+    </li>
+  );
+  const listHead = (id: string, title: string) => (
+    <h2 id={id} className="m-0 px-4 pb-3 pt-4 text-[15px] font-semibold text-ink sm:px-5">{title}</h2>
+  );
+  const previewRow = 'flex items-baseline justify-between gap-4 py-2.5';
+
   return (
-    <div className="page">
-      <div className="page-header">
-        <div>
-          <h1 className="page-title">Billing</h1>
-        </div>
-      </div>
+    <Page>
+      <PageHeader title="Billing" subtitle="Your TrackOja plan, payments and invoices" />
 
-      {error && <div className="alert alert-error" role="alert">{error}</div>}
-      {billingError && <StateBlock variant="error" title="Plan availability could not be loaded" body={billingError} actions={<Button variant="outline" onClick={reloadBilling}>Retry</Button>} />}
-      {billing && trialFlow && <section className="card">
-        <SectionHead title="Payments & subscriptions are coming soon" />
-        <p className="section-sub">{entitlement?.status === 'trialing' ? 'Your trial is active. Keep working while online payments are unavailable.' : billing.trialEnabled ? `Start a ${billing.trialDays}-day free trial. No card or payment is required.` : 'Online payments are unavailable. Contact support for access.'}</p>
-        {entitlement?.status === 'trialing' && <Link className="btn btn-primary" to="/dashboard">Go to dashboard</Link>}
-      </section>}
+      {error && <div className="mb-4 rounded-lg bg-danger-soft px-4 py-3 text-sm text-danger" role="alert">{error}</div>}
 
-      <section className="card">
-        <SectionHead title="Billing contact" />
-        <form className="form-stack" onSubmit={(event) => { event.preventDefault(); void saveBillingEmail(); }}>
-          <FormField id="billing-email" label="Invoice and receipt email" type="email" value={billingEmail}
-            onChange={setBillingEmail} disabled={!isOwner || savingBillingEmail} required
-            hint={isOwner ? 'Used for invoices, receipts, and billing notices.' : 'Only the business owner can change billing details.'} />
-          <div className="form-actions">
-            <Button type="submit" disabled={!isOwner || savingBillingEmail || !billingEmail.trim()} loading={savingBillingEmail}>
-              {savingBillingEmail ? 'Saving…' : 'Save billing email'}
-            </Button>
-          </div>
-        </form>
-      </section>
-
-      {/* ── Status and the one action that matters ───────────────── */}
-      <section className="card">
-        <div className="split-head">
-          <div className="split-head-text">
-            <p className="attention-title">
-              {entitlement?.planName ?? 'No plan'} <StatusBadge status={entitlement?.status ?? 'none'} />
-            </p>
-            <p className="attention-meta">
-              {state.detail}
-              {state.nextDate && state.nextDateLabel
-                ? ` · ${state.nextDateLabel} ${formatDate(state.nextDate)} (${formatRelative(state.nextDate)})`
-                : ''}
-              {entitlement?.billingCycle ? ` · billed ${entitlement.billingCycle}` : ''}
-            </p>
-          </div>
-          {isOwner && <Button variant={state.tone === 'danger' ? 'danger' : 'primary'} onClick={scrollToPlans}>
-            {state.action}
-          </Button>}
-        </div>
-      </section>
-
-      {/* ── What this plan includes ──────────────────────────────── */}
-      <section className="card">
-        <SectionHead title="What your plan includes" />
-        {entitlement ? (
-          <>
-            <MeterList items={usage} />
-            {featureList.length > 0 ? (
-              <>
-                <ul className="feature-list">
-                  {featureList.slice(0, 6).map((feature) => (
-                    <li key={feature.key}>
-                      {feature.label}
-                      {feature.upcoming && <> <Badge tone="outline">soon</Badge></>}
-                    </li>
-                  ))}
-                </ul>
-                {featureList.length > 6 && (
-                  <Disclosure summary={`All ${featureList.length} features`}>
-                    <ul className="feature-list">
-                      {featureList.slice(6).map((feature) => (
-                        <li key={feature.key}>
-                          {feature.label}
-                          {feature.upcoming && <> <Badge tone="outline">soon</Badge></>}
-                        </li>
-                      ))}
-                    </ul>
-                  </Disclosure>
-                )}
-              </>
-            ) : (
-              <p className="section-sub">This plan lists no individual features.</p>
-            )}
-            {entitlement.agreedMonthlyPrice !== null && (
-              <p className="section-sub">
-                {formatMoney(entitlement.agreedMonthlyPrice)} per month, agreed when this subscription was activated.
-              </p>
-            )}
-          </>
-        ) : (
-          <StateBlock
-            variant="empty"
-            title="No plan on this business"
-            body={isOwner ? 'Choose a plan below to switch TrackOja on.' : 'The business owner needs to activate or restore the subscription.'}
-          />
+      <div className="flex flex-col gap-4 lg:gap-6">
+        {billingError && <Card><StateBlock variant="error" title="Plan availability could not be loaded" body={billingError} actions={<Button variant="outline" className="btn-sm" onClick={reloadBilling}>Retry</Button>} /></Card>}
+        {billing && trialFlow && (
+          <section className="flex flex-col gap-3 rounded-xl bg-brand-soft p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5" aria-labelledby="payments-soon-title">
+            <div className="min-w-0">
+              <h2 id="payments-soon-title" className="m-0 text-[15px] font-semibold text-brand-ink">Payments & subscriptions are coming soon</h2>
+              <p className="m-0 mt-0.5 text-sm text-ink-2">{entitlement?.status === 'trialing' ? 'Your trial is active. Keep working while online payments are unavailable.' : billing.trialEnabled ? `Start a ${billing.trialDays}-day free trial. No card or payment is required.` : 'Online payments are unavailable. Contact support for access.'}</p>
+            </div>
+            {entitlement?.status === 'trialing' && <Link className={cn(btn('outline'), 'shrink-0 self-start sm:self-auto')} to="/dashboard">Go to dashboard</Link>}
+          </section>
         )}
-      </section>
 
-      {/* ── Compare published plans ──────────────────────────────── */}
-      {isOwner ? <section className="card" ref={compareRef}>
-        <SectionHead
-          title="Plans"
-          actions={
-            <div className="toolbar-group">
+        {/* ── Status, the one action that matters, and what the plan includes ── */}
+        <Card padded={false} className="overflow-hidden">
+          <div className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <p className="m-0 text-[13px] font-medium text-ink-3">Current plan</p>
+              <p className="m-0 mt-1 flex flex-wrap items-center gap-2 text-2xl font-semibold leading-8 tracking-tight text-ink">
+                {entitlement?.planName ?? 'No plan'} <StatusBadge status={entitlement?.status ?? 'none'} />
+              </p>
+              <p className="m-0 mt-1 text-sm text-ink-2">
+                {state.detail}
+                {state.nextDate && state.nextDateLabel
+                  ? ` · ${state.nextDateLabel} ${formatDate(state.nextDate)} (${formatRelative(state.nextDate)})`
+                  : ''}
+                {entitlement?.billingCycle ? ` · billed ${entitlement.billingCycle}` : ''}
+              </p>
+            </div>
+            {isOwner && <Button className="shrink-0" variant={state.tone === 'danger' ? 'danger' : 'primary'} onClick={scrollToPlans}>
+              {state.action}
+            </Button>}
+          </div>
+
+          <section className="border-t border-line bg-subtle/60 p-5" aria-labelledby="plan-includes-title">
+            <h2 id="plan-includes-title" className="m-0 mb-4 text-[15px] font-semibold text-ink">What your plan includes</h2>
+            {entitlement ? (
+              <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] lg:gap-10">
+                <ul className="m-0 flex list-none flex-col gap-4 p-0" aria-label="Usage">
+                  {usage.map((item) => {
+                    const ceiling = item.max && item.max > 0 ? item.max : null;
+                    const ratio = ceiling ? item.value / ceiling : 0;
+                    const tone = item.tone === 'muted' || !ceiling ? 'bg-ink-3'
+                      : item.dangerAt !== undefined && ratio >= item.dangerAt ? 'bg-danger'
+                        : item.warnAt !== undefined && ratio >= item.warnAt ? 'bg-warn' : 'bg-brand';
+                    return (
+                      <li key={item.label}>
+                        <div className="flex items-baseline justify-between gap-3">
+                          <span className="text-sm font-medium text-ink">{item.label}</span>
+                          <span className="text-[13px] tabular-nums text-ink-2">{item.display}</span>
+                        </div>
+                        {ceiling && (
+                          <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-tray" aria-hidden="true">
+                            <span className={cn('block h-full rounded-full', tone)} style={{ width: `${Math.max(2, Math.min(100, ratio * 100))}%` }} />
+                          </div>
+                        )}
+                      </li>
+                    );
+                  })}
+                  {entitlement.agreedMonthlyPrice !== null && (
+                    <li className="text-[13px] text-ink-3">
+                      {formatMoney(entitlement.agreedMonthlyPrice)} per month, agreed when this subscription was activated.
+                    </li>
+                  )}
+                </ul>
+                {featureList.length > 0 ? (
+                  <div className="min-w-0">
+                    <ul className="m-0 grid list-none gap-2.5 p-0 sm:grid-cols-2">
+                      {featureList.slice(0, 6).map(featureItem)}
+                    </ul>
+                    {featureList.length > 6 && (
+                      <div className="mt-4">
+                        <Disclosure summary={`All ${featureList.length} features`}>
+                          <ul className="m-0 grid list-none gap-2.5 p-0 sm:grid-cols-2">
+                            {featureList.slice(6).map(featureItem)}
+                          </ul>
+                        </Disclosure>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <p className="m-0 text-sm text-ink-3">This plan lists no individual features.</p>
+                )}
+              </div>
+            ) : (
+              <StateBlock
+                variant="empty"
+                title="No plan on this business"
+                body={isOwner ? 'Choose a plan below to switch TrackOja on.' : 'The business owner needs to activate or restore the subscription.'}
+              />
+            )}
+          </section>
+        </Card>
+
+        {/* ── Compare published plans ──────────────────────────────── */}
+        {isOwner ? <section ref={compareRef} className="scroll-mt-20" aria-labelledby="plans-title">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 id="plans-title" className="m-0 text-lg font-semibold text-ink">Plans</h2>
+              <p className="m-0 text-[13px] text-ink-3">Prices in naira. Change or cancel any time.</p>
+            </div>
+            <div className="inline-flex rounded-lg bg-tray p-1" role="group" aria-label="Billing cycle">
               <button
                 type="button"
-                className={`chip${cycle === 'monthly' ? ' active' : ''}`}
+                className={cn('h-8 rounded-md px-3.5 text-[13px] font-medium transition-colors', cycle === 'monthly' ? 'bg-surface text-ink shadow-card' : 'text-ink-2 hover:text-ink')}
                 aria-pressed={cycle === 'monthly'}
                 onClick={() => setCycle('monthly')}
               >
@@ -419,159 +439,193 @@ export default function BillingPage() {
               </button>
               <button
                 type="button"
-                className={`chip${cycle === 'annual' ? ' active' : ''}`}
+                className={cn('h-8 rounded-md px-3.5 text-[13px] font-medium transition-colors', cycle === 'annual' ? 'bg-surface text-ink shadow-card' : 'text-ink-2 hover:text-ink')}
                 aria-pressed={cycle === 'annual'}
                 onClick={() => setCycle('annual')}
               >
                 Annual
               </button>
             </div>
-          }
-        />
+          </div>
 
-        {catalogueProblem ? (
-          <StateBlock
-            variant="error"
-            title="Could not load the plans"
-            body={catalogueProblem}
-            actions={
-              <Button variant="outline" onClick={load}>
-                Try again
-              </Button>
-            }
-          />
-        ) : plans.length === 0 ? (
-          <StateBlock
-            variant="unavailable"
-            title="No published plans"
-            body="Nothing is published for sale yet."
-          />
-        ) : (
-          <div className="plan-grid">
-            {plans.map((plan) => {
-              const isCurrent = plan.id === currentPlanId && entitlement?.status !== 'pending';
-              const price = priceFor(plan, cycle);
-              const otherCycle = priceFor(plan, cycle === 'monthly' ? 'annual' : 'monthly');
-              const saving =
-                cycle === 'annual' && plan.monthlyPrice && plan.annualPrice
-                  ? plan.monthlyPrice * 12 - plan.annualPrice
-                  : 0;
+          {catalogueProblem ? (
+            <Card>
+              <StateBlock
+                variant="error"
+                title="Could not load the plans"
+                body={catalogueProblem}
+                actions={
+                  <Button variant="outline" className="btn-sm" onClick={load}>
+                    Try again
+                  </Button>
+                }
+              />
+            </Card>
+          ) : plans.length === 0 ? (
+            <Card>
+              <StateBlock
+                variant="unavailable"
+                title="No published plans"
+                body="Nothing is published for sale yet."
+              />
+            </Card>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4 lg:gap-4">
+              {plans.map((plan) => {
+                const isCurrent = plan.id === currentPlanId && entitlement?.status !== 'pending';
+                const price = priceFor(plan, cycle);
+                const otherCycle = priceFor(plan, cycle === 'monthly' ? 'annual' : 'monthly');
+                const saving =
+                  cycle === 'annual' && plan.monthlyPrice && plan.annualPrice
+                    ? plan.monthlyPrice * 12 - plan.annualPrice
+                    : 0;
 
-              return (
-                <div className={`plan-card${isCurrent ? ' is-current' : ''}`} key={plan.id}>
-                  <div className="plan-card-head">
-                    <span className="plan-card-name">{plan.name}</span>
-                    {isCurrent && <Badge tone="brand">Current</Badge>}
-                    {plan.isDefault && !isCurrent && <Badge tone="neutral">Most chosen</Badge>}
-                  </div>
+                return (
+                  <article
+                    className={cn('flex min-w-0 flex-col rounded-xl border bg-surface p-5 shadow-card',
+                      isCurrent ? 'border-brand ring-1 ring-brand' : 'border-line')}
+                    key={plan.id}
+                    aria-label={plan.name}
+                  >
+                    <div className="flex min-h-6 items-center justify-between gap-2">
+                      <h3 className="m-0 text-[15px] font-semibold text-ink">{plan.name}</h3>
+                      {isCurrent && <Badge tone="brand">Current</Badge>}
+                      {plan.isDefault && !isCurrent && <Badge tone="neutral">Most chosen</Badge>}
+                    </div>
 
-                  <p className="plan-card-price">
-                    {price === null ? (
-                      <span className="metric-value is-muted">Custom</span>
-                    ) : (
-                      <>
-                        <span className="metric-value">{formatMoney(price)}</span>
-                        <span className="plan-card-period">/{cycle === 'monthly' ? 'month' : 'year'}</span>
-                      </>
-                    )}
-                  </p>
-
-                  {price === null ? (
-                    <p className="plan-card-note">{plan.onboardingNote ?? 'Priced per implementation.'}</p>
-                  ) : (
-                    <p className="plan-card-note">
-                      {formatSeatLimit(plan.userLimit)} included
-                      {saving > 0 && <> · saves {formatMoney(saving)} a year</>}
-                      {otherCycle !== null && cycle === 'monthly' && plan.annualPrice !== null && (
-                        <> · {formatMoney(plan.annualPrice)} a year</>
+                    <p className="m-0 mt-3 flex items-baseline gap-1">
+                      {price === null ? (
+                        <span className="text-[26px] font-semibold leading-8 tracking-tight text-ink-2">Custom</span>
+                      ) : (
+                        <>
+                          <span className="text-[26px] font-semibold leading-8 tracking-tight tabular-nums text-ink">{formatMoney(price)}</span>
+                          <span className="text-[13px] text-ink-3">/{cycle === 'monthly' ? 'month' : 'year'}</span>
+                        </>
                       )}
                     </p>
-                  )}
 
-                  <p className="plan-card-note">
-                    Setup fee: {((cycle === 'monthly' ? plan.monthlySetupFee : plan.annualSetupFee) || 0) > 0
-                      ? formatMoney(cycle === 'monthly' ? plan.monthlySetupFee : plan.annualSetupFee, plan.currency)
-                      : 'none'}{trialFlow && billing?.trialEnabled ? ` · ${billing.trialDays}-day free trial` : ''}
-                  </p>
+                    <div className="mb-5 mt-2 flex flex-1 flex-col gap-1 text-[13px] leading-5 text-ink-2">
+                      {price === null ? (
+                        <p className="m-0">{plan.onboardingNote ?? 'Priced per implementation.'}</p>
+                      ) : (
+                        <p className="m-0">
+                          {formatSeatLimit(plan.userLimit)} included
+                          {saving > 0 && <> · <span className="font-medium text-success-ink">saves {formatMoney(saving)} a year</span></>}
+                          {otherCycle !== null && cycle === 'monthly' && plan.annualPrice !== null && (
+                            <> · {formatMoney(plan.annualPrice)} a year</>
+                          )}
+                        </p>
+                      )}
 
-                  {isCurrent ? (
-                    <Button variant="outline" disabled>
-                      Your plan
-                    </Button>
-                  ) : price === null ? (
-                    <a className="btn btn-outline" href={`mailto:${CONTACT_FALLBACK}?subject=TrackOja%20${encodeURIComponent(plan.name)}`}>
-                      <span className="btn-label">Talk to us</span>
-                    </a>
-                  ) : (
-                    <Button
-                      onClick={() => handleCheckout(plan)}
-                      loading={checkoutPlanId === plan.id}
-                      disabled={!isOwner || !billing || (trialFlow && (!billing.trialEnabled || (entitlement !== null && entitlement.status !== 'pending')))}
+                      <p className="m-0 text-ink-3">
+                        Setup fee: {((cycle === 'monthly' ? plan.monthlySetupFee : plan.annualSetupFee) || 0) > 0
+                          ? formatMoney(cycle === 'monthly' ? plan.monthlySetupFee : plan.annualSetupFee, plan.currency)
+                          : 'none'}{trialFlow && billing?.trialEnabled ? ` · ${billing.trialDays}-day free trial` : ''}
+                      </p>
+                    </div>
+
+                    {isCurrent ? (
+                      <Button variant="ghost" className="w-full" disabled>
+                        Your plan
+                      </Button>
+                    ) : price === null ? (
+                      <a className={cn(btn('outline'), 'w-full')} href={`mailto:${CONTACT_FALLBACK}?subject=TrackOja%20${encodeURIComponent(plan.name)}`}>
+                        Talk to us
+                      </a>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        className="w-full"
+                        onClick={() => handleCheckout(plan)}
+                        loading={checkoutPlanId === plan.id}
+                        disabled={!isOwner || !billing || (trialFlow && (!billing.trialEnabled || (entitlement !== null && entitlement.status !== 'pending')))}
+                      >
+                        {trialFlow ? 'Start Free Trial' : entitlement ? 'Switch to this plan' : 'Choose this plan'}
+                      </Button>
+                    )}
+                  </article>
+                );
+              })}
+            </div>
+          )}
+
+        </section> : <Card><StateBlock variant="unavailable"
+          title="The business owner manages billing"
+          body="Your membership is recognized. Ask the business owner to activate or restore TrackOja access; you do not need to create another business." /></Card>}
+
+        <div className="grid items-start gap-4 lg:grid-cols-2 lg:gap-6">
+          {/* ── Invoices and receipts ──────────────────────────────── */}
+          <Card padded={false} className="overflow-hidden" aria-labelledby="documents-title">
+            {listHead('documents-title', 'Invoices and receipts')}
+            {documents.length === 0 ? <p className="m-0 px-4 pb-5 text-sm text-ink-3 sm:px-5">No commercial documents issued yet.</p> : (
+              <ul className="m-0 list-none divide-y divide-line border-t border-line p-0">
+                {documents.map((document) => (
+                  <li className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:gap-4 sm:px-5" key={document.invoiceId}>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="truncate font-mono text-[13px] font-medium text-ink">{document.invoiceNumber}</span>
+                        <StatusBadge status={document.status} />
+                        {document.isTestData && <Badge tone="warning">Test payment</Badge>}
+                      </div>
+                      <p className="m-0 mt-1 text-xs text-ink-3">
+                        {document.planName} · {document.billingCycle} · <span className="font-medium tabular-nums text-ink-2">{formatMoneyMinor(document.totalMinor, document.currency)}</span>
+                        {document.receiptNumber ? ` · receipt ${document.receiptNumber}` : ''}
+                      </p>
+                      <p className="m-0 mt-0.5 truncate text-xs text-ink-3">Issued {formatDate(document.issuedAt)} · {document.billingEmail ?? 'No billing email recorded'}</p>
+                    </div>
+                    {/* The document itself, rendered from its stored rows and printed
+                        from the browser: the list can only say that it exists. */}
+                    <Link
+                      className={cn(btn('outline', 'sm'), 'shrink-0 self-start sm:self-auto')}
+                      to={`/billing/documents/${encodeURIComponent(document.invoiceNumber)}`}
                     >
-                      {trialFlow ? 'Start Free Trial' : entitlement ? 'Switch to this plan' : 'Choose this plan'}
-                    </Button>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
+                      View or print
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Card>
 
-      </section> : <section className="card"><StateBlock variant="unavailable"
-        title="The business owner manages billing"
-        body="Your membership is recognized. Ask the business owner to activate or restore TrackOja access; you do not need to create another business." /></section>}
+          <div className="flex min-w-0 flex-col gap-4 lg:gap-6">
+            {/* ── Payments ─────────────────────────────────────────────── */}
+            <Card padded={false} className="overflow-hidden" aria-labelledby="payments-title">
+              {listHead('payments-title', 'Payments')}
+              {transactions.length === 0 ? (
+                <p className="m-0 px-4 pb-5 text-sm text-ink-3 sm:px-5">No payments recorded.</p>
+              ) : (
+                <ul className="m-0 list-none divide-y divide-line border-t border-line p-0">
+                  {transactions.slice(0, 8).map((txn) => (
+                    <li className="flex items-center justify-between gap-3 px-4 py-3 sm:px-5" key={txn.id}>
+                      <div className="min-w-0">
+                        <p className="m-0 text-sm font-semibold tabular-nums text-ink">{formatMoney(txn.amount, txn.currency ?? 'NGN')}</p>
+                        <p className="m-0 mt-0.5 truncate text-xs text-ink-3">
+                          {formatDate(txn.createdAt)} · <span className="font-mono">{txn.reference}</span>
+                        </p>
+                      </div>
+                      <StatusBadge status={txn.status} />
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Card>
 
-      {/* ── Payments ─────────────────────────────────────────────── */}
-      <section className="card">
-        <SectionHead title="Payments" />
-        {transactions.length === 0 ? (
-          <p className="section-sub">No payments recorded.</p>
-        ) : (
-          <div className="payment-list">
-            {transactions.slice(0, 8).map((txn) => (
-              <div className="payment-row" key={txn.id}>
-                <div className="payment-row-main">
-                  <span className="payment-amount">{formatMoney(txn.amount, txn.currency ?? 'NGN')}</span>
-                  <StatusBadge status={txn.status} />
+            <Card>
+              <form aria-labelledby="billing-contact-title" onSubmit={(event) => { event.preventDefault(); void saveBillingEmail(); }}>
+                <CardHead title={<span id="billing-contact-title">Billing contact</span>} />
+                <FormField id="billing-email" label="Invoice and receipt email" type="email" value={billingEmail}
+                  onChange={setBillingEmail} disabled={!isOwner || savingBillingEmail} required
+                  hint={isOwner ? 'Used for invoices, receipts, and billing notices.' : 'Only the business owner can change billing details.'} />
+                <div className="flex justify-end">
+                  <Button type="submit" variant="outline" disabled={!isOwner || savingBillingEmail || !billingEmail.trim()} loading={savingBillingEmail}>
+                    {savingBillingEmail ? 'Saving…' : 'Save billing email'}
+                  </Button>
                 </div>
-                <p className="attention-meta">
-                  {formatDate(txn.createdAt)} · <span className="mono">{txn.reference}</span>
-                </p>
-              </div>
-            ))}
+              </form>
+            </Card>
           </div>
-        )}
-      </section>
-
-      <section className="card">
-        <SectionHead title="Invoices and receipts" />
-        {documents.length === 0 ? <p className="section-sub">No commercial documents issued yet.</p> : (
-          <div className="payment-list">
-            {documents.map((document) => (
-              <div className="payment-row" key={document.invoiceId}>
-                <div className="payment-row-main">
-                  <span className="payment-amount">{document.invoiceNumber}</span>
-                  <StatusBadge status={document.status} />
-                  {document.isTestData && <Badge tone="warning">Test payment</Badge>}
-                  {/* The document itself, rendered from its stored rows and printed
-                      from the browser: the list can only say that it exists. */}
-                  <Link
-                    className="btn btn-outline btn-sm"
-                    to={`/billing/documents/${encodeURIComponent(document.invoiceNumber)}`}
-                  >
-                    View or print
-                  </Link>
-                </div>
-                <p className="attention-meta">
-                  {document.planName} · {document.billingCycle} · {formatMoneyMinor(document.totalMinor, document.currency)}
-                  {document.receiptNumber ? ` · receipt ${document.receiptNumber}` : ''}
-                </p>
-                <p className="attention-meta">Issued {formatDate(document.issuedAt)} · {document.billingEmail ?? 'No billing email recorded'}</p>
-              </div>
-            ))}
-          </div>
-        )}
-      </section>
+        </div>
+      </div>
 
       <Dialog
         open={checkoutPreview !== null}
@@ -581,17 +635,17 @@ export default function BillingPage() {
         footer={checkoutPreview && <><Button variant="outline" onClick={() => setCheckoutPreview(null)}>Back</Button><Button onClick={confirmCheckout} loading={checkoutPlanId !== null}>{trialFlow ? 'Confirm free trial' : 'Continue to payment'}</Button></>}
       >
         {checkoutPreview && (
-          <dl className="billing-preview-lines">
-            <div><dt>Subscription</dt><dd>{formatMoney(checkoutPreview.recurringAmountMinor / 100, checkoutPreview.currency)}</dd></div>
-            <div><dt>Setup fee</dt><dd>{checkoutPreview.setupFeeMinor ? formatMoney(checkoutPreview.setupFeeMinor / 100, checkoutPreview.currency) : 'None'}</dd></div>
-            {trialFlow && <div><dt>Free trial</dt><dd>{billing?.trialDays} days</dd></div>}
-            <div className="billing-preview-total"><dt>Total due now</dt><dd>{formatMoney(trialFlow ? 0 : checkoutPreview.amountDueMinor / 100, checkoutPreview.currency)}</dd></div>
-            <div><dt>Billing email</dt><dd>{checkoutPreview.billingEmail ?? 'Not set'}</dd></div>
-            {!trialFlow && <div><dt>Next billing date</dt><dd>{checkoutPreview.nextBillingDate ? formatDate(checkoutPreview.nextBillingDate) : 'Not scheduled'}</dd></div>}
+          <dl className="m-0 divide-y divide-line text-sm">
+            <div className={previewRow}><dt className="text-ink-2">Subscription</dt><dd className="m-0 font-medium tabular-nums text-ink">{formatMoney(checkoutPreview.recurringAmountMinor / 100, checkoutPreview.currency)}</dd></div>
+            <div className={previewRow}><dt className="text-ink-2">Setup fee</dt><dd className="m-0 font-medium tabular-nums text-ink">{checkoutPreview.setupFeeMinor ? formatMoney(checkoutPreview.setupFeeMinor / 100, checkoutPreview.currency) : 'None'}</dd></div>
+            {trialFlow && <div className={previewRow}><dt className="text-ink-2">Free trial</dt><dd className="m-0 font-medium text-ink">{billing?.trialDays} days</dd></div>}
+            <div className={cn(previewRow, 'text-base')}><dt className="font-semibold text-ink">Total due now</dt><dd className="m-0 font-semibold tabular-nums text-ink">{formatMoney(trialFlow ? 0 : checkoutPreview.amountDueMinor / 100, checkoutPreview.currency)}</dd></div>
+            <div className={previewRow}><dt className="text-ink-2">Billing email</dt><dd className="m-0 min-w-0 truncate text-ink">{checkoutPreview.billingEmail ?? 'Not set'}</dd></div>
+            {!trialFlow && <div className={previewRow}><dt className="text-ink-2">Next billing date</dt><dd className="m-0 text-ink">{checkoutPreview.nextBillingDate ? formatDate(checkoutPreview.nextBillingDate) : 'Not scheduled'}</dd></div>}
           </dl>
         )}
       </Dialog>
-    </div>
+    </Page>
   );
 }
 

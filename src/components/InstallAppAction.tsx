@@ -1,3 +1,4 @@
+import { APP_NAME } from '../config/brand';
 import { useState, type ReactNode } from 'react';
 import { isAppleMobileBrowser, requestAppInstall, useInstallApp } from '../pwa-install';
 import { Dialog } from './ui/Dialog';
@@ -37,7 +38,7 @@ export function InstallAppAction({
     setBusy(true);
     const outcome = await requestAppInstall();
     setBusy(false);
-    if (outcome === 'accepted') toast.success('TrackOja installation started.');
+    if (outcome === 'accepted') toast.success(`${APP_NAME} installation started.`);
     if (outcome === 'unavailable') setShowGuide(true);
   }
 
@@ -53,21 +54,21 @@ export function InstallAppAction({
       <Dialog
         open={showGuide}
         onClose={() => setShowGuide(false)}
-        title="Install TrackOja"
-        description="Open TrackOja from your home screen or desktop app list."
+        title={`Install ${APP_NAME}`}
+        description={`Open ${APP_NAME} from your home screen or desktop app list.`}
         footer={<Button variant="outline" onClick={() => setShowGuide(false)}>Done</Button>}
       >
         {appleMobile ? (
           <ol className="install-app-steps">
             <li>Open this page in Safari.</li>
             <li>Tap Share, then choose <strong>Add to Home Screen</strong>.</li>
-            <li>Tap Add. TrackOja will appear on your Home Screen.</li>
+            <li>Tap Add. {APP_NAME} will appear on your Home Screen.</li>
           </ol>
         ) : (
           <ol className="install-app-steps">
             <li>Open your browser menu, or look for the install icon in the address bar.</li>
-            <li>Choose <strong>Install TrackOja</strong> or <strong>Add to Home screen</strong>.</li>
-            <li>Confirm to add TrackOja to your device.</li>
+            <li>Choose <strong>Install {APP_NAME}</strong> or <strong>Add to Home screen</strong>.</li>
+            <li>Confirm to add {APP_NAME} to your device.</li>
           </ol>
         )}
         <p className="install-app-note">Installation requires a browser that supports web apps and a secure connection.</p>

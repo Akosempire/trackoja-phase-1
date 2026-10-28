@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { AuthLayout } from '../../components/AuthLayout';
+import { AuthLayout, AuthNotice, authSubmitClass } from '../../components/AuthLayout';
 import { FormField } from '../../components/ui/FormField';
 import { Button } from '../../components/ui/Button';
 import { AuthService } from '../../services/auth.service';
@@ -61,8 +61,8 @@ export default function VerifyEmailPage() {
         </span>
       }
     >
-      {error && <div className="alert alert-error">{error}</div>}
-      {info && <div className="alert alert-success">{info}</div>}
+      {error && <AuthNotice>{error}</AuthNotice>}
+      {info && <AuthNotice tone="success">{info}</AuthNotice>}
 
       <form onSubmit={handleVerify}>
         <FormField
@@ -72,15 +72,16 @@ export default function VerifyEmailPage() {
           onChange={setCode}
           placeholder="Enter the 6-digit code"
           autoComplete="one-time-code"
+          inputMode="numeric"
           required
         />
-        <Button type="submit" loading={verifying} disabled={!email}>
+        <Button type="submit" loading={verifying} disabled={!email} className={authSubmitClass}>
           Verify email
         </Button>
       </form>
 
-      <div className="form-row-end" style={{ marginTop: 'var(--space-16)', justifyContent: 'center' }}>
-        <Button type="button" variant="ghost" onClick={handleResend} loading={resending} disabled={!email}>
+      <div className="mt-3 flex justify-center">
+        <Button type="button" variant="ghost" onClick={handleResend} loading={resending} disabled={!email} className="w-full">
           Resend verification email
         </Button>
       </div>

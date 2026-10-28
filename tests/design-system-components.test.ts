@@ -32,15 +32,10 @@ describe('ZIP design-system component adoption', () => {
   it('uses the shared metric component on merchant summary screens', () => {
     // Rebuilt screens use the Usetally kit's <Stat>; the rest still use KpiCard.
     expect(source('src/pages/DashboardPage.tsx')).toMatch(/<Stat[\s>]/);
-    for (const path of [
-      'src/pages/jobs/JobsPage.tsx',
-      'src/pages/reports/ReportsPage.tsx',
-    ]) {
-      const page = source(path);
-      expect(page).toMatch(/<(KpiGrid|MetricStrip)[\s>]/);
-      expect(page).toMatch(/<(KpiCard|MetricStrip|HomeMetricCard)[\s>]/);
-      expect(page).not.toContain('className="stat-card"');
-    }
+    expect(source('src/pages/reports/ReportsPage.tsx')).toMatch(/<Stat[\s>]/);
+    const jobs = source('src/pages/jobs/JobsPage.tsx');
+    expect(jobs).toMatch(/<Stat[\s>]/);
+    expect(jobs).not.toContain('className="stat-card"');
   });
 
   it('uses the extracted typography and semantic tokens for metrics and drawers', () => {

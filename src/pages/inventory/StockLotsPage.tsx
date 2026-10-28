@@ -7,7 +7,8 @@ import { StockLotService, type StockLot, type StockLotStatus, type StockLotType 
 import { Button } from '../../components/ui/Button';
 import { FormField } from '../../components/ui/FormField';
 import { PageLoader } from '../../components/ui/PageLoader';
-import { StateBlock } from '../../components/ui/StateBlock';
+import { Card, Empty, Page, PageHeader, Pill, Stat, cn, inputClass } from '../../components/kit';
+import { formatMoney } from '../../utils/format';
 import { getBusinessExperience } from '../../config/businessExperience';
 import type { Product } from '../../types';
 import { useToast } from '../../components/ui/Toast';
@@ -65,12 +66,20 @@ function lotFormConfig(model: string): {
   }
 }
 
-const STATUS_BADGE: Record<StockLotStatus, string> = {
-  available: 'badge-success',
-  quarantined: 'badge-warning',
-  expired: 'badge-danger',
-  depleted: 'badge-default',
-  written_off: 'badge-danger',
+const STATUS_TONE: Record<StockLotStatus, 'success' | 'warn' | 'danger' | 'neutral'> = {
+  available: 'success',
+  quarantined: 'warn',
+  expired: 'danger',
+  depleted: 'neutral',
+  written_off: 'danger',
+};
+
+const STATUS_LABEL: Record<StockLotStatus, string> = {
+  available: 'Available',
+  quarantined: 'Quarantined',
+  expired: 'Expired',
+  depleted: 'Sold out',
+  written_off: 'Written off',
 };
 
 function daysUntil(dateish: string | null): number | null {
@@ -189,192 +198,238 @@ export default function StockLotsPage() {
   if (loading || permsLoading) return <PageLoader />;
 
   const openLots = lots.filter((l) => l.qtyAvailable > 0 && l.status === 'available');
+  const notSellable = lots.length - openLots.length;
+  const expiringSoon = openLots.filter((l) => {
+    const left = daysUntil(l.expiryDate);
+    return left !== null && left <= 30;
+  }).length;
+  const tracksExpiry = config.showExpiry || lots.some((l) => l.expiryDate);
+  const label = 'mb-1.5 block text-[13px] font-medium text-ink-2';
+  const lineItem = experience.terminology.lineItem.toLowerCase();
+
+  const expiryText = (lot: StockLot) => {
+    const left = daysUntil(lot.expiryDate);
+    if (!lot.expiryDate || left === null) return null;
+    if (left < 0) return { text: `expired ${Math.abs(left)}d ago`, tone: 'text-danger' };
+    if (left === 0) return { text: 'expires today', tone: 'text-danger' };
+    return { text: `expires in ${left}d`, tone: left <= 30 ? 'text-warn-ink' : '' };
+  };
 
   return (
-    <div className="page">
-      <div className="page-header">
-        <div>
-          <h1 className="page-title">{config.title}</h1>
-          <p className="page-subtitle">{config.hint}</p>
-        </div>
-      </div>
+    <Page>
+      <PageHeader title={config.title} subtitle={config.hint} />
 
-      {error && <div className="alert alert-error">{error}</div>}
+      {error && <div className="mb-4 rounded-lg bg-danger-soft px-4 py-3 text-sm text-danger" role="alert">{error}</div>}
 
-      {canAdjust ? (
-        <form
-          className="card"
-          onSubmit={(e) => {
-            e.preventDefault();
-            receive();
-          }}
-        >
-          <p className="list-item-title">Receive stock</p>
-          <label className="form-group">
-            <span className="form-label">{experience.terminology.lineItem}</span>
-            <select
-              className="select-input"
-              value={form.productId}
-              onChange={(e) => setForm({ ...form, productId: e.target.value })}
-              required
-            >
-              <option value="">Select a {experience.terminology.lineItem.toLowerCase()}…</option>
-              {products.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <div className="auth-form-row">
-            <FormField
-              id="lot-qty"
-              label={`Quantity (${experience.stock.defaultUnit})`}
-              value={config.quantityFixedToOne ? '1' : form.quantity}
-              onChange={(v) => setForm({ ...form, quantity: v })}
-              disabled={config.quantityFixedToOne}
-              required
-            />
-            <FormField
-              id="lot-cost"
-              label="Cost per unit (optional)"
-              value={form.costPerUnit}
-              onChange={(v) => setForm({ ...form, costPerUnit: v })}
-            />
-          </div>
-
-          {config.identifierLabel && (
-            <FormField
-              id="lot-identifier"
-              label={config.identifierLabel}
-              value={form.identifier}
-              onChange={(v) => setForm({ ...form, identifier: v })}
-              required={config.identifierRequired}
-            />
+      {lots.length > 0 && (
+        <section className={cn('mb-4 grid grid-cols-2 gap-3 lg:mb-6 lg:gap-4', tracksExpiry ? 'lg:grid-cols-3' : 'lg:grid-cols-2')} aria-label="Stock summary">
+          <Stat label="Sellable" value={openLots.length} hint={`of ${lots.length} received`} />
+          <Stat label="Not sellable" value={notSellable} tone={notSellable ? 'warn' : undefined} hint="Sold out, held or expired" />
+          {tracksExpiry && (
+            <div className="col-span-2 lg:col-span-1">
+              <Stat label="Expiring in 30 days" value={expiringSoon} tone={expiringSoon ? 'danger' : undefined} hint="Sell these first" />
+            </div>
           )}
-
-          {config.showExpiry && (
-            <FormField
-              id="lot-expiry"
-              label="Expiry date"
-              type="date"
-              value={form.expiryDate}
-              onChange={(v) => setForm({ ...form, expiryDate: v })}
-            />
-          )}
-
-          <Button type="submit" loading={saving} disabled={!form.productId}>
-            Receive stock
-          </Button>
-        </form>
-      ) : (
-        <div className="alert alert-error">
-          You do not have permission to adjust stock. Ask the owner to grant it.
-        </div>
+        </section>
       )}
 
-      <div className="card">
-        <p className="list-item-title">
-          {openLots.length} in stock
-          {lots.length !== openLots.length ? ` · ${lots.length - openLots.length} not sellable` : ''}
-        </p>
-
-        {lots.length === 0 ? (
-          <StateBlock
-            title="No stock received yet"
-            body={<>Add a {experience.terminology.lineItem.toLowerCase()} first, then record what you received.</>}
-          />
-        ) : (
-          <div className="list">
-            {lots.map((lot) => {
-              const left = daysUntil(lot.expiryDate);
-              return (
-                <div className="list-item" key={lot.id}>
-                  <div>
-                    <p className="list-item-title">
-                      {lot.productName}
-                      {lot.identifier ? ` · ${lot.identifier}` : ''}
-                    </p>
-                    <p className="list-item-subtitle">
-                      {lot.qtyAvailable} of {lot.qtyReceived} {lot.unitOfMeasure}
-                      {lot.expiryDate
-                        ? left !== null && left < 0
-                          ? ` · expired ${Math.abs(left)}d ago`
-                          : ` · expires in ${left}d`
-                        : ''}
-                    </p>
-                  </div>
-                  <div className="list-item-meta">
-                    <span className={`badge ${STATUS_BADGE[lot.status] ?? 'badge-default'}`}>
-                      {lot.status.replace('_', ' ')}
-                    </span>
-                    {canAdjust && lot.status === 'available' && lot.qtyAvailable > 0 && (
-                      <>
-                        <Button
-                          variant="ghost"
-                          className="btn-sm"
-                          onClick={() => setWritingOff(lot.id)}
-                        >
-                          Write off
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          className="btn-sm"
-                          onClick={() => applyStatus(lot, 'quarantined', 'Quarantined from stock screen')}
-                        >
-                          Quarantine
-                        </Button>
-                      </>
-                    )}
-                    {canAdjust && lot.status === 'quarantined' && (
-                      <Button
-                        variant="ghost"
-                        className="btn-sm"
-                        onClick={() => applyStatus(lot, 'available', 'Released from quarantine')}
-                      >
-                        Release
-                      </Button>
-                    )}
-                  </div>
-
-                  {writingOff === lot.id && (
-                    <div className="lot-writeoff">
-                      <FormField
-                        id={`reason-${lot.id}`}
-                        label="Reason for writing off (required)"
-                        value={writeOffReason}
-                        onChange={setWriteOffReason}
-                      />
-                      <div className="btn-row">
-                        <Button
-                          variant="danger"
-                          className="btn-sm"
-                          loading={saving}
-                          disabled={writeOffReason.trim().length < 3}
-                          onClick={() => applyStatus(lot, 'written_off', writeOffReason)}
-                        >
-                          Confirm write-off
-                        </Button>
-                        <Button
-                          variant="outline"
-                          className="btn-sm"
-                          onClick={() => {
-                            setWritingOff(null);
-                            setWriteOffReason('');
-                          }}
-                        >
-                          Cancel
-                        </Button>
-                      </div>
-                    </div>
-                  )}
+      <div className="grid gap-4 lg:grid-cols-3 lg:gap-6">
+        <div className="min-w-0 lg:col-start-3 lg:row-start-1">
+          {canAdjust ? (
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                receive();
+              }}
+              aria-labelledby="receive-stock-title"
+            >
+              <Card className="lg:sticky lg:top-6">
+                <div className="mb-4">
+                  <h2 id="receive-stock-title" className="m-0 text-[15px] font-semibold text-ink">Receive stock</h2>
+                  <p className="m-0 mt-0.5 text-[13px] text-ink-3">Record what just arrived.</p>
                 </div>
-              );
-            })}
-          </div>
-        )}
+                <label className="mb-4 block">
+                  <span className={label}>{experience.terminology.lineItem}</span>
+                  <select
+                    className={inputClass}
+                    value={form.productId}
+                    onChange={(e) => setForm({ ...form, productId: e.target.value })}
+                    required
+                  >
+                    <option value="">Select a {lineItem}…</option>
+                    {products.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <FormField
+                    id="lot-qty"
+                    label={`Quantity (${experience.stock.defaultUnit})`}
+                    value={config.quantityFixedToOne ? '1' : form.quantity}
+                    onChange={(v) => setForm({ ...form, quantity: v })}
+                    disabled={config.quantityFixedToOne}
+                    inputMode="decimal"
+                    required
+                  />
+                  <FormField
+                    id="lot-cost"
+                    label="Cost per unit (optional)"
+                    value={form.costPerUnit}
+                    onChange={(v) => setForm({ ...form, costPerUnit: v })}
+                    inputMode="decimal"
+                    placeholder="₦"
+                  />
+                </div>
+
+                {config.identifierLabel && (
+                  <FormField
+                    id="lot-identifier"
+                    label={config.identifierLabel}
+                    value={form.identifier}
+                    onChange={(v) => setForm({ ...form, identifier: v })}
+                    required={config.identifierRequired}
+                  />
+                )}
+
+                {config.showExpiry && (
+                  <FormField
+                    id="lot-expiry"
+                    label="Expiry date"
+                    type="date"
+                    value={form.expiryDate}
+                    onChange={(v) => setForm({ ...form, expiryDate: v })}
+                  />
+                )}
+
+                <Button type="submit" loading={saving} disabled={!form.productId} className="mt-1 w-full">
+                  Receive stock
+                </Button>
+              </Card>
+            </form>
+          ) : (
+            <p className="m-0 rounded-lg bg-tray px-4 py-3 text-[13px] text-ink-2" role="note">
+              You do not have permission to adjust stock. Ask the owner to grant it.
+            </p>
+          )}
+        </div>
+
+        <div className="min-w-0 lg:col-span-2 lg:row-start-1">
+          {lots.length === 0 ? (
+            <Empty
+              title="No stock received yet"
+              body={<>Add a {lineItem} first, then record what you received.</>}
+            />
+          ) : (
+            <Card padded={false} className="overflow-hidden" aria-labelledby="lots-title">
+              <div className="flex items-baseline justify-between gap-3 border-b border-line px-4 py-3 sm:px-5">
+                <h2 id="lots-title" className="m-0 text-[15px] font-semibold text-ink">
+                  {openLots.length} in stock
+                  {notSellable ? <span className="font-normal text-ink-3"> · {notSellable} not sellable</span> : ''}
+                </h2>
+              </div>
+              <ul className="m-0 list-none divide-y divide-line p-0">
+                {lots.map((lot) => {
+                  const expiry = expiryText(lot);
+                  const sellable = lot.status === 'available' && lot.qtyAvailable > 0;
+                  const used = lot.qtyReceived > 0 ? Math.min(lot.qtyAvailable / lot.qtyReceived, 1) : 0;
+                  return (
+                    <li key={lot.id} className={cn('px-4 py-3 sm:px-5', !sellable && 'bg-subtle/60')}>
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex min-w-0 items-center gap-2">
+                            <p className={cn('m-0 truncate text-sm font-medium', sellable ? 'text-ink' : 'text-ink-2')}>{lot.productName}</p>
+                            {lot.identifier && <span className="shrink-0 rounded bg-tray px-1.5 py-0.5 font-mono text-[11px] text-ink-2">{lot.identifier}</span>}
+                          </div>
+                          <div className="mt-1.5 flex items-center gap-2">
+                            <span className="h-1.5 w-20 shrink-0 overflow-hidden rounded-full bg-tray" aria-hidden="true">
+                              <span className={cn('block h-full rounded-full', sellable ? 'bg-brand' : 'bg-line-strong')} style={{ width: `${Math.round(used * 100)}%` }} />
+                            </span>
+                            <p className="m-0 min-w-0 truncate text-xs tabular-nums text-ink-3">
+                              {lot.qtyAvailable} of {lot.qtyReceived} {lot.unitOfMeasure}
+                              {expiry && <span className={expiry.tone}> · {expiry.text}</span>}
+                              {lot.costPerUnit ? ` · ${formatMoney(lot.costPerUnit)} each` : ''}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-1.5 sm:shrink-0 sm:justify-end">
+                          <Pill tone={STATUS_TONE[lot.status] ?? 'neutral'}>{STATUS_LABEL[lot.status] ?? lot.status.replace('_', ' ')}</Pill>
+                          {canAdjust && lot.status === 'available' && lot.qtyAvailable > 0 && (
+                            <>
+                              <Button
+                                variant="ghost"
+                                className="btn-sm"
+                                onClick={() => applyStatus(lot, 'quarantined', 'Quarantined from stock screen')}
+                              >
+                                Quarantine
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                className="btn-sm text-danger hover:text-danger"
+                                onClick={() => setWritingOff(lot.id)}
+                              >
+                                Write off
+                              </Button>
+                            </>
+                          )}
+                          {canAdjust && lot.status === 'quarantined' && (
+                            <Button
+                              variant="outline"
+                              className="btn-sm"
+                              onClick={() => applyStatus(lot, 'available', 'Released from quarantine')}
+                            >
+                              Release
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+
+                      {writingOff === lot.id && (
+                        <div className="mt-3 rounded-lg border border-line bg-subtle p-4">
+                          <p className="m-0 mb-3 text-[13px] text-ink-2">
+                            Writing off removes the remaining {lot.qtyAvailable} {lot.unitOfMeasure} from stock. This cannot be undone.
+                          </p>
+                          <FormField
+                            id={`reason-${lot.id}`}
+                            label="Reason for writing off (required)"
+                            value={writeOffReason}
+                            onChange={setWriteOffReason}
+                            placeholder="e.g. Damaged in transit"
+                          />
+                          <div className="flex flex-wrap gap-2">
+                            <Button
+                              variant="danger"
+                              className="btn-sm"
+                              loading={saving}
+                              disabled={writeOffReason.trim().length < 3}
+                              onClick={() => applyStatus(lot, 'written_off', writeOffReason)}
+                            >
+                              Confirm write-off
+                            </Button>
+                            <Button
+                              variant="outline"
+                              className="btn-sm"
+                              onClick={() => {
+                                setWritingOff(null);
+                                setWriteOffReason('');
+                              }}
+                            >
+                              Cancel
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            </Card>
+          )}
+        </div>
       </div>
-    </div>
+    </Page>
   );
 }

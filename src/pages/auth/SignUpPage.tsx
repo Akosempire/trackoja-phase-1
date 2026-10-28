@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { AuthLayout } from '../../components/AuthLayout';
+import { AuthLayout, AuthNotice, authSubmitClass } from '../../components/AuthLayout';
+import { APP_NAME } from '../../config/brand';
 import { FormField } from '../../components/ui/FormField';
 import { Button } from '../../components/ui/Button';
 import { AuthService } from '../../services/auth.service';
@@ -33,18 +34,18 @@ export default function SignUpPage() {
     } finally { setLoading(false); }
   }
 
-  return <AuthLayout title="Create your account" subtitle="Start managing your business with TrackOja"
+  return <AuthLayout title="Create your account" subtitle={`Start managing your business with ${APP_NAME}`}
     footer={<span>Already have an account? <Link to="/login">Sign in</Link></span>}>
-    {error && <div className="alert alert-error" role="alert">{error}</div>}
+    {error && <AuthNotice>{error}</AuthNotice>}
     <form onSubmit={handleSubmit}>
-      <div className="auth-form-row">
+      <div className="grid gap-x-4 sm:grid-cols-2">
         <FormField id="firstName" label="First name" value={firstName} onChange={setFirstName} autoComplete="given-name" required />
         <FormField id="lastName" label="Last name" value={lastName} onChange={setLastName} autoComplete="family-name" required />
       </div>
       <FormField id="email" label="Email address" type="email" value={email} onChange={setEmail} autoComplete="email" required />
       <FormField id="password" label="Password" type="password" value={password} onChange={setPassword} autoComplete="new-password" required hint="At least 8 characters." />
       <FormField id="confirmPassword" label="Confirm password" type="password" value={confirmPassword} onChange={setConfirmPassword} autoComplete="new-password" required />
-      <Button type="submit" loading={loading}>Create account</Button>
+      <Button type="submit" loading={loading} className={authSubmitClass}>Create account</Button>
     </form>
   </AuthLayout>;
 }

@@ -5,7 +5,7 @@ import { getBusinessExperience } from '../../src/config/businessExperience';
 const params = new URLSearchParams(location.search);
 const category = (params.get('category') ?? 'supermarket') as BusinessCategory;
 const fixtureUser = { id: 'fixture-user', email: 'ada@example.com' };
-const profile = { id: 'fixture-user', currentStoreId: 'fixture-store', firstName: 'Ada', lastName: 'Obi', email: 'ada@example.com', isPlatformAdmin: false, emailVerified: true };
+const profile = { id: 'fixture-user', currentStoreId: 'fixture-store', currentOrgId: 'fixture-org', firstName: 'Ada', lastName: 'Obi', email: 'ada@example.com', isPlatformAdmin: false, emailVerified: true };
 export const useAuth = () => ({ user: fixtureUser, profile, loading: false, status: 'authenticated', refreshProfile: async () => {}, entry: { kind: 'existing_user', destination: '/dashboard', hasAccess: true, currentOrgId: 'fixture-org', currentStoreId: 'fixture-store', organizationCount: 1, role: 'owner', isInvitedUser: false, onboardingState: 'complete', entitlementStatus: 'active' }, entryLoading: false, entryError: null, refreshEntry: async () => {} });
 export const AuthProvider = ({ children }: { children: ReactNode }) => children;
 export const useBusinessContext = () => {

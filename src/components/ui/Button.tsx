@@ -3,7 +3,7 @@ import { btn } from '../kit';
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   loading?: boolean;
-  variant?: 'primary' | 'neutral' | 'outline' | 'ghost' | 'danger';
+  variant?: 'primary' | 'neutral' | 'outline' | 'ghost' | 'danger' | 'soft';
 }
 
 export function Button({ loading, variant = 'primary', children, disabled, className, onClick, ...props }: ButtonProps) {

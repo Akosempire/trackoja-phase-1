@@ -1,3 +1,6 @@
+import { Card, Page, PageHeader, btn } from '../components/kit';
+import { SupportIcon } from '../components/icons';
+
 const FAQS = [
   {
     question: 'How do I record a sale?',
@@ -23,41 +26,31 @@ const FAQS = [
 
 export default function SupportPage() {
   return (
-    <div className="page">
-      <div className="page-header">
-        <div>
-          <h1 className="page-title">Support</h1>
-          <p className="page-subtitle">Help and frequently asked questions</p>
-        </div>
-      </div>
+    <Page width="form">
+      <PageHeader title="Support" subtitle="Help and frequently asked questions" />
 
-      <div className="card">
-        <p className="list-item-title" style={{ marginBottom: 'var(--space-8)' }}>
-          Need help?
-        </p>
-        <p className="page-subtitle" style={{ marginBottom: 'var(--space-12)' }}>
-          Reach our support team and we'll get back to you as soon as possible.
-        </p>
-        <div className="btn-row" style={{ flexWrap: 'wrap' }}>
-          <a className="btn btn-primary btn-sm" href="mailto:mercuriusmerchandise@gmail.com">
-            Email support
-          </a>
+      <Card className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-center lg:mb-6">
+        <span aria-hidden="true" className="inline-flex size-11 shrink-0 items-center justify-center rounded-xl bg-brand-soft text-brand-ink">
+          <SupportIcon width={22} height={22} />
+        </span>
+        <div className="min-w-0 flex-1">
+          <h2 className="m-0 text-[15px] font-semibold text-ink">Need help?</h2>
+          <p className="m-0 mt-0.5 text-sm text-ink-2">Reach our support team and we'll get back to you as soon as possible.</p>
         </div>
-      </div>
+        <a className={btn('primary')} href="mailto:mercuriusmerchandise@gmail.com">Email support</a>
+      </Card>
 
-      <div className="card">
-        <p className="list-item-title" style={{ marginBottom: 'var(--space-8)' }}>
-          Frequently asked questions
-        </p>
-        <div className="list">
+      <Card padded={false} className="overflow-hidden">
+        <h2 className="m-0 px-4 pb-3 pt-4 text-[15px] font-semibold text-ink sm:px-5">Frequently asked questions</h2>
+        <ul className="m-0 list-none divide-y divide-line border-t border-line p-0">
           {FAQS.map((faq) => (
-            <div key={faq.question} className="list-item" style={{ cursor: 'default', flexDirection: 'column', alignItems: 'flex-start' }}>
-              <p className="list-item-title">{faq.question}</p>
-              <p className="list-item-subtitle">{faq.answer}</p>
-            </div>
+            <li key={faq.question} className="px-4 py-3.5 sm:px-5">
+              <p className="m-0 text-sm font-semibold text-ink">{faq.question}</p>
+              <p className="m-0 mt-1 text-[13px] leading-5 text-ink-2">{faq.answer}</p>
+            </li>
           ))}
-        </div>
-      </div>
-    </div>
+        </ul>
+      </Card>
+    </Page>
   );
 }
