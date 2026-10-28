@@ -12,6 +12,7 @@ import { StateBlock } from '../components/ui/StateBlock';
 import { BUSINESS_CATEGORIES, type BusinessCategory } from '../config/businessModules';
 import type { Store } from '../types';
 import { ThemeSelect } from '../components/ThemeSelect';
+import { UsetallyConnection } from '../components/UsetallyConnection';
 import { useToast } from '../components/ui/Toast';
 import { Card, CardHead, Page, PageHeader, btn, cn } from '../components/kit';
 
@@ -209,6 +210,8 @@ export default function SettingsPage() {
           </div>
           <Link className={cn(btn('outline'), 'shrink-0 self-start sm:self-auto')} to="/settings/payments/moniepoint">Moniepoint POS settings</Link>
         </Card>
+
+        {canUpdate && store && storeId && <UsetallyConnection storeId={storeId} storeName={store.name} />}
 
         <Card aria-label="Appearance" className="[&_.tl-theme]:text-[15px] [&_.tl-theme]:font-semibold [&_.tl-theme]:text-ink [&_select]:h-9 [&_select]:font-normal">
           <ThemeSelect />

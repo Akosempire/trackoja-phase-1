@@ -46,6 +46,7 @@
     "@vitejs/plugin-react": "^4.0.0",
     "eslint": "^8.46.0",
     "jsdom": "^24.0.0",
+    "pg": "^8.23.1",
     "prettier": "^3.0.0",
     "tailwindcss": "^4.3.3",
     "typescript": "^5.2.0",

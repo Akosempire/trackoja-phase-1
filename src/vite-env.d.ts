@@ -11,6 +11,8 @@ interface ImportMetaEnv {
    * precedence whenever it is present.
    */
   readonly VITE_ENVIRONMENT?: string;
+  /** Usetally base URL for "Connect Usetally" (default https://usetally.cc). */
+  readonly VITE_USETALLY_URL?: string;
 }
 
 interface ImportMeta {

@@ -2,6 +2,7 @@
 // Sales (checkout, receipts, sales history) service
 
 import { supabase } from '../config/supabase';
+import { UsetallyService } from './usetally.service';
 import type {
   Sale,
   SaleItem,
@@ -70,6 +71,8 @@ export class SaleService {
         );
       }
 
+      // Connected to Usetally: send the sale now instead of at the next minute
+      UsetallyService.nudgeSync(storeId);
       return this.getSale(data.id);
     } catch (error) {
       console.error('Create sale error:', error);
@@ -158,7 +161,10 @@ export class SaleService {
       if (error) throw error;
       if (!data) throw new Error('Failed to void sale');
 
-      return this.getSale(data.id);
+      const voided = await this.getSale(data.id);
+      // Connected to Usetally: the invoice there is voided too
+      if (voided.storeId) UsetallyService.nudgeSync(voided.storeId);
+      return voided;
     } catch (error) {
       console.error('Void sale error:', error);
       throw error;

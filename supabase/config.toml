@@ -402,6 +402,20 @@ verify_jwt = false
 [functions.merchant-pos-reconcile]
 verify_jwt = false
 
+# Usetally connection (docs/USETALLY_CONNECT.md). usetally-catalog and
+# usetally-stock are called by Usetally with a `utpos_` link key, and usetally-sync
+# by pg_cron with USETALLY_SYNC_TOKEN; neither is a Supabase JWT, so each function
+# authenticates the caller itself. usetally-connect and usetally-disconnect keep
+# the default (verify_jwt = true): only signed-in owners and managers call them.
+[functions.usetally-sync]
+verify_jwt = false
+
+[functions.usetally-catalog]
+verify_jwt = false
+
+[functions.usetally-stock]
+verify_jwt = false
+
 [analytics]
 enabled = true
 port = 54327
