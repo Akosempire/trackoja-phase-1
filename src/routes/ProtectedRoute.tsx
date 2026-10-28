@@ -9,7 +9,7 @@ import type { EntryResolution } from '../services/entry.service';
 
 function ResolutionFailure() {
   const { entryError, refreshEntry } = useAuth();
-  return <main className="auth-shell"><StateBlock variant="error" centred
+  return <main className="flex min-h-dvh items-center justify-center bg-canvas px-4 py-6"><StateBlock variant="error" centred
     title="We could not open your workspace"
     body={entryError ?? 'Your account relationship could not be resolved.'}
     actions={<Button onClick={() => void refreshEntry()}>Try again</Button>} /></main>;

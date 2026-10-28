@@ -41,7 +41,6 @@ label,
      and Safari zooms there just the same. Checkboxes and radios are excluded, since
      a 44px minimum would distort them. */
   .form-input,
-  .select-input,
   .search-input,
   textarea,
   input:not([type='checkbox']):not([type='radio']),
