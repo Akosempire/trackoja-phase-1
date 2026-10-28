@@ -36,14 +36,14 @@ export function OfflineBanner() {
   if (online && pendingCount === 0) return null;
 
   return (
-    <div className={`offline-banner ${online ? 'offline-banner-info' : 'offline-banner-warn'}`}>
+    <div role="status" className={`offline-banner px-4 py-2 text-center text-[13px] font-medium ${online ? 'bg-brand-soft text-brand-ink' : 'bg-warn-soft text-warn-ink'}`}>
       {!online && <span>You're offline. New sales will be saved and synced automatically.</span>}
       {pendingCount > 0 && (
         <span>
           {' '}
           {pendingCount} sale{pendingCount === 1 ? '' : 's'} waiting to sync
           {online && (
-            <button type="button" className="offline-banner-link" onClick={sync} disabled={syncing}>
+            <button type="button" className="ml-2 font-semibold underline disabled:opacity-60" onClick={sync} disabled={syncing}>
               {syncing ? 'Syncing…' : 'Sync now'}
             </button>
           )}

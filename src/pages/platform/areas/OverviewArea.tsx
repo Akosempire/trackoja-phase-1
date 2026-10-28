@@ -26,7 +26,6 @@ import {
   type HomeMetric,
   type HomeSlice,
 } from '../../../components/home/HomeDashboard';
-import '../../../styles/platform-overview.css';
 
 const AREA = PLATFORM_AREAS.find((area) => area.id === 'overview')!;
 

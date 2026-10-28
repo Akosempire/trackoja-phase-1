@@ -16,7 +16,7 @@ export function readTheme(): ThemePreference {
 export function applyTheme(preference: ThemePreference) {
   const dark = preference === 'dark' || (preference === 'system' && matchMedia('(prefers-color-scheme: dark)').matches);
   document.documentElement.dataset.theme = dark ? 'dark' : 'light';
-  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', dark ? '#0b0b0b' : '#ffffff');
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', dark ? '#141414' : '#f5f7fa');
 }
 
 export function ThemeSelect() {
@@ -36,9 +36,9 @@ export function ThemeSelect() {
     };
   }, [preference]);
   return (
-    <label className="theme-select">
+    <label className="tl-theme flex items-center justify-between gap-2 text-[13px] text-ink-2">
       <span>Appearance</span>
-      <select aria-label="Appearance" value={preference} onChange={event => {
+      <select className="h-8 rounded-md border border-line-strong bg-surface px-2 text-[13px] text-ink" aria-label="Appearance" value={preference} onChange={event => {
         const value = event.target.value as ThemePreference;
         setPreference(value);
         applyTheme(value);

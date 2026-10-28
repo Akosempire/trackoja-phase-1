@@ -2,65 +2,64 @@ import { NavLink } from 'react-router-dom';
 import { useAppNav, type NavItem } from '../hooks/useAppNav';
 import { ScanIcon, SalesIcon } from './icons';
 import { useCartCount } from '../utils/cart-count';
+import { cn } from './kit';
 
 /**
  * Mobile bottom navigation.
  *
- * Scan sits in the centre slot and rises above the bar, because a cashier adds
- * products far more often than they visit any one page and the action has to be
- * findable by thumb without looking. The other four stay deliberately quiet so
- * nothing competes with it.
- *
- * Layout is a fixed five-column grid rather than a flex row, so the centre slot is
- * geometrically centred whatever the labels are - long labels must not push Scan
- * off centre, which is what happens when items size themselves.
+ * The primary action (Scan, New order, New job) sits in the centre and rises
+ * above the bar: a cashier reaches for it far more than any page. The bar is a
+ * fixed five-column grid so long labels never push the centre off centre.
  */
 export function BottomNav() {
   const { leftItems, rightItems, handleScan, canScan, primaryAction } = useAppNav();
   const cartCount = useCartCount();
 
-  const renderLink = (item: NavItem, slot: number) => {
-    // The checkout slot carries the live item count for the sale in progress.
+  const renderLink = (item: NavItem) => {
     const isCheckout = item.to === '/sales/checkout';
     return (
       <NavLink
         key={item.to}
         to={item.to}
         end={item.end}
-        className={({ isActive }) => `bottom-nav-link bottom-nav-slot-${slot}${isActive ? ' active' : ''}`}
+        className={({ isActive }) => cn('tl-tab flex min-w-0 flex-col items-center justify-center gap-1 text-[11px] font-medium no-underline',
+          isActive ? 'active text-brand' : 'text-ink-3')}
         aria-label={isCheckout && cartCount > 0 ? `${item.label}, ${cartCount} items in the sale` : item.label}
       >
-        <span className="bottom-nav-icon">
+        <span className="relative">
           <item.icon width={22} height={22} />
           {isCheckout && cartCount > 0 && (
-            <span className="bottom-nav-badge" aria-hidden="true">
+            <span className="bottom-nav-badge absolute -right-2.5 -top-1.5 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-brand px-1 text-[10px] font-semibold text-white" aria-hidden="true">
               {cartCount > 99 ? '99+' : cartCount}
             </span>
           )}
         </span>
-        <span className="bottom-nav-label">{item.label}</span>
+        <span className="max-w-full truncate">{item.label}</span>
       </NavLink>
     );
   };
 
   return (
-    <nav className="bottom-nav" aria-label="Primary">
-      {leftItems.map((item, index) => renderLink(item, index + 1))}
-
+    <nav
+      aria-label="Primary"
+      className="tl-tabbar fixed inset-x-0 bottom-0 z-30 grid h-[calc(64px+env(safe-area-inset-bottom))] grid-cols-5 border-t border-line bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden"
+    >
+      {leftItems.map(renderLink)}
+      {leftItems.length < 2 && Array.from({ length: 2 - leftItems.length }, (_, i) => <span key={`l${i}`} />)}
       <button
         type="button"
-        className="bottom-nav-scan"
+        className="bottom-nav-scan flex flex-col items-center justify-end gap-1 pb-2 text-[11px] font-semibold text-brand disabled:opacity-50"
         onClick={handleScan}
         disabled={!canScan}
         aria-label={primaryAction.scan ? 'Scan a barcode' : primaryAction.label}
       >
-        <span className="bottom-nav-scan-face">
+        <span className="-mt-7 inline-flex size-14 items-center justify-center rounded-full bg-brand text-white shadow-pop ring-4 ring-surface">
           {primaryAction.scan ? <ScanIcon width={26} height={26} /> : <SalesIcon width={26} height={26} />}
         </span>
-        <span className="bottom-nav-label bottom-nav-scan-label">{primaryAction.label}</span>
+        <span className="truncate">{primaryAction.label}</span>
       </button>
-
-      {rightItems.map((item, index) => renderLink(item, item.to === '/more' ? 5 : index + 4))}
+      {rightItems.length < 2 && Array.from({ length: 2 - rightItems.length }, (_, i) => <span key={`r${i}`} />)}
+      {rightItems.map(renderLink)}
     </nav>
   );
 }

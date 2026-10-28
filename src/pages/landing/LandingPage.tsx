@@ -37,7 +37,6 @@ import {
   IconStock,
   TrackOjaLogo,
 } from './LandingIcons';
-import '../../styles/landing.css';
 
 const CAPABILITY_ICONS = [IconSales, IconStock, IconCustomers, IconReports];
 

@@ -30,8 +30,6 @@ input,
 select,
 textarea,
 label,
-.bottom-nav-link,
-.bottom-nav-scan,
 .form-input-reveal,
 .toast-dismiss {
   touch-action: manipulation;

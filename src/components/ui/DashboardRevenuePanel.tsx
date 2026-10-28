@@ -5,7 +5,6 @@ import { StateBlock } from './StateBlock';
 import { formatMoney, formatNumber } from '../../utils/format';
 import { formatReportDateRange, getReportDateRange, REPORT_DATE_RANGE_PRESETS, type ReportDateRange } from '../../utils/report-date-ranges';
 import type { ReportDateRangePreset } from '../../utils/report-date-ranges';
-import '../../styles/owner-dashboard.css';
 
 export interface DashboardRevenue {
   total: number;

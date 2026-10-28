@@ -1,0 +1,23 @@
+/* Stylesheet entry. Legacy TrackOja sheets sit in the low-priority `legacy`
+   layer so the Usetally kit (Tailwind utilities) always wins; each legacy file
+   is deleted as the screens that use it are rebuilt. */
+@layer reset, legacy, theme, base, components, utilities;
+
+@import "./reset.css" layer(reset);
+@import "./theme.css" layer(legacy);
+@import "./auth.css" layer(legacy);
+@import "./app.css" layer(legacy);
+@import "./tokens.css" layer(legacy);
+@import "./waya.css" layer(legacy);
+@import "./waya-components.css" layer(legacy);
+@import "./toast.css" layer(legacy);
+@import "./command-search.css" layer(legacy);
+@import "./form-controls.css" layer(legacy);
+@import "./mobile.css" layer(legacy);
+@import "./dashboard.css" layer(legacy);
+@import "./home-dashboard.css" layer(legacy);
+@import "./landing.css" layer(legacy);
+@import "./owner-dashboard.css" layer(legacy);
+@import "./platform-overview.css" layer(legacy);
+@import "./reports.css" layer(legacy);
+@import "./tally.css";

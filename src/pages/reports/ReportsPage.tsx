@@ -26,7 +26,6 @@ import type {
   InventoryValuation,
   CustomerBalancesSummary,
 } from '../../types';
-import '../../styles/reports.css';
 
 const PAYMENT_METHOD_LABELS: Record<string, string> = {
   cash: 'Cash', card: 'Card', transfer: 'Transfer', credit: 'Credit', other: 'Other',

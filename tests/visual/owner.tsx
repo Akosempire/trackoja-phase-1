@@ -23,7 +23,6 @@ import '../../src/styles/tokens.css';
 import '../../src/styles/waya.css';
 import '../../src/styles/waya-components.css';
 import '../../src/styles/command-search.css';
-import '../../src/styles/bottom-nav.css';
 import '../../src/styles/form-controls.css';
 import '../../src/styles/mobile.css';
 import '../../src/styles/tally.css';

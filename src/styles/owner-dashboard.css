@@ -195,9 +195,9 @@
 .side-nav.is-mobile { min-height: 0; height: 100%; }
 @media (max-width: 900px) {
   .app-content { padding-bottom: calc(var(--space-80) + var(--space-24) + env(safe-area-inset-bottom, 0px)); }
-  .bottom-nav { min-height: calc(var(--space-64) + env(safe-area-inset-bottom, 0px)); }
-  .bottom-nav-scan { overflow: visible; }
-  .bottom-nav .bottom-nav-scan-label { overflow: visible; white-space: normal; line-height: var(--leading-normal); }
+  
+  
+  
 }
 @media (max-width: 600px) {
   .more-groups { grid-template-columns: 1fr; }

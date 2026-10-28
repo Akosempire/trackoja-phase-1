@@ -1,7 +1,6 @@
 import { Link } from 'react-router-dom';
 import { COMPANY_NAME, CONTACT_EMAIL } from './landingContent';
 import { TrackOjaLogo } from './LandingIcons';
-import '../../styles/landing.css';
 
 /**
  * Honest placeholder for the legal documents the footer links to.

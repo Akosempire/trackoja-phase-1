@@ -72,7 +72,7 @@ input[type='checkbox'], input[type='radio'] { accent-color: var(--color-accent);
 .form-section-label, .dash-section-label, .kitchen-section-label { text-transform: none; letter-spacing: normal; font-size: var(--text-label); font-weight: 500; }
 .category-card { border: 1px solid var(--border2); padding: var(--space-16) var(--space-8); }
 .category-card.selected { box-shadow: none; }
-.cart-sticky-bar, .cart-card-active, .dash-action-card.dash-action-primary, .bottom-nav-scan { box-shadow: none; }
+.cart-sticky-bar, .cart-card-active, .dash-action-card.dash-action-primary { box-shadow: none; }
 .cart-card-active { border-color: var(--border2); }
 .chip-row { overflow-x: auto; }
 .chip { border: 0; border-bottom: 1px solid transparent; border-radius: 0; background: transparent; min-height: 40px; }
@@ -113,9 +113,9 @@ input[type='checkbox'], input[type='radio'] { accent-color: var(--color-accent);
 .workspace-topbar-actions { display: flex; align-items: center; justify-content: flex-end; gap: var(--space-8); min-width: 0; }
 .workspace-topbar-actions select { max-width: 220px; }
 .workspace-topbar-actions .app-nav-link { display: inline-flex; align-items: center; min-height: var(--control-small); padding: 0 var(--space-10); }
-.bottom-nav { max-width: none; background: var(--color-surface); }
-.bottom-nav-link.active { color: var(--t1); background: var(--color-selected); }
-.bottom-nav-scan { margin-top: 0; width: 40px; height: 40px; max-width: 56px; border: 0; border-radius: var(--radius-control); }
+
+
+
 .side-nav { width: var(--sidebar-width); padding: var(--space-20) var(--space-12); background: var(--color-panel); transition: width var(--duration-sidebar) var(--ease-standard); }
 .side-nav-brand { display: flex; align-items: center; gap: var(--space-10); min-height: 32px; margin-bottom: var(--space-16); }
 .workspace-mark { width: 32px; height: 32px; display: grid; place-items: center; background: var(--color-neutral-action); color: var(--color-on-neutral); border-radius: var(--radius-control); font-weight: 600; flex-shrink: 0; }
@@ -218,7 +218,7 @@ input[type='checkbox'], input[type='radio'] { accent-color: var(--color-accent);
   .app-shell { flex-direction: column; }
   .app-header { display: flex; }
   .app-shell > .side-nav { display: none; }
-  .bottom-nav { display: grid !important; }
+  
   .checkout-shell { flex-direction: column !important; }
   .checkout-receipt { width: 100% !important; height: auto; position: static; }
   .app-content { padding-bottom: 88px; }
@@ -258,7 +258,7 @@ input[type='checkbox'], input[type='radio'] { accent-color: var(--color-accent);
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
 }
-@media print { .side-nav, .app-header, .bottom-nav, .skip-link { display: none !important; } }
+@media print { .side-nav, .app-header, .skip-link { display: none !important; } }
 
 /* transitions-dev tooltip, with Waya geometry below. */
 :root {

@@ -1,5 +1,4 @@
 import type { ReactNode } from 'react';
-import '../../styles/home-dashboard.css';
 
 /**
  * Waya home-dashboard primitives, ported from the settings-dashboard reference.

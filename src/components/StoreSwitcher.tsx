@@ -45,8 +45,7 @@ export function StoreSwitcher() {
 
   return (
     <select
-      className="form-input"
-      style={{ width: 'auto', height: 36, fontSize: 13, padding: '0 10px' }}
+      className="h-9 w-full rounded-md border border-line-strong bg-surface px-2.5 text-[13px] font-medium text-ink disabled:opacity-100"
       value={profile?.currentStoreId ?? ''}
       onChange={handleChange}
       disabled={switching || stores.length < 2}

@@ -5,19 +5,8 @@ import { MemoryRouter } from 'react-router-dom';
 import App from '../../src/App';
 import { ToastProvider } from '../../src/components/ui/Toast';
 import * as F from './app-fixtures';
-import '../../src/styles/theme.css';
-import '../../src/styles/auth.css';
-import '../../src/styles/app.css';
 import '@fontsource-variable/figtree';
-import '../../src/styles/tokens.css';
-import '../../src/styles/waya.css';
-import '../../src/styles/waya-components.css';
-import '../../src/styles/toast.css';
-import '../../src/styles/command-search.css';
-import '../../src/styles/bottom-nav.css';
-import '../../src/styles/form-controls.css';
-import '../../src/styles/mobile.css';
-import '../../src/styles/tally.css';
+import '../../src/styles/index.css';
 
 const services = import.meta.glob('../../src/services/*.ts', { eager: true }) as Record<string, Record<string, unknown>>;
 const byName: Record<string, Record<string, unknown>> = {};
@@ -53,7 +42,7 @@ mock('ReportService', 'getTopProducts', [{ productId: 'p5', productName: 'Indomi
 mock('AuditService', 'getStoreAuditLogs', F.sales.slice(0, 3).map((s, i) => ({ id: `a${i}`, resourceType: 'sale', action: 'SALE_COMPLETED', status: 'success', resourceName: s.receiptNumber, actorName: s.cashierName, createdAt: s.createdAt })));
 mock('JobService', 'summary', { jobsDueSoon: 0, jobsOverdue: 0, upcomingFittings: 0, awaitingPickup: 0, outstandingBalances: 0, openJobs: 0 });
 mock('OfflineSalesService', 'subscribe', () => () => {});
-mock('OfflineSalesService', 'getPendingSales', async () => []);
+mock('OfflineSalesService', 'getPendingSales', () => []);
 mock('RbacService', 'getUserPermissions', []);
 
 const params = new URLSearchParams(location.search);

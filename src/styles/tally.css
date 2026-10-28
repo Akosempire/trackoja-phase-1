@@ -2,7 +2,7 @@
    Tailwind utilities (no preflight: the legacy stylesheets still own the base
    reset while screens move over), with theme names bound to the semantic tokens
    in tokens.css so light and dark follow the same switch. */
-@layer theme, base, components, utilities;
+
 @import "tailwindcss/theme.css" layer(theme);
 @import "tailwindcss/utilities.css" layer(utilities);
 @source "../";

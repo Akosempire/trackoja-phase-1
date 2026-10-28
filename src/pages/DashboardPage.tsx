@@ -33,7 +33,6 @@ import {
   type HomeMetric,
   type HomeSlice,
 } from '../components/home/HomeDashboard';
-import '../styles/dashboard.css';
 
 function greetingForNow(name?: string) {
   const hour = new Date().getHours();

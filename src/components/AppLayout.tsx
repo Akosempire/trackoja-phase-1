@@ -1,7 +1,6 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { AuthService } from '../services/auth.service';
 import { Button } from './ui/Button';
-import { StoreSwitcher } from './StoreSwitcher';
 import { BottomNav } from './BottomNav';
 import { SideNav } from './SideNav';
 import { OfflineBanner } from './OfflineBanner';
@@ -15,6 +14,8 @@ import { ThemeToggle } from './ThemeToggle';
 import { Drawer } from './ui/Drawer';
 import { RouteBackBar } from './RouteBackBar';
 import { useToast } from './ui/Toast';
+import { APP_MARK, APP_NAME } from '../config/brand';
+import { btn } from './kit';
 
 /**
  * The merchant workspace shell.
@@ -51,73 +52,63 @@ export function AppLayout() {
 
   return (
     <BusinessProvider>
-    <div className="app-shell">
+    <div className="tl-shell flex min-h-dvh bg-canvas text-ink">
       <a className="skip-link" href="#main-content">Skip to content</a>
 
-      <header className="app-header">
-        <button
-          type="button"
-          className="icon-button"
-          aria-label="Open navigation"
-          aria-expanded={menuOpen}
-          aria-controls="mobile-navigation"
-          onClick={event => { event.currentTarget.focus(); setMenuOpen(true); }}
-        >
-          <MenuIcon width={18} height={18} />
-        </button>
-        <span className="app-header-logo">TrackOja</span>
-        <div className="app-header-actions">
-          <MerchantCommandSearch />
-          <StoreSwitcher />
-          <ThemeToggle />
-          {profile?.isPlatformAdmin && (
-            <NavLink to="/platform" className={({ isActive }) => `app-nav-link${isActive ? ' active' : ''}`}>
-              Platform
-            </NavLink>
-          )}
-          <Button variant="ghost" className="btn-sm" onClick={handleLogout} disabled={loggingOut}>
-            {loggingOut ? 'Logging out…' : 'Log out'}
-          </Button>
-        </div>
-      </header>
+      <SideNav onLogout={handleLogout} />
+      <Drawer
+        open={menuOpen}
+        onClose={() => setMenuOpen(false)}
+        id="mobile-navigation"
+        label="Navigation"
+        closeAtDesktop
+      >
+        {menuOpen && <SideNav mobile onClose={() => setMenuOpen(false)} onLogout={handleLogout} />}
+      </Drawer>
 
-        <SideNav onLogout={handleLogout} />
-        <Drawer
-          open={menuOpen}
-          onClose={() => setMenuOpen(false)}
-          id="mobile-navigation"
-          label="Navigation"
-          closeAtDesktop
-        >
-          {menuOpen && <SideNav mobile onClose={() => setMenuOpen(false)} onLogout={handleLogout} />}
-        </Drawer>
-
-        <div className="app-main">
-          <div className="workspace-topbar" aria-label="Workspace controls">
-            <span className="workspace-topbar-title">Workspace</span>
-            <div className="workspace-topbar-search">
-              <MerchantCommandSearch />
-            </div>
-            <div className="workspace-topbar-actions">
-              {profile?.isPlatformAdmin && (
-                <NavLink to="/platform" className={({ isActive }) => `app-nav-link${isActive ? ' active' : ''}`}>
-                  Platform
-                </NavLink>
-              )}
-              <NavLink to="/more" className="workspace-account" aria-label="Account and tools" title="Account and tools">{profile?.firstName?.[0]?.toUpperCase() ?? 'T'}</NavLink>
-              <Button variant="ghost" className="btn-sm" onClick={handleLogout} disabled={loggingOut}>
-                {loggingOut ? 'Logging out...' : 'Log out'}
-              </Button>
-            </div>
+      <div className="tl-main flex min-w-0 flex-1 flex-col">
+        {/* Phone and tablet header */}
+        <header className="tl-header sticky top-0 z-20 flex h-14 items-center gap-2 border-b border-line bg-surface/95 px-3 backdrop-blur lg:hidden">
+          <button
+            type="button"
+            className="inline-flex size-10 items-center justify-center rounded-lg text-ink-2 hover:bg-hover"
+            aria-label="Open navigation"
+            aria-expanded={menuOpen}
+            aria-controls="mobile-navigation"
+            onClick={event => { event.currentTarget.focus(); setMenuOpen(true); }}
+          >
+            <MenuIcon width={20} height={20} />
+          </button>
+          <span className="inline-flex size-7 items-center justify-center rounded-lg bg-brand text-[13px] font-bold text-white" aria-hidden="true">{APP_MARK}</span>
+          <span className="flex-1 truncate text-[15px] font-semibold">{APP_NAME}</span>
+          <div className="tl-header-actions flex items-center gap-1">
+            <MerchantCommandSearch />
+            <ThemeToggle />
           </div>
-          <DeveloperModeBanner />
-          <OfflineBanner />
-          <main className="app-content" id="main-content" tabIndex={-1}>
-            <RouteBackBar />
-            <Outlet />
-          </main>
-          <BottomNav />
+        </header>
+
+        {/* Desktop top bar */}
+        <div className="tl-topbar sticky top-0 z-20 hidden h-16 items-center gap-4 border-b border-line bg-canvas/90 px-8 backdrop-blur lg:flex" aria-label="Workspace controls">
+          <div className="tl-topbar-search w-full max-w-md"><MerchantCommandSearch /></div>
+          <div className="ml-auto flex items-center gap-2">
+            {profile?.isPlatformAdmin && (
+              <NavLink to="/platform" className={btn('ghost', 'sm')}>Platform</NavLink>
+            )}
+            <ThemeToggle />
+            <NavLink to="/more" className="tl-account inline-flex size-9 items-center justify-center rounded-full bg-brand text-sm font-semibold text-white no-underline" aria-label="Account and tools" title="Account and tools">{profile?.firstName?.[0]?.toUpperCase() ?? APP_MARK}</NavLink>
+            <Button variant="ghost" className="btn-sm" onClick={handleLogout} disabled={loggingOut}>
+              {loggingOut ? 'Logging out…' : 'Log out'}
+            </Button>
+          </div>
         </div>
+        <DeveloperModeBanner />
+        <OfflineBanner />
+        <main className="tl-content min-w-0 flex-1" id="main-content" tabIndex={-1}>
+          <RouteBackBar />
+          <Outlet />
+        </main>
+        <BottomNav />
+      </div>
     </div>
     </BusinessProvider>
   );

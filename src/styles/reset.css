@@ -1,0 +1,10 @@
+/* Lowest layer: just enough reset for the kit's bare elements. Legacy rules
+   still override it where they style an element. */
+*, ::before, ::after { box-sizing: border-box; border: 0 solid; }
+html, body { margin: 0; padding: 0; }
+body { background: var(--color-page); color: var(--color-text-strong); font-family: var(--font-body); -webkit-font-smoothing: antialiased; font-variant-numeric: tabular-nums; }
+button, input, select, textarea { font: inherit; color: inherit; margin: 0; }
+button { background: transparent; padding: 0; cursor: pointer; }
+h1, h2, h3, h4, p { margin: 0; }
+a { color: inherit; }
+img { max-width: 100%; height: auto; }

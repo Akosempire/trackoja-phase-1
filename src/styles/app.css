@@ -227,9 +227,7 @@
   }
 
   /* Hide bottom nav on desktop */
-  .bottom-nav {
-    display: none;
-  }
+  
 
   /* Wider content on desktop */
   .page {
@@ -306,76 +304,19 @@
 /* ============================================================
    Bottom navigation - mobile-first primary nav for the app shell
    ============================================================ */
-.bottom-nav {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-around;
-  max-width: 720px;
-  margin: 0 auto;
-  background: var(--sb);
-  border-top: var(--border-hairline) solid var(--border);
-  padding: 6px 4px;
-  padding-bottom: max(6px, env(safe-area-inset-bottom));
-  z-index: 40;
-}
 
-.bottom-nav-link {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
-  padding: 6px 2px;
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--t2);
-  text-decoration: none;
-  border-radius: var(--r1);
-  transition: color var(--tr);
-}
 
-.bottom-nav-link span {
-  white-space: nowrap;
-}
 
-.bottom-nav-link.active {
-  color: var(--brand-l);
-}
 
-.bottom-nav-scan {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 1px;
-  margin-top: -22px;
-  width: 58px;
-  height: 58px;
-  max-width: 58px;
-  border-radius: 50%;
-  border: 4px solid var(--sb);
-  background: var(--brand);
-  color: #fff;
-  font-size: 10px;
-  font-weight: 700;
-  box-shadow: 0 4px 14px rgba(99, 102, 241, 0.45);
-  cursor: pointer;
-  transition: background var(--tr);
-}
 
-.bottom-nav-scan:hover {
-  background: var(--brand-h);
-}
 
-.bottom-nav-scan span {
-  white-space: nowrap;
-}
+
+
+
+
+
+
+
 
 .page-header {
   display: flex;
@@ -771,7 +712,6 @@
 }
 
 @media print {
-  .bottom-nav,
   .btn-row,
   .no-print {
     display: none !important;
@@ -1497,9 +1437,7 @@
 
 /* ── Desktop overrides (after all global styles to win source-order) ── */
 @media (min-width: 768px) {
-  .bottom-nav {
-    display: none !important;
-  }
+  
 
   /* Checkout split-panel: products left, receipt right */
   .checkout-page {
