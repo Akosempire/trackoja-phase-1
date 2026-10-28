@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { PlatformAdminService, type ImpersonationInfo } from '../services/platformAdmin.service';
 import { useAuth } from '../contexts/AuthContext';
+import { btn } from './kit';
 
 /**
  * Persistent developer-mode / impersonation indicator.
@@ -65,26 +66,29 @@ export function DeveloperModeBanner() {
 
   if (!developerMode && !impersonation) return null;
 
+  const row = 'flex flex-wrap items-center gap-x-3 gap-y-2 border-b px-4 py-2.5 text-[13px] leading-5 sm:px-6 lg:px-8';
+  const action = btn('outline', 'sm');
+
   return (
-    <div className="dev-banner-stack">
+    <div className="flex flex-col">
       {developerMode && (
-        <div className="dev-banner dev-banner-developer" role="status" data-developer-indicator>
-          <span className="dev-banner-dot" aria-hidden="true" />
-          <span className="dev-banner-text">
-            <strong>Developer access granted.</strong> Diagnostics and sandbox records only. Customer permissions still apply.
+        <div className={`${row} border-brand-line bg-brand-soft text-ink`} role="status" data-developer-indicator>
+          <span className="size-2 shrink-0 rounded-full bg-brand" aria-hidden="true" />
+          <span className="min-w-0 flex-1">
+            <strong className="font-semibold">Developer access granted.</strong> Diagnostics and sandbox records only. Customer permissions still apply.
           </span>
-          {profile?.isPlatformAdmin && <Link className="btn btn-outline btn-sm" to="/platform/developer">Manage access</Link>}
+          {profile?.isPlatformAdmin && <Link className={action} to="/platform/developer">Manage access</Link>}
         </div>
       )}
 
       {impersonation && (
-        <div className="dev-banner dev-banner-impersonation" role="alert" data-impersonation-indicator>
-          <span className="dev-banner-dot" aria-hidden="true" />
-          <span className="dev-banner-text">
-            <strong>Read-only support session:</strong> viewing {impersonation.orgName}. Writes are
-            blocked. {secondsLeft > 0 ? `Expires in ${formatSeconds(secondsLeft)}.` : 'Expired.'}
+        <div className={`${row} border-warn/30 bg-warn-soft text-ink`} role="alert" data-impersonation-indicator>
+          <span className="size-2 shrink-0 animate-pulse rounded-full bg-warn" aria-hidden="true" />
+          <span className="min-w-0 flex-1">
+            <strong className="font-semibold">Read-only support session:</strong> viewing {impersonation.orgName}. Writes are
+            blocked. <span className="tabular-nums">{secondsLeft > 0 ? `Expires in ${formatSeconds(secondsLeft)}.` : 'Expired.'}</span>
           </span>
-          <button type="button" className="btn btn-outline btn-sm" onClick={handleExit} disabled={exiting}>
+          <button type="button" className={action} onClick={handleExit} disabled={exiting}>
             {exiting ? 'Exiting…' : 'Exit session'}
           </button>
         </div>

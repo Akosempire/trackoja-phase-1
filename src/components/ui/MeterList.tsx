@@ -18,16 +18,19 @@ export interface MeterItem {
   dangerAt?: number;
 }
 
+const FILL: Record<NonNullable<MeterItem['tone']>, string> = {
+  accent: 'bg-brand', success: 'bg-success', warning: 'bg-warn', danger: 'bg-danger', muted: 'bg-ink-3',
+};
+
 /**
  * Categorical comparison, and usage against a limit. Reads faster than a pie and
- * needs no legend, and unlike the ad-hoc bars it replaced it is entirely
- * token-driven.
+ * needs no legend, and it is entirely token-driven.
  */
 export function MeterList({ items, max }: { items: MeterItem[]; max?: number }) {
   const peak = max ?? Math.max(1, ...items.map((item) => item.max ?? item.value));
 
   return (
-    <div className="meter-list">
+    <div className="flex flex-col gap-3.5">
       {items.map((item) => {
         const ceiling = item.max ?? peak;
         const share = ceiling > 0 ? Math.max(0, Math.min(1, item.value / ceiling)) : 0;
@@ -42,16 +45,16 @@ export function MeterList({ items, max }: { items: MeterItem[]; max?: number }) 
               : 'accent');
 
         return (
-          <div className="meter-row" key={item.id ?? item.label}>
-            <span className="meter-label">{item.label}</span>
-            <span className="meter-value">{item.display ?? item.value.toLocaleString()}</span>
-            <span className="meter-track">
+          <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-3 gap-y-1.5" key={item.id ?? item.label}>
+            <span className="min-w-0 truncate text-[13px] text-ink-2">{item.label}</span>
+            <span className="text-right text-[13px] font-semibold tabular-nums text-ink">{item.display ?? item.value.toLocaleString()}</span>
+            <span className="col-span-2 block h-2 overflow-hidden rounded-full bg-tray">
               <span
-                className={`meter-fill${tone !== 'accent' ? ` meter-tone-${tone}` : ''}`}
+                className={`block h-full rounded-full ${FILL[tone]}`}
                 style={{ width: `${Math.round(share * 100)}%` }}
               />
             </span>
-            {item.detail && <span className="meter-value">{item.detail}</span>}
+            {item.detail && <span className="col-span-2 text-xs text-ink-3">{item.detail}</span>}
           </div>
         );
       })}

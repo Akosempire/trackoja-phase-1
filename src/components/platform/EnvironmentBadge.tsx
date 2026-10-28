@@ -1,17 +1,23 @@
 import type { EnvironmentInfo } from '../../config/environment';
+import { cn } from '../kit';
 
-const TONE_CLASS: Record<EnvironmentInfo['name'], string> = {
-  production: 'env-badge-production',
-  staging: 'env-badge-staging',
-  development: 'env-badge-development',
-  unknown: 'env-badge-unknown',
+// Production is the one environment where a mistake reaches customers, so it
+// carries the loudest tone; the others are quieter but never invisible.
+const TONE: Record<EnvironmentInfo['name'], string> = {
+  production: 'bg-danger-soft text-danger',
+  staging: 'bg-warn-soft text-warn-ink',
+  development: 'bg-brand-soft text-brand-ink',
+  unknown: 'bg-tray text-ink-2',
 };
 
 /** Compact marker for headers and sidebars. */
 export function EnvironmentBadge({ environment }: { environment: EnvironmentInfo }) {
   return (
-    <span className={`env-badge ${TONE_CLASS[environment.name]}`} data-environment={environment.name}>
-      <span className="badge-dot" aria-hidden="true" />
+    <span
+      className={cn('inline-flex h-6 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 text-xs font-semibold', TONE[environment.name])}
+      data-environment={environment.name}
+    >
+      <span className="size-1.5 rounded-full bg-current" aria-hidden="true" />
       {environment.label}
     </span>
   );
@@ -36,22 +42,20 @@ export function EnvironmentMarker({ environment }: { environment: EnvironmentInf
 
   return (
     <div
-      className={`env-marker env-marker-${environment.name}`}
+      className={cn('rounded-lg border p-3', environment.mismatch ? 'border-danger/40 bg-danger-soft/50' : 'border-line bg-subtle')}
       role="status"
       data-environment={environment.name}
     >
       <EnvironmentBadge environment={environment} />
-      <div className="env-marker-text">
-        <p className="env-marker-detail">
-          {environment.detail}
-          {sourceNote ? ` ${sourceNote}` : ''}
+      <p className="m-0 mt-2 text-xs leading-[18px] text-ink-3">
+        {environment.detail}
+        {sourceNote ? ` ${sourceNote}` : ''}
+      </p>
+      {environment.mismatch && (
+        <p className="m-0 mt-1.5 text-xs font-medium leading-[18px] text-danger" data-environment-mismatch="true">
+          {environment.mismatch.note}
         </p>
-        {environment.mismatch && (
-          <p className="env-marker-detail" data-environment-mismatch="true">
-            {environment.mismatch.note}
-          </p>
-        )}
-      </div>
+      )}
     </div>
   );
 }

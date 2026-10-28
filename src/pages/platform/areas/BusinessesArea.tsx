@@ -1,5 +1,7 @@
 import { updateListFilter } from '../../../utils/list-filters';
 import { SearchInput } from '../../../components/ui/SearchInput';
+import { Card, btn } from '../../../components/kit';
+import { tableBleed } from '../../../components/platform/ui';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { PlatformAdminService, type ProductBusiness, type PlatformProduct } from '../../../services/platformAdmin.service';
@@ -115,11 +117,11 @@ export default function BusinessesArea() {
         sortValue: (row) => row.name.toLowerCase(),
         render: (row) => (
           <div>
-            <Link className="data-table-primary" to={`/platform/businesses/${row.orgId}`}>
+            <Link className="font-medium text-ink no-underline break-words hover:text-brand-ink hover:underline" to={`/platform/businesses/${row.orgId}`}>
               {row.name}
             </Link>
-            <p className="data-table-secondary">{row.ownerEmail ?? 'No owner email'}</p>
-            <p className="data-table-secondary">{categoryLabel(row.businessCategory)}</p>
+            <p className="m-0 text-xs text-ink-3 break-words">{row.ownerEmail ?? 'No owner email'}</p>
+            <p className="m-0 text-xs text-ink-3 break-words">{categoryLabel(row.businessCategory)}</p>
           </div>
         ),
       },
@@ -129,8 +131,8 @@ export default function BusinessesArea() {
         sortValue: (row) => row.planName ?? '',
         render: (row) => (
           <div>
-            <span className="data-table-primary">{row.planName ?? 'No plan'}</span>
-            <p className="data-table-secondary">{row.productName}</p>
+            <span className="font-medium text-ink break-words">{row.planName ?? 'No plan'}</span>
+            <p className="m-0 text-xs text-ink-3 break-words">{row.productName}</p>
           </div>
         ),
       },
@@ -147,7 +149,7 @@ export default function BusinessesArea() {
                 <Badge tone="workspace">sandbox</Badge>
               </>
             )}
-            <p className="data-table-secondary">Billing: {row.billingStatus ?? '—'}</p>
+            <p className="m-0 text-xs text-ink-3 break-words">Billing: {row.billingStatus ?? '—'}</p>
           </div>
         ),
       },
@@ -158,8 +160,8 @@ export default function BusinessesArea() {
         sortValue: (row) => row.seatUsed,
         render: (row) => (
           <div>
-            <span className="data-table-primary">{formatNumber(row.seatUsed)}</span>
-            <p className="data-table-secondary">of {formatSeatLimit(row.agreedUserLimit)}</p>
+            <span className="font-medium text-ink break-words">{formatNumber(row.seatUsed)}</span>
+            <p className="m-0 text-xs text-ink-3 break-words">of {formatSeatLimit(row.agreedUserLimit)}</p>
           </div>
         ),
       },
@@ -170,12 +172,12 @@ export default function BusinessesArea() {
         render: (row) => {
           const days = daysUntil(row.expiresAt);
           if (row.expiresAt === null) {
-            return <span className="data-table-secondary">{row.trialEndsAt ? 'Trial' : 'No expiry set'}</span>;
+            return <span className="m-0 block text-xs text-ink-3 break-words">{row.trialEndsAt ? 'Trial' : 'No expiry set'}</span>;
           }
           return (
             <div>
-              <span className="data-table-primary">{formatDate(row.expiresAt)}</span>
-              <p className="data-table-secondary">
+              <span className="font-medium text-ink whitespace-nowrap">{formatDate(row.expiresAt)}</span>
+              <p className="m-0 text-xs text-ink-3 break-words">
                 {days !== null && days < 0
                   ? `Expired ${formatRelative(row.expiresAt)}`
                   : days !== null && days <= 30
@@ -199,8 +201,8 @@ export default function BusinessesArea() {
         sortValue: (row) => row.createdAt,
         render: (row) => (
           <div>
-            <span className="data-table-primary">{formatDate(row.createdAt)}</span>
-            <p className="data-table-secondary">{formatRelative(row.createdAt)}</p>
+            <span className="font-medium text-ink whitespace-nowrap">{formatDate(row.createdAt)}</span>
+            <p className="m-0 text-xs text-ink-3 whitespace-nowrap">{formatRelative(row.createdAt)}</p>
           </div>
         ),
       },
@@ -228,37 +230,35 @@ export default function BusinessesArea() {
 
       <AreaCoverage gaps={AREA.gaps} title="What this page cannot do yet" />
 
-      <section className="card">
-        <SectionHead title="Find a business" />
+      <Card aria-labelledby="businesses-title">
+        <SectionHead id="businesses-title" title={`Businesses${visibleRows.length > 0 ? ` (${visibleRows.length})` : ''}`} sub="Find a business by name, owner email or slug, then open it for detail." />
 
         <form
-          className="toolbar"
+          className="grid grid-cols-1 items-start gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,2fr)_repeat(3,minmax(0,1fr))_auto]"
           onSubmit={(event) => {
             event.preventDefault();
             setFilter('q', searchDraft.trim());
           }}
         >
-          <div className="toolbar-grow">
-            <label className="form-label" htmlFor="business-search">
+          <div className="flex min-w-0 flex-col gap-1.5 sm:col-span-2 lg:col-span-1">
+            <label className="text-[13px] font-medium text-ink-2" htmlFor="business-search">
               Search businesses
             </label>
-            <SearchInput aria-label="Search businesses"
+            <SearchInput className="mb-0" aria-label="Search businesses"
               id="business-search"
-
-
               value={searchDraft}
               placeholder="Name, owner email or slug"
               onChange={(event) => setSearchDraft(event.target.value)}
             />
           </div>
 
-          <div className="plat-field">
-            <label className="form-label" htmlFor="business-product">
+          <div className="flex min-w-0 flex-col gap-1.5">
+            <label className="text-[13px] font-medium text-ink-2" htmlFor="business-product">
               Product
             </label>
             <select
               id="business-product"
-              className="select-input"
+              className="block h-10 w-full min-w-0 rounded-md border border-line-strong bg-surface px-3 text-sm text-ink placeholder:text-ink-3 focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/15 cursor-pointer pr-8"
               value={productKey}
               onChange={(event) => setFilter('product', event.target.value)}
             >
@@ -271,13 +271,13 @@ export default function BusinessesArea() {
             </select>
           </div>
 
-          <div className="plat-field">
-            <label className="form-label" htmlFor="business-access">
+          <div className="flex min-w-0 flex-col gap-1.5">
+            <label className="text-[13px] font-medium text-ink-2" htmlFor="business-access">
               Access status
             </label>
             <select
               id="business-access"
-              className="select-input"
+              className="block h-10 w-full min-w-0 rounded-md border border-line-strong bg-surface px-3 text-sm text-ink placeholder:text-ink-3 focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/15 cursor-pointer pr-8"
               value={status}
               onChange={(event) => setFilter('status', event.target.value)}
             >
@@ -290,13 +290,13 @@ export default function BusinessesArea() {
             </select>
           </div>
 
-          <div className="plat-field">
-            <label className="form-label" htmlFor="business-billing">
+          <div className="flex min-w-0 flex-col gap-1.5">
+            <label className="text-[13px] font-medium text-ink-2" htmlFor="business-billing">
               Billing status
             </label>
             <select
               id="business-billing"
-              className="select-input"
+              className="block h-10 w-full min-w-0 rounded-md border border-line-strong bg-surface px-3 text-sm text-ink placeholder:text-ink-3 focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/15 cursor-pointer pr-8"
               value={billing}
               onChange={(event) => setFilter('billing', event.target.value)}
             >
@@ -309,47 +309,45 @@ export default function BusinessesArea() {
             </select>
           </div>
 
-          <button type="submit" className="btn btn-neutral btn-sm">
-            <span className="btn-label">Search</span>
+          <div className="flex gap-2 sm:col-span-2 lg:col-span-1 lg:pt-[25px]">
+          <button type="submit" className={btn('primary')}>
+            Search
           </button>
 
           {filtersActive && (
             <button
               type="button"
-              className="btn btn-ghost btn-sm"
+              className={btn('ghost')}
               onClick={() => {
                 setSearchDraft('');
                 setSearchParams(new URLSearchParams(), { replace: true });
               }}
             >
-              <span className="btn-label">Clear filters</span>
+              Clear filters
             </button>
           )}
+          </div>
         </form>
-
         {billing && (
-          <p className="form-hint">
+          <p className="m-0 mt-3 text-xs text-ink-3">
             Billing status is filtered in this browser, so a page can show fewer rows than the page size.
           </p>
         )}
-      </section>
-
-      <section className="card">
-        <SectionHead title={`Businesses${visibleRows.length > 0 ? ` (${visibleRows.length})` : ''}`} />
-
+        <div className="mt-5">
         {error ? (
           <StateBlock
             variant="error"
             title="Could not load businesses"
             body={error}
             actions={
-              <button type="button" className="btn btn-outline btn-sm" onClick={load}>
-                <span className="btn-label">Try again</span>
+              <button type="button" className={btn('outline', 'sm')} onClick={load}>
+                Try again
               </button>
             }
           />
         ) : (
           <>
+            <div className={tableBleed}>
             <DataTable
               columns={columns}
               rows={visibleRows}
@@ -366,6 +364,7 @@ export default function BusinessesArea() {
                 />
               }
             />
+            </div>
             <Pagination
               page={page}
               pageSize={PAGE_SIZE}
@@ -376,7 +375,8 @@ export default function BusinessesArea() {
             />
           </>
         )}
-      </section>
+        </div>
+      </Card>
 
       {/* Platform accounts live in this area because it is the one named for
           users; the ten-area structure deliberately does not gain an eleventh.

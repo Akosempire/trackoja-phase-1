@@ -1,5 +1,7 @@
+import { tableBleed } from '../../../components/platform/ui';
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
+import { btn } from '../../../components/kit';
 import { PlatformService } from '../../../services/platform.service';
 import { usePlatform } from '../../../components/platform/PlatformContext';
 import {
@@ -200,11 +202,11 @@ export default function HealthArea() {
       status: loading ? 'unknown' : counterStatus(value),
       reading:
         value === null ? (
-          <span className="data-table-secondary">No value</span>
+          <span className="m-0 block text-xs text-ink-3 break-words">No value</span>
         ) : (
           <>
             {formatNumber(value)}
-            <p className="data-table-secondary">{unit}</p>
+            <p className="m-0 text-xs text-ink-3 break-words">{unit}</p>
           </>
         ),
       checked: loading ? '—' : readAt,
@@ -212,8 +214,8 @@ export default function HealthArea() {
     });
 
     const auditLink = (
-      <Link className="btn btn-outline btn-sm" to="/platform/audit?status=failed">
-        <span className="btn-label">Failed events</span>
+      <Link className={btn('outline', 'sm')} to="/platform/audit?status=failed">
+        Failed events
       </Link>
     );
 
@@ -232,8 +234,8 @@ export default function HealthArea() {
         'Subscription transactions recorded as failed in the last 24 hours.',
         health?.failedTransactions24h ?? null,
         'in the last 24 hours',
-        <Link className="btn btn-outline btn-sm" to="/platform/billing?filter=failed">
-          <span className="btn-label">Failed payments</span>
+        <Link className={btn('outline', 'sm')} to="/platform/billing?filter=failed">
+          Failed payments
         </Link>,
       ),
       counterRow(
@@ -242,8 +244,8 @@ export default function HealthArea() {
         'Billing status past_due right now — a business state, not a fault.',
         health?.pastDueOrganizations ?? null,
         'as of this read',
-        <Link className="btn btn-outline btn-sm" to="/platform/billing?filter=past_due">
-          <span className="btn-label">Open billing</span>
+        <Link className={btn('outline', 'sm')} to="/platform/billing?filter=past_due">
+          Open billing
         </Link>,
       ),
       counterRow(
@@ -252,8 +254,8 @@ export default function HealthArea() {
         'Billing status suspended right now — access withdrawn, not an outage.',
         health?.suspendedOrganizations ?? null,
         'as of this read',
-        <Link className="btn btn-outline btn-sm" to="/platform/businesses?billing=suspended">
-          <span className="btn-label">Open directory</span>
+        <Link className={btn('outline', 'sm')} to="/platform/businesses?billing=suspended">
+          Open directory
         </Link>,
       ),
     ];
@@ -264,9 +266,9 @@ export default function HealthArea() {
       meaning: signal.meaning,
       status: 'not_instrumented',
       // The literal words, not a dash and not a zero: a zero is a measurement.
-      reading: <span className="data-table-secondary">Not configured</span>,
-      checked: <span className="data-table-secondary">Never</span>,
-      diagnostics: <span className="data-table-secondary">No route</span>,
+      reading: <span className="m-0 block text-xs text-ink-3 break-words">Not configured</span>,
+      checked: <span className="m-0 block text-xs text-ink-3 break-words">Never</span>,
+      diagnostics: <span className="m-0 block text-xs text-ink-3 break-words">No route</span>,
     }));
 
     return [...real, ...absent];
@@ -281,8 +283,8 @@ export default function HealthArea() {
         sortValue: (row) => row.name.toLowerCase(),
         render: (row) => (
           <div>
-            <span className="data-table-primary">{row.name}</span>
-            <p className="data-table-secondary">{row.meaning}</p>
+            <span className="font-medium text-ink break-words">{row.name}</span>
+            <p className="m-0 text-xs text-ink-3 break-words">{row.meaning}</p>
           </div>
         ),
       },
@@ -353,9 +355,9 @@ export default function HealthArea() {
         sortValue: (row) => row.action,
         render: (row) => (
           <div>
-            <span className="data-table-primary">{humaniseToken(row.action)}</span>
-            <p className="data-table-secondary">
-              <span className="mono">{row.action}</span>
+            <span className="font-medium text-ink break-words">{humaniseToken(row.action)}</span>
+            <p className="m-0 text-xs text-ink-3 break-words">
+              <span className="font-mono text-[0.92em]">{row.action}</span>
             </p>
           </div>
         ),
@@ -379,8 +381,8 @@ export default function HealthArea() {
         sortValue: (row) => row.latestAt,
         render: (row) => (
           <div>
-            <span className="data-table-primary">{formatDateTime(row.latestAt)}</span>
-            <p className="data-table-secondary">{formatRelative(row.latestAt)}</p>
+            <span className="font-medium text-ink whitespace-nowrap">{formatDateTime(row.latestAt)}</span>
+            <p className="m-0 text-xs text-ink-3 whitespace-nowrap">{formatRelative(row.latestAt)}</p>
           </div>
         ),
       },
@@ -414,10 +416,10 @@ export default function HealthArea() {
       />
 
       {partial && (
-        <div className="callout callout-warning" role="status">
+        <div className="flex min-w-0 flex-col gap-0.5 rounded-lg border px-4 py-3 text-[13px] break-words border-warn/30 bg-warn-soft" role="status">
           <div>
-            <p className="callout-title">Some readings could not be loaded</p>
-            <p className="callout-text">
+            <p className="m-0 text-sm font-semibold text-ink">Some readings could not be loaded</p>
+            <p className="m-0 text-[13px] text-ink-2">
               {failed.length} of 2 sources failed to return ({failed.join(', ')}). The figures below are
               partial; the missing source is unknown rather than zero.
             </p>
@@ -428,23 +430,25 @@ export default function HealthArea() {
       <AreaCoverage gaps={AREA.gaps} title="What this page cannot measure yet" />
 
       {/* ── Signals ───────────────────────────────────────────────── */}
-      <section className="card" aria-labelledby="health-signals">
+      <section className="min-w-0 rounded-xl border border-line bg-surface p-5 shadow-card [&>*+*]:mt-4 [&>.section-head+*]:mt-0" aria-labelledby="health-signals">
         <SectionHead
           id="health-signals"
           title="Signals"
           sub="Four are read from the database; seven are not measured at all. Last checked is the browser clock at page load — the server timestamps nothing."
         />
-        <DataTable
-          columns={signalColumns}
-          rows={signals}
-          rowKey={(row) => row.key}
-          stacked
-          loading={loading}
-          skeletonRows={6}
-          caption="Platform health signals, instrumented and uninstrumented"
-        />
+        <div className={tableBleed}>
+          <DataTable
+            columns={signalColumns}
+            rows={signals}
+            rowKey={(row) => row.key}
+            stacked
+            loading={loading}
+            skeletonRows={6}
+            caption="Platform health signals, instrumented and uninstrumented"
+          />
+        </div>
 
-        <p className="form-hint">
+        <p className="m-0 text-xs text-ink-3">
           OK on a counter means no matching row was written, not that the platform is healthy. Unknown means
           no value has been read yet — a blank is not a zero.
         </p>
@@ -490,12 +494,12 @@ export default function HealthArea() {
       </section>
 
       {/* ── The limit of the four real counters ───────────────────── */}
-      <div className="callout callout-danger">
+      <div className="flex min-w-0 flex-col gap-0.5 rounded-lg border px-4 py-3 text-[13px] break-words border-danger/30 bg-danger-soft">
         <div>
-          <p className="callout-title">&quot;0 failed events&quot; is not proof of health</p>
-          <p className="callout-text">
-            The four counters come from <span className="mono">get_platform_system_health()</span>:
-            audit and subscription rows with <span className="mono">status = &apos;failed&apos;</span> over a
+          <p className="m-0 text-sm font-semibold text-ink">&quot;0 failed events&quot; is not proof of health</p>
+          <p className="m-0 text-[13px] text-ink-2">
+            The four counters come from <span className="font-mono text-[0.92em]">get_platform_system_health()</span>:
+            audit and subscription rows with <span className="font-mono text-[0.92em]">status = &apos;failed&apos;</span> over a
             fixed 24-hour window, plus two current billing-state counts. Almost nothing in this application
             writes that status, so zeros are the normal reading and mean only that no row was written. A job
             that never ran, a webhook never delivered and an email never sent leave no trace. Treat these
@@ -505,14 +509,14 @@ export default function HealthArea() {
       </div>
 
       {/* ── Recent failures, grouped ──────────────────────────────── */}
-      <section className="card" aria-labelledby="health-failures">
+      <section className="min-w-0 rounded-xl border border-line bg-surface p-5 shadow-card [&>*+*]:mt-4 [&>.section-head+*]:mt-0" aria-labelledby="health-failures">
         <SectionHead
           id="health-failures"
           title="Recent failed events, grouped"
           sub={`Grouped in the browser from the most recent ${formatNumber(RECENT_ERROR_LIMIT)} audit rows with status failed or attempted.`}
           actions={
-            <Link className="btn btn-ghost btn-sm" to="/platform/audit?status=failed">
-              <span className="btn-label">Open audit logs</span>
+            <Link className={btn('ghost', 'sm')} to="/platform/audit?status=failed">
+              Open audit logs
             </Link>
           }
         />
@@ -523,31 +527,33 @@ export default function HealthArea() {
             title="Could not load recent failures"
             body="list_platform_recent_errors did not return. The counters above are unaffected."
             actions={
-              <button type="button" className="btn btn-outline btn-sm" onClick={() => void reload()}>
-                <span className="btn-label">Try again</span>
+              <button type="button" className={btn('outline', 'sm')} onClick={() => void reload()}>
+                Try again
               </button>
             }
           />
         ) : (
           <>
-            <DataTable
-              columns={failureColumns}
-              rows={failureGroups}
-              rowKey={(row) => row.action}
-              stacked
-              loading={loading}
-              caption="Recent failed audit events grouped by action"
-              empty={
-                <StateBlock
-                  variant="empty"
-                  title="No failed or attempted audit rows"
-                  body="The query returned no rows. Given how little writes a failed status, this is the expected reading and is not evidence that nothing failed."
-                />
-              }
-            />
-            <p className="form-hint">
+            <div className={tableBleed}>
+              <DataTable
+                columns={failureColumns}
+                rows={failureGroups}
+                rowKey={(row) => row.action}
+                stacked
+                loading={loading}
+                caption="Recent failed audit events grouped by action"
+                empty={
+                  <StateBlock
+                    variant="empty"
+                    title="No failed or attempted audit rows"
+                    body="The query returned no rows. Given how little writes a failed status, this is the expected reading and is not evidence that nothing failed."
+                  />
+                }
+              />
+            </div>
+            <p className="m-0 text-xs text-ink-3">
               Occurrences are counted within those {formatNumber(RECENT_ERROR_LIMIT)} rows, not over a
-              period: <span className="mono">list_platform_recent_errors</span> accepts a limit and no date
+              period: <span className="font-mono text-[0.92em]">list_platform_recent_errors</span> accepts a limit and no date
               range. The 24-hour figures above come from a different query and the two will not agree.
             </p>
           </>
@@ -555,8 +561,8 @@ export default function HealthArea() {
       </section>
 
       {/* ── Incidents ─────────────────────────────────────────────── */}
-      <Disclosure summary="Incidents"><section className="card" aria-labelledby="health-incidents">
-        <SectionHead id="health-incidents" title="Incidents" />
+      <Disclosure summary="Incidents"><section className="min-w-0 [&>*+*]:mt-4 [&>.section-head+*]:mt-0" aria-labelledby="health-incidents">
+        <h2 id="health-incidents" className="sr-only">Incidents</h2>
 
         <StateBlock
           variant="unavailable"
@@ -571,7 +577,7 @@ export default function HealthArea() {
         />
 
         <Disclosure summary="What the backend would need">
-          <pre className="code-panel">{`-- NOT PRESENT IN THIS REPOSITORY. Specification only.
+          <pre className="m-0 max-h-[360px] min-w-0 overflow-auto whitespace-pre-wrap rounded-lg border border-line bg-subtle p-3 font-mono text-xs leading-5 text-ink-2 break-words">{`-- NOT PRESENT IN THIS REPOSITORY. Specification only.
 CREATE TABLE public.platform_incidents (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   reference       TEXT NOT NULL UNIQUE,      -- quotable, e.g. INC-2026-0007
@@ -623,44 +629,44 @@ CREATE INDEX idx_platform_incidents_open
       </Disclosure>
 
       {/* ── Scheduler: a real operational gap ─────────────────────── */}
-      <section className="card" aria-labelledby="health-scheduler">
+      <section className="min-w-0 rounded-xl border border-line bg-surface p-5 shadow-card [&>*+*]:mt-4 [&>.section-head+*]:mt-0" aria-labelledby="health-scheduler">
         <SectionHead
           id="health-scheduler"
           title="Scheduled work"
           sub="One sweep exists in the codebase; nothing calls it."
         />
 
-        <div className="callout callout-danger">
+        <div className="flex min-w-0 flex-col gap-0.5 rounded-lg border px-4 py-3 text-[13px] break-words border-danger/30 bg-danger-soft">
           <div>
-            <p className="callout-title">
-              <span className="mono">expire_stale_developer_state()</span> is never called by anything
+            <p className="m-0 text-sm font-semibold text-ink">
+              <span className="font-mono text-[0.92em]">expire_stale_developer_state()</span> is never called by anything
             </p>
-            <p className="callout-text">
+            <p className="m-0 text-[13px] text-ink-2">
               The function exists and works — it expires lapsed developer grants, sessions that outlived their
               grant and over-time impersonation sessions — but it has no caller: no{' '}
-              <span className="mono">cron.schedule</span>, no pg_cron extension and no job runner anywhere in
+              <span className="font-mono text-[0.92em]">cron.schedule</span>, no pg_cron extension and no job runner anywhere in
               this repository. Until something calls it, a lapsed grant keeps reading as active.
             </p>
           </div>
         </div>
 
-        <div className="callout callout-warning">
+        <div className="flex min-w-0 flex-col gap-0.5 rounded-lg border px-4 py-3 text-[13px] break-words border-warn/30 bg-warn-soft">
           <div>
-            <p className="callout-title">Two more things nothing sweeps</p>
-            <p className="callout-text">
-              <span className="mono">organization_products.expires_at</span> is the date that gates a
+            <p className="m-0 text-sm font-semibold text-ink">Two more things nothing sweeps</p>
+            <p className="m-0 text-[13px] text-ink-2">
+              <span className="font-mono text-[0.92em]">organization_products.expires_at</span> is the date that gates a
               business&apos;s access, and no function moves a row to{' '}
-              <span className="mono">expired</span> when it passes: access ends only when a seat check next
+              <span className="font-mono text-[0.92em]">expired</span> when it passes: access ends only when a seat check next
               runs. An expired{' '}
-              <span className="mono">activation_keys</span> key is refused at redemption but its stored status
-              stays <span className="mono">issued</span> forever — nothing anywhere sets a key to{' '}
-              <span className="mono">expired</span>.
+              <span className="font-mono text-[0.92em]">activation_keys</span> key is refused at redemption but its stored status
+              stays <span className="font-mono text-[0.92em]">issued</span> forever — nothing anywhere sets a key to{' '}
+              <span className="font-mono text-[0.92em]">expired</span>.
             </p>
           </div>
         </div>
 
         <Disclosure summary="What the backend would need">
-          <pre className="code-panel">{`-- NOT PRESENT IN THIS REPOSITORY. Specification only.
+          <pre className="m-0 max-h-[360px] min-w-0 overflow-auto whitespace-pre-wrap rounded-lg border border-line bg-subtle p-3 font-mono text-xs leading-5 text-ink-2 break-words">{`-- NOT PRESENT IN THIS REPOSITORY. Specification only.
 CREATE TABLE public.job_runs (
   id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   job_key      TEXT NOT NULL,          -- 'expire_stale_developer_state', 'expire_lapsed_entitlements', ...
@@ -680,8 +686,8 @@ CREATE INDEX idx_job_runs_key ON public.job_runs(job_key, started_at DESC);`}</p
                 value: (
                   <>
                     Every 15 minutes:{' '}
-                    <span className="mono">SELECT public.expire_stale_developer_state()</span>, writing a{' '}
-                    <span className="mono">job_runs</span> row with the returned row count.
+                    <span className="font-mono text-[0.92em]">SELECT public.expire_stale_developer_state()</span>, writing a{' '}
+                    <span className="font-mono text-[0.92em]">job_runs</span> row with the returned row count.
                   </>
                 ),
               },
@@ -705,7 +711,7 @@ CREATE INDEX idx_job_runs_key ON public.job_runs(job_key, started_at DESC);`}</p
         </Disclosure>
       </section>
 
-      <p className="section-sub">
+      <p className="m-0 mt-0.5 text-[13px] text-ink-3">
         Nothing on this page alerts anyone: no threshold, no notification path and no history. Every reading
         is taken when you press Refresh and is gone on the next load.
       </p>

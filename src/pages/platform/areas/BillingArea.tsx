@@ -1,5 +1,7 @@
 import { updateListFilter } from '../../../utils/list-filters';
 import { SegmentedControl } from '../../../components/ui/SegmentedControl';
+import { chipClass, tableBleed } from '../../../components/platform/ui';
+import { btn, Pill } from '../../../components/kit';
 import { SearchInput } from '../../../components/ui/SearchInput';
 // Four billing sections share URL filters and one stable shell. Legacy secondary
 // section links redirect to their canonical areas; server checks enforce access.
@@ -354,8 +356,8 @@ function SectionFailure({ message, onRetry }: { message: string; onRetry: () => 
       title="Could not load this panel"
       body={message}
       actions={
-        <button type="button" className="btn btn-outline btn-sm" onClick={onRetry}>
-          <span className="btn-label">Try again</span>
+        <button type="button" className={btn('outline', 'sm')} onClick={onRetry}>
+          Try again
         </button>
       }
     />
@@ -364,10 +366,10 @@ function SectionFailure({ message, onRetry }: { message: string; onRetry: () => 
 
 function LoadingLines() {
   return (
-    <div className="skeleton-inline" role="status" aria-label="Loading">
-      <span className="skeleton skeleton-text" />
-      <span className="skeleton skeleton-text" />
-      <span className="skeleton skeleton-text is-short" />
+    <div className="py-1" role="status" aria-label="Loading">
+      <span className="my-1.5 block h-3 animate-pulse rounded bg-tray" />
+      <span className="my-1.5 block h-3 animate-pulse rounded bg-tray" />
+      <span className="my-1.5 block h-3 w-3/5 animate-pulse rounded bg-tray" />
     </div>
   );
 }
@@ -916,20 +918,20 @@ function PlanEditDialog({ plan, siblingPlans, onClose, onSaved }: PlanEditDialog
           required
         />
 
-        <div className="form-group">
-          <label className="form-label" htmlFor="plan-description">
+        <div className="mb-4 flex min-w-0 flex-col gap-1.5">
+          <label className="text-[13px] font-medium text-ink-2" htmlFor="plan-description">
             Description
           </label>
           <textarea
             id="plan-description"
-            className="form-input"
+            className="block min-h-24 w-full min-w-0 rounded-md border border-line-strong bg-surface px-3 py-2.5 text-sm text-ink placeholder:text-ink-3 focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/15"
             value={draft.description}
             onChange={(event) => setDraft({ ...draft, description: event.target.value })}
             disabled={busy}
           />
         </div>
 
-        <div className="plat-form-row">
+        <div className="flex flex-wrap items-end gap-3">
           <FormField
             id="plan-monthly"
             label="Monthly price (NGN)"
@@ -949,7 +951,7 @@ function PlanEditDialog({ plan, siblingPlans, onClose, onSaved }: PlanEditDialog
             disabled={busy}
           />
         </div>
-        <p className="form-hint">Blank means custom pricing (stored as NULL), not zero.</p>
+        <p className="m-0 text-xs text-ink-3">Blank means custom pricing (stored as NULL), not zero.</p>
 
         <FormField
           id="plan-setup-fee"
@@ -960,9 +962,9 @@ function PlanEditDialog({ plan, siblingPlans, onClose, onSaved }: PlanEditDialog
           placeholder="Blank = none"
           disabled={busy}
         />
-        <p className="form-hint">Included in the first checkout only and preserved in the purchased plan version.</p>
+        <p className="m-0 text-xs text-ink-3">Included in the first checkout only and preserved in the purchased plan version.</p>
 
-        <div className="plat-form-row">
+        <div className="flex flex-wrap items-end gap-3">
           <FormField
             id="plan-seats"
             label="Seat limit"
@@ -971,13 +973,13 @@ function PlanEditDialog({ plan, siblingPlans, onClose, onSaved }: PlanEditDialog
             placeholder="-1 unlimited, blank custom"
             disabled={busy}
           />
-          <div className="form-group">
-            <label className="form-label" htmlFor="plan-status">
+          <div className="mb-4 flex min-w-0 flex-col gap-1.5">
+            <label className="text-[13px] font-medium text-ink-2" htmlFor="plan-status">
               Status
             </label>
             <select
               id="plan-status"
-              className="select-input"
+              className="block h-10 w-full min-w-0 rounded-md border border-line-strong bg-surface px-3 text-sm text-ink placeholder:text-ink-3 focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/15 cursor-pointer pr-8"
               value={draft.status}
               onChange={(event) => setDraft({ ...draft, status: event.target.value as ProductPlan['status'] })}
               disabled={busy}
@@ -987,20 +989,20 @@ function PlanEditDialog({ plan, siblingPlans, onClose, onSaved }: PlanEditDialog
               <option value="inactive">Inactive</option>
               <option value="retired">Retired</option>
             </select>
-            <p className="form-hint">
+            <p className="m-0 text-xs text-ink-3">
               {statusAfterSave === 'draft'
                 ? 'A draft stays invisible to customers whatever the other switches say.'
                 : 'Retired keeps the row for existing subscribers but blocks new signups.'}
             </p>
           </div>
         </div>
-        <p className="form-hint">
+        <p className="m-0 text-xs text-ink-3">
           Seat limit becomes {seats === null ? 'custom' : formatSeatLimit(seats)}. -1 is unlimited, blank is custom, a
           positive number is a hard cap.
         </p>
 
-        <div className="plat-form-row">
-          <label className="plat-check" htmlFor="plan-default">
+        <div className="flex flex-wrap items-end gap-3">
+          <label className="flex items-center gap-2 text-sm text-ink-2" htmlFor="plan-default">
             <input
               id="plan-default"
               type="checkbox"
@@ -1010,7 +1012,7 @@ function PlanEditDialog({ plan, siblingPlans, onClose, onSaved }: PlanEditDialog
             />
             Default plan for this product
           </label>
-          <label className="plat-check" htmlFor="plan-public">
+          <label className="flex items-center gap-2 text-sm text-ink-2" htmlFor="plan-public">
             <input
               id="plan-public"
               type="checkbox"
@@ -1022,29 +1024,29 @@ function PlanEditDialog({ plan, siblingPlans, onClose, onSaved }: PlanEditDialog
           </label>
         </div>
 
-        <div className="form-group">
-          <label className="form-label" htmlFor="plan-features">
+        <div className="mb-4 flex min-w-0 flex-col gap-1.5">
+          <label className="text-[13px] font-medium text-ink-2" htmlFor="plan-features">
             Features (JSON)
           </label>
           <textarea
             id="plan-features"
-            className="form-input"
+            className="block min-h-24 w-full min-w-0 rounded-md border border-line-strong bg-surface px-3 py-2.5 text-sm text-ink placeholder:text-ink-3 focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/15"
             value={draft.featuresJson}
             onChange={(event) => setDraft({ ...draft, featuresJson: event.target.value })}
             disabled={busy}
           />
-          <p className="form-hint">
+          <p className="m-0 text-xs text-ink-3">
             A JSON array of {'{ key, label, upcoming }'}. It replaces the stored array.
           </p>
         </div>
 
-        <div className="form-group">
-          <label className="form-label" htmlFor="plan-onboarding">
+        <div className="mb-4 flex min-w-0 flex-col gap-1.5">
+          <label className="text-[13px] font-medium text-ink-2" htmlFor="plan-onboarding">
             Onboarding note
           </label>
           <textarea
             id="plan-onboarding"
-            className="form-input"
+            className="block min-h-24 w-full min-w-0 rounded-md border border-line-strong bg-surface px-3 py-2.5 text-sm text-ink placeholder:text-ink-3 focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/15"
             value={draft.onboardingNote}
             onChange={(event) => setDraft({ ...draft, onboardingNote: event.target.value })}
             disabled={busy}
@@ -1053,12 +1055,12 @@ function PlanEditDialog({ plan, siblingPlans, onClose, onSaved }: PlanEditDialog
 
         {changes.length > 0 && (
           <>
-            <p className="plat-section-sub">Pending changes (not saved yet)</p>
-            <ul className="list">
+            <p className="m-0 mb-2 mt-5 text-[13px] font-semibold text-ink-2">Pending changes (not saved yet)</p>
+            <ul className="m-0 flex list-none flex-col divide-y divide-line p-0">
               {changes.map((change, index) => (
-                <li className="list-item" key={`${index}-${change}`}>
+                <li className="flex min-w-0 items-center justify-between gap-3 py-3 first:pt-0 last:pb-0" key={`${index}-${change}`}>
                   <div>
-                    <p className="list-item-subtitle">{change}</p>
+                    <p className="m-0 mt-0.5 text-xs text-ink-3 break-words">{change}</p>
                   </div>
                 </li>
               ))}
@@ -1067,7 +1069,7 @@ function PlanEditDialog({ plan, siblingPlans, onClose, onSaved }: PlanEditDialog
         )}
 
         {formError && (
-          <p className="form-error" role="alert">
+          <p className="m-0 text-xs text-danger" role="alert">
             {formError}
           </p>
         )}
@@ -1207,10 +1209,10 @@ function PublishPlanDialog({ plan, onClose, onPublished }: PublishPlanDialogProp
           </>
         }
       >
-        <div className="callout callout-info">
+        <div className="flex min-w-0 flex-col gap-0.5 rounded-lg border px-4 py-3 text-[13px] break-words border-brand-line bg-brand-soft/60">
           <div>
-            <p className="callout-title">Who this reaches</p>
-            <p className="callout-text">
+            <p className="m-0 text-sm font-semibold text-ink">Who this reaches</p>
+            <p className="m-0 text-[13px] text-ink-2">
               New customers only. {formatNumber(storedPlan.subscriberCount)} existing subscriber
               {storedPlan.subscriberCount === 1 ? '' : 's'} keep the agreed monthly price, annual price and seat limit
               snapshotted on organization_products when they activated.
@@ -1236,34 +1238,34 @@ function PublishPlanDialog({ plan, onClose, onPublished }: PublishPlanDialogProp
           onChange={setEffectiveFrom}
           disabled={busy}
         />
-        <p className="form-hint">
+        <p className="m-0 text-xs text-ink-3">
           Blank publishes with immediate effect; the server refuses a date in the past. Nothing schedules a future
           date — the plan is simply not buyable until it arrives.
         </p>
 
         {!storedPlan.isPublic && (
-          <p className="form-hint">
+          <p className="m-0 text-xs text-ink-3">
             This plan is not publicly offered, and publishing does not change that: it forces the status to active and
             leaves is_public alone, so the plan stays invisible to customers until it is made public.
           </p>
         )}
 
         {storedPlan.publishedAt ? (
-          <p className="form-hint">
+          <p className="m-0 text-xs text-ink-3">
             Already published. publish_product_plan COALESCEs both stamps, so re-publishing records the note and any
             status change but does not move an existing effective date.
           </p>
         ) : null}
 
         {storedPlan.publishedAt === undefined && (
-          <p className="form-hint">
+          <p className="m-0 text-xs text-ink-3">
             list_product_plans does not return published_at on this database, so the current published stamp cannot be
             shown — only the status above.
           </p>
         )}
 
         {formError && (
-          <p className="form-error" role="alert">
+          <p className="m-0 text-xs text-danger" role="alert">
             {formError}
           </p>
         )}
@@ -1495,13 +1497,13 @@ function SubscriptionChangeDialog({ target, plans, onClose, onRecorded }: Subscr
           </>
         }
       >
-        <div className="form-group">
-          <label className="form-label" htmlFor="adjustment-type">
+        <div className="mb-4 flex min-w-0 flex-col gap-1.5">
+          <label className="text-[13px] font-medium text-ink-2" htmlFor="adjustment-type">
             Change
           </label>
           <select
             id="adjustment-type"
-            className="select-input"
+            className="block h-10 w-full min-w-0 rounded-md border border-line-strong bg-surface px-3 text-sm text-ink placeholder:text-ink-3 focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/15 cursor-pointer pr-8"
             value={intentValue}
             onChange={(event) => setIntentValue(event.target.value as AdjustmentIntent['value'])}
             disabled={busy}
@@ -1514,21 +1516,21 @@ function SubscriptionChangeDialog({ target, plans, onClose, onRecorded }: Subscr
           </select>
         </div>
 
-        <div className="callout callout-info">
+        <div className="flex min-w-0 flex-col gap-0.5 rounded-lg border px-4 py-3 text-[13px] break-words border-brand-line bg-brand-soft/60">
           <div>
-            <p className="callout-title">What the server requires for this change</p>
-            <p className="callout-text">{intent.requirement}</p>
+            <p className="m-0 text-sm font-semibold text-ink">What the server requires for this change</p>
+            <p className="m-0 text-[13px] text-ink-2">{intent.requirement}</p>
           </div>
         </div>
 
         {intent.requiresPlan && (
-          <div className="form-group">
-            <label className="form-label" htmlFor="adjustment-plan">
+          <div className="mb-4 flex min-w-0 flex-col gap-1.5">
+            <label className="text-[13px] font-medium text-ink-2" htmlFor="adjustment-plan">
               New plan
             </label>
             <select
               id="adjustment-plan"
-              className="select-input"
+              className="block h-10 w-full min-w-0 rounded-md border border-line-strong bg-surface px-3 text-sm text-ink placeholder:text-ink-3 focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/15 cursor-pointer pr-8"
               value={planKey}
               onChange={(event) => setPlanKey(event.target.value)}
               disabled={busy || productPlans.length === 0}
@@ -1541,7 +1543,7 @@ function SubscriptionChangeDialog({ target, plans, onClose, onRecorded }: Subscr
               ))}
             </select>
             {productPlans.length === 0 && (
-              <p className="form-hint">
+              <p className="m-0 text-xs text-ink-3">
                 No plans could be read for {target.productKey}, so a plan change cannot be completed here. Expiry,
                 suspension, cancellation and seat changes still work.
               </p>
@@ -1559,7 +1561,7 @@ function SubscriptionChangeDialog({ target, plans, onClose, onRecorded }: Subscr
               onChange={setExpiresAt}
               disabled={busy}
             />
-            <p className="form-hint">
+            <p className="m-0 text-xs text-ink-3">
               Current expiry: {target.expiresAt ? formatDate(target.expiresAt) : 'none recorded'}. A renewal must be later
               than this.
             </p>
@@ -1578,7 +1580,7 @@ function SubscriptionChangeDialog({ target, plans, onClose, onRecorded }: Subscr
         )}
 
         {formError && (
-          <p className="form-error" role="alert">
+          <p className="m-0 text-xs text-danger" role="alert">
             {formError}
           </p>
         )}
@@ -1812,17 +1814,18 @@ function CommercialTransactionsPanel({
   }
 
   return (
-    <div>
+    <div className="min-w-0 [&>*+*]:mt-3">
       <form
-        className="plat-toolbar"
+        className="flex flex-wrap items-end gap-3"
         onSubmit={(event) => {
           event.preventDefault();
           applyFilters();
         }}
       >
-        <div className="plat-field plat-field-grow">
-          <label className="form-label" htmlFor="billing-transaction-search">Search transactions</label>
+        <div className="flex min-w-0 flex-1 basis-60 flex-col gap-1.5">
+          <label className="text-[13px] font-medium text-ink-2" htmlFor="billing-transaction-search">Search transactions</label>
           <SearchInput
+            className="mb-0"
             aria-label="Search transactions"
             id="billing-transaction-search"
             value={searchDraft}
@@ -1831,11 +1834,11 @@ function CommercialTransactionsPanel({
           />
         </div>
 
-        <div className="plat-field">
-          <label className="form-label" htmlFor="billing-transaction-status">Status</label>
+        <div className="flex min-w-0 flex-col gap-1.5">
+          <label className="text-[13px] font-medium text-ink-2" htmlFor="billing-transaction-status">Status</label>
           <select
             id="billing-transaction-status"
-            className="select-input"
+            className="block h-10 w-full min-w-0 rounded-md border border-line-strong bg-surface px-3 text-sm text-ink placeholder:text-ink-3 focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/15 cursor-pointer pr-8"
             value={query.status}
             onChange={(event) => setQueryField('status', event.target.value)}
           >
@@ -1846,11 +1849,11 @@ function CommercialTransactionsPanel({
           </select>
         </div>
 
-        <div className="plat-field">
-          <label className="form-label" htmlFor="billing-transaction-mode">Payment mode</label>
+        <div className="flex min-w-0 flex-col gap-1.5">
+          <label className="text-[13px] font-medium text-ink-2" htmlFor="billing-transaction-mode">Payment mode</label>
           <select
             id="billing-transaction-mode"
-            className="select-input"
+            className="block h-10 w-full min-w-0 rounded-md border border-line-strong bg-surface px-3 text-sm text-ink placeholder:text-ink-3 focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/15 cursor-pointer pr-8"
             value={query.paymentMode}
             onChange={(event) => setQueryField('paymentMode', event.target.value)}
           >
@@ -1861,11 +1864,11 @@ function CommercialTransactionsPanel({
           </select>
         </div>
 
-        <div className="plat-field">
-          <label className="form-label" htmlFor="billing-transaction-environment">Environment</label>
+        <div className="flex min-w-0 flex-col gap-1.5">
+          <label className="text-[13px] font-medium text-ink-2" htmlFor="billing-transaction-environment">Environment</label>
           <select
             id="billing-transaction-environment"
-            className="select-input"
+            className="block h-10 w-full min-w-0 rounded-md border border-line-strong bg-surface px-3 text-sm text-ink placeholder:text-ink-3 focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/15 cursor-pointer pr-8"
             value={query.environment}
             onChange={(event) => setQueryField('environment', event.target.value)}
           >
@@ -1876,33 +1879,33 @@ function CommercialTransactionsPanel({
           </select>
         </div>
 
-        <div className="plat-field">
-          <label className="form-label" htmlFor="billing-transaction-from">From</label>
+        <div className="flex min-w-0 flex-col gap-1.5">
+          <label className="text-[13px] font-medium text-ink-2" htmlFor="billing-transaction-from">From</label>
           <input
             id="billing-transaction-from"
-            className="form-input"
+            className="block h-10 w-full min-w-0 rounded-md border border-line-strong bg-surface px-3 text-sm text-ink placeholder:text-ink-3 focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/15"
             type="date"
             value={fromDraft}
             onChange={(event) => setFromDraft(event.target.value)}
           />
         </div>
 
-        <div className="plat-field">
-          <label className="form-label" htmlFor="billing-transaction-to">To</label>
+        <div className="flex min-w-0 flex-col gap-1.5">
+          <label className="text-[13px] font-medium text-ink-2" htmlFor="billing-transaction-to">To</label>
           <input
             id="billing-transaction-to"
-            className="form-input"
+            className="block h-10 w-full min-w-0 rounded-md border border-line-strong bg-surface px-3 text-sm text-ink placeholder:text-ink-3 focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/15"
             type="date"
             value={toDraft}
             onChange={(event) => setToDraft(event.target.value)}
           />
         </div>
 
-        <div className="plat-field">
-          <label className="form-label" htmlFor="billing-transaction-test">Test data</label>
+        <div className="flex min-w-0 flex-col gap-1.5">
+          <label className="text-[13px] font-medium text-ink-2" htmlFor="billing-transaction-test">Test data</label>
           <select
             id="billing-transaction-test"
-            className="select-input"
+            className="block h-10 w-full min-w-0 rounded-md border border-line-strong bg-surface px-3 text-sm text-ink placeholder:text-ink-3 focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/15 cursor-pointer pr-8"
             value={query.testData}
             onChange={(event) => setQueryField('testData', event.target.value as TestDataFilter)}
           >
@@ -1912,145 +1915,148 @@ function CommercialTransactionsPanel({
           </select>
         </div>
 
-        <Button type="submit" variant="neutral" className="btn-sm">Apply filters</Button>
+        <Button type="submit" variant="neutral">Apply filters</Button>
         {filtersActive && (
-          <Button type="button" variant="ghost" className="btn-sm" onClick={clearFilters}>Clear filters</Button>
+          <Button type="button" variant="ghost" onClick={clearFilters}>Clear filters</Button>
         )}
       </form>
 
-      <p className="form-hint">
+      <p className="m-0 text-xs text-ink-3">
         Search and dates apply when you submit; the dropdowns apply as soon as they change. Every filter runs in the
         database before the row limit, so nothing matching is hidden behind a newer attempt that does not match.
       </p>
 
       {rangeInverted && (
-        <p className="form-hint">
+        <p className="m-0 text-xs text-ink-3">
           The From date is after the To date, so no attempt can fall inside the range and the table is empty until one
           of them is changed.
         </p>
       )}
 
-      <DataTable
-        columns={[
-          {
-            key: 'reference',
-            header: 'Reference',
-            label: '',
-            render: (row) => (
-              <>
-                <span className="data-table-primary mono">{row.reference}</span>
-                {row.isTestData && <Badge tone="warning">Test</Badge>}
-              </>
-            ),
-          },
-          {
-            key: 'business',
-            header: 'Business',
-            render: (row) => (
-              <>
-                <span className="data-table-primary">{row.businessName}</span>
-                {row.businessIsSandbox && <Badge tone="workspace">sandbox</Badge>}
-                <span className="data-table-secondary">
-                  {row.productName ?? 'Product unavailable'} · {row.planName ?? 'No plan recorded'}
-                  {row.planVersion === null ? '' : ` · v${row.planVersion}`}
-                </span>
-              </>
-            ),
-          },
-          {
-            key: 'amount',
-            header: 'Amount',
-            numeric: true,
-            render: (row) => (row.amountMinor === null ? '—' : formatMoney(row.amountMinor / 100, row.currency)),
-          },
-          {
-            key: 'status',
-            header: 'Status',
-            render: (row) => (
-              <>
-                <StatusBadge status={row.status} />
-                {row.failureReason && <span className="data-table-secondary">{row.failureReason}</span>}
-              </>
-            ),
-          },
-          {
-            key: 'environment',
-            header: 'Environment',
-            render: (row) => (
-              <>
-                <span className="data-table-primary">
-                  {row.environment ? humaniseToken(row.environment) : 'Not recorded'}
-                </span>
-                <span className="data-table-secondary">
-                  {row.paymentMode ? `${humaniseToken(row.paymentMode)} mode` : 'Mode not recorded'}
-                  {row.billingCycle ? ` · ${humaniseToken(row.billingCycle)}` : ''}
-                </span>
-              </>
-            ),
-          },
-          {
-            key: 'references',
-            header: 'Gateway reference',
-            render: (row) =>
-              row.gatewayReference || row.providerReference ? (
+      <div className={tableBleed}>
+        <DataTable
+          columns={[
+            {
+              key: 'reference',
+              header: 'Reference',
+              label: '',
+              render: (row) => (
                 <>
-                  {row.gatewayReference && (
-                    <span className="data-table-primary mono">{row.gatewayReference}</span>
-                  )}
-                  {row.providerReference && (
-                    <span className="data-table-secondary mono">provider {row.providerReference}</span>
-                  )}
+                  <span className="whitespace-nowrap font-mono text-[13px] font-medium text-ink">{row.reference}</span>
+                  {row.isTestData && <Badge tone="warning">Test</Badge>}
                 </>
-              ) : (
-                <span className="data-table-secondary">None recorded</span>
               ),
-          },
-          {
-            key: 'document',
-            header: 'Document',
-            render: (row) =>
-              row.receiptNumber || row.invoiceNumber ? (
+            },
+            {
+              key: 'business',
+              header: 'Business',
+              render: (row) => (
                 <>
-                  <span className="data-table-primary mono">{row.receiptNumber ?? row.invoiceNumber}</span>
-                  <span className="data-table-secondary">
-                    {row.receiptNumber && row.invoiceNumber
-                      ? `receipt · invoice ${row.invoiceNumber}`
-                      : row.receiptNumber
-                        ? 'receipt'
-                        : 'invoice'}
+                  <span className="font-medium text-ink break-words">{row.businessName}</span>
+                  {row.businessIsSandbox && <Badge tone="workspace">sandbox</Badge>}
+                  <span className="m-0 block text-xs text-ink-3 break-words">
+                    {row.productName ?? 'Product unavailable'} · {row.planName ?? 'No plan recorded'}
+                    {row.planVersion === null ? '' : ` · v${row.planVersion}`}
                   </span>
                 </>
-              ) : (
-                <span className="data-table-secondary">Not issued</span>
               ),
-          },
-          {
-            key: 'date',
-            header: 'Date',
-            render: (row) => formatDateTime(row.createdAt),
-          },
-        ]}
-        rows={rows}
-        rowKey={(row) => row.reference}
-        caption="Subscription payment transactions"
-        stacked
-        loading={loading}
-        onRowClick={(row) => setDetailReference(row.reference)}
-        empty={
-          <StateBlock
-            compact
-            variant="empty"
-            title={filtersActive ? 'No attempt matches these filters' : 'No transactions yet'}
-            body={
-              filtersActive
-                ? 'The filters run in the database before the row limit, so an empty result means no attempt matches them at all rather than that a match is further down. Widen the date range or clear a filter.'
-                : 'Checkout attempts appear here once a customer starts a payment.'
-            }
-          />
-        }
-      />
+            },
+            {
+              key: 'amount',
+              header: 'Amount',
+              numeric: true,
+              render: (row) => (row.amountMinor === null ? '—' : formatMoney(row.amountMinor / 100, row.currency)),
+            },
+            {
+              key: 'status',
+              header: 'Status',
+              render: (row) => (
+                <>
+                  <StatusBadge status={row.status} />
+                  {row.failureReason && <span className="m-0 block text-xs text-ink-3 break-words">{row.failureReason}</span>}
+                </>
+              ),
+            },
+            {
+              key: 'environment',
+              header: 'Environment',
+              render: (row) => (
+                <>
+                  <span className="font-medium text-ink break-words">
+                    {row.environment ? humaniseToken(row.environment) : 'Not recorded'}
+                  </span>
+                  <span className="m-0 block text-xs text-ink-3 break-words">
+                    {row.paymentMode ? `${humaniseToken(row.paymentMode)} mode` : 'Mode not recorded'}
+                    {row.billingCycle ? ` · ${humaniseToken(row.billingCycle)}` : ''}
+                  </span>
+                </>
+              ),
+            },
+            {
+              key: 'references',
+              header: 'Gateway reference',
+              render: (row) =>
+                row.gatewayReference || row.providerReference ? (
+                  <>
+                    {row.gatewayReference && (
+                      <span className="whitespace-nowrap font-mono text-[13px] font-medium text-ink">{row.gatewayReference}</span>
+                    )}
+                    {row.providerReference && (
+                      <span className="m-0 block font-mono text-xs text-ink-3 break-words">provider {row.providerReference}</span>
+                    )}
+                  </>
+                ) : (
+                  <span className="m-0 block text-xs text-ink-3 break-words">None recorded</span>
+                ),
+            },
+            {
+              key: 'document',
+              header: 'Document',
+              render: (row) =>
+                row.receiptNumber || row.invoiceNumber ? (
+                  <>
+                    <span className="whitespace-nowrap font-mono text-[13px] font-medium text-ink">{row.receiptNumber ?? row.invoiceNumber}</span>
+                    <span className="m-0 block text-xs text-ink-3 break-words">
+                      {row.receiptNumber && row.invoiceNumber
+                        ? `receipt · invoice ${row.invoiceNumber}`
+                        : row.receiptNumber
+                          ? 'receipt'
+                          : 'invoice'}
+                    </span>
+                  </>
+                ) : (
+                  <span className="m-0 block text-xs text-ink-3 break-words">Not issued</span>
+                ),
+            },
+            {
+              key: 'date',
+              header: 'Date',
+              nowrap: true,
+              render: (row) => formatDateTime(row.createdAt),
+            },
+          ]}
+          rows={rows}
+          rowKey={(row) => row.reference}
+          caption="Subscription payment transactions"
+          stacked
+          loading={loading}
+          onRowClick={(row) => setDetailReference(row.reference)}
+          empty={
+            <StateBlock
+              compact
+              variant="empty"
+              title={filtersActive ? 'No attempt matches these filters' : 'No transactions yet'}
+              body={
+                filtersActive
+                  ? 'The filters run in the database before the row limit, so an empty result means no attempt matches them at all rather than that a match is further down. Widen the date range or clear a filter.'
+                  : 'Checkout attempts appear here once a customer starts a payment.'
+              }
+            />
+          }
+        />
+      </div>
 
-      <p className="form-hint">Select a row to open everything recorded for that attempt.</p>
+      <p className="m-0 text-xs text-ink-3">Select a row to open everything recorded for that attempt.</p>
 
       <CommercialTransactionDetailDialog
         reference={detailReference}
@@ -2158,10 +2164,10 @@ function CommercialTransactionDetailDialog({
       }
     >
       {loading && (
-        <div className="skeleton-inline" role="status" aria-label="Loading the transaction">
-          <span className="skeleton skeleton-text" />
-          <span className="skeleton skeleton-text" />
-          <span className="skeleton skeleton-text is-short" />
+        <div className="py-1" role="status" aria-label="Loading the transaction">
+          <span className="my-1.5 block h-3 animate-pulse rounded bg-tray" />
+          <span className="my-1.5 block h-3 animate-pulse rounded bg-tray" />
+          <span className="my-1.5 block h-3 w-3/5 animate-pulse rounded bg-tray" />
         </div>
       )}
 
@@ -2180,7 +2186,7 @@ function CommercialTransactionDetailDialog({
 
       {!loading && !error && detail && (
         <>
-          <p className="plat-section-sub">The payment</p>
+          <p className="m-0 mb-2 mt-5 text-[13px] font-semibold text-ink-2">The payment</p>
           <DefList
             rows={[
               {
@@ -2198,8 +2204,8 @@ function CommercialTransactionDetailDialog({
                 value: (
                   <>
                     <span>{detail.product?.name ?? 'Not attributed to a catalogue product'}</span>
-                    <p className="data-table-secondary">{planLine}</p>
-                    <p className="data-table-secondary">
+                    <p className="m-0 text-xs text-ink-3 break-words">{planLine}</p>
+                    <p className="m-0 text-xs text-ink-3 break-words">
                       {billedCycle ? `${humaniseToken(billedCycle)} billing cycle` : 'Billing cycle not recorded'}
                     </p>
                   </>
@@ -2210,14 +2216,14 @@ function CommercialTransactionDetailDialog({
                 value: detail.business ? (
                   <>
                     <span>{detail.business.name}</span>
-                    <p className="data-table-secondary">
+                    <p className="m-0 text-xs text-ink-3 break-words">
                       {detail.business.billingEmail ?? 'No billing email recorded'}
                       {detail.business.isSandbox ? ' · sandbox business' : ''}
                       {detail.business.billingStatus ? ` · billing ${detail.business.billingStatus}` : ''}
                     </p>
                   </>
                 ) : (
-                  <span className="is-locked">Not recorded</span>
+                  <span className="m-0 break-words text-[13px] text-ink-3">Not recorded</span>
                 ),
               },
               {
@@ -2225,7 +2231,7 @@ function CommercialTransactionDetailDialog({
                 value: detail.environment ? (
                   humaniseToken(detail.environment)
                 ) : (
-                  <span className="is-locked">Not recorded on this attempt</span>
+                  <span className="m-0 break-words text-[13px] text-ink-3">Not recorded on this attempt</span>
                 ),
               },
               {
@@ -2233,47 +2239,47 @@ function CommercialTransactionDetailDialog({
                 value: detail.paymentMode ? (
                   humaniseToken(detail.paymentMode)
                 ) : (
-                  <span className="is-locked">Not recorded on this attempt</span>
+                  <span className="m-0 break-words text-[13px] text-ink-3">Not recorded on this attempt</span>
                 ),
               },
               { term: 'Created', value: formatDateTime(detail.createdAt) },
               {
                 term: 'Paid',
-                value: detail.paidAt ? formatDateTime(detail.paidAt) : <span className="is-locked">Not paid</span>,
+                value: detail.paidAt ? formatDateTime(detail.paidAt) : <span className="m-0 break-words text-[13px] text-ink-3">Not paid</span>,
               },
               {
                 term: 'Failure reason',
-                value: detail.failureReason ?? <span className="is-locked">None recorded</span>,
+                value: detail.failureReason ?? <span className="m-0 break-words text-[13px] text-ink-3">None recorded</span>,
                 muted: detail.failureReason === null,
               },
             ]}
           />
 
-          <p className="plat-section-sub">Timeline</p>
-          <p className="form-hint">
+          <p className="m-0 mb-2 mt-5 text-[13px] font-semibold text-ink-2">Timeline</p>
+          <p className="m-0 text-xs text-ink-3">
             Each entry names the stored table and column it came from, so a recorded event is distinguishable from a
             value derived for this view. An event that never happened is absent rather than blank.
           </p>
           <Timeline items={timelineEntries} />
 
-          <p className="plat-section-sub">Gateway and verification</p>
+          <p className="m-0 mb-2 mt-5 text-[13px] font-semibold text-ink-2">Gateway and verification</p>
           <DefList
             rows={[
               {
                 term: 'Gateway reference',
                 value: detail.gatewayReference ? (
-                  <span className="mono">{detail.gatewayReference}</span>
+                  <span className="font-mono text-[0.92em]">{detail.gatewayReference}</span>
                 ) : (
-                  <span className="is-locked">None recorded</span>
+                  <span className="m-0 break-words text-[13px] text-ink-3">None recorded</span>
                 ),
                 muted: detail.gatewayReference === null,
               },
               {
                 term: 'Provider reference',
                 value: detail.providerReference ? (
-                  <span className="mono">{detail.providerReference}</span>
+                  <span className="font-mono text-[0.92em]">{detail.providerReference}</span>
                 ) : (
-                  <span className="is-locked">None recorded</span>
+                  <span className="m-0 break-words text-[13px] text-ink-3">None recorded</span>
                 ),
                 muted: detail.providerReference === null,
               },
@@ -2282,7 +2288,7 @@ function CommercialTransactionDetailDialog({
                 value: detail.verifiedAt ? (
                   formatDateTime(detail.verifiedAt)
                 ) : (
-                  <span className="is-locked">Not verified</span>
+                  <span className="m-0 break-words text-[13px] text-ink-3">Not verified</span>
                 ),
                 muted: detail.verifiedAt === null,
               },
@@ -2291,7 +2297,7 @@ function CommercialTransactionDetailDialog({
                 value: detail.settledBy ? (
                   humaniseToken(detail.settledBy)
                 ) : (
-                  <span className="is-locked">No settlement path recorded</span>
+                  <span className="m-0 break-words text-[13px] text-ink-3">No settlement path recorded</span>
                 ),
                 muted: detail.settledBy === null,
               },
@@ -2299,7 +2305,7 @@ function CommercialTransactionDetailDialog({
           />
           <Disclosure summary="Raw verification data from the gateway">
             {detail.verificationData ? (
-              <pre className="code-panel">{JSON.stringify(detail.verificationData, null, 2)}</pre>
+              <pre className="m-0 max-h-[360px] min-w-0 overflow-auto whitespace-pre-wrap rounded-lg border border-line bg-subtle p-3 font-mono text-xs leading-5 text-ink-2 break-words">{JSON.stringify(detail.verificationData, null, 2)}</pre>
             ) : (
               <StateBlock
                 variant="unavailable"
@@ -2309,18 +2315,18 @@ function CommercialTransactionDetailDialog({
             )}
           </Disclosure>
 
-          <p className="plat-section-sub">Invoice and receipt</p>
+          <p className="m-0 mb-2 mt-5 text-[13px] font-semibold text-ink-2">Invoice and receipt</p>
           {detail.invoice ? (
             <>
               <DefList
                 rows={[
-                  { term: 'Invoice', value: <span className="mono">{detail.invoice.number}</span> },
+                  { term: 'Invoice', value: <span className="font-mono text-[0.92em]">{detail.invoice.number}</span> },
                   { term: 'Invoice status', value: <StatusBadge status={detail.invoice.status} /> },
                   { term: 'Subtotal', value: money(detail.invoice.subtotalMinor, detail.invoice.currency) },
                   { term: 'Total', value: money(detail.invoice.totalMinor, detail.invoice.currency) },
                   {
                     term: 'Billing email',
-                    value: detail.invoice.billingEmail ?? <span className="is-locked">None recorded</span>,
+                    value: detail.invoice.billingEmail ?? <span className="m-0 break-words text-[13px] text-ink-3">None recorded</span>,
                     muted: detail.invoice.billingEmail === null,
                   },
                   {
@@ -2328,7 +2334,7 @@ function CommercialTransactionDetailDialog({
                     value: detail.invoice.issuedAt ? (
                       formatDateTime(detail.invoice.issuedAt)
                     ) : (
-                      <span className="is-locked">No issue date recorded</span>
+                      <span className="m-0 break-words text-[13px] text-ink-3">No issue date recorded</span>
                     ),
                     muted: detail.invoice.issuedAt === null,
                   },
@@ -2337,39 +2343,41 @@ function CommercialTransactionDetailDialog({
                     value: detail.invoice.paidAt ? (
                       formatDateTime(detail.invoice.paidAt)
                     ) : (
-                      <span className="is-locked">Not marked paid</span>
+                      <span className="m-0 break-words text-[13px] text-ink-3">Not marked paid</span>
                     ),
                     muted: detail.invoice.paidAt === null,
                   },
                 ]}
               />
-              <DataTable
-                columns={[
-                  {
-                    key: 'line',
-                    header: 'Line',
-                    label: '',
-                    render: (line) => (
-                      <>
-                        <span className="data-table-primary">{line.description ?? humaniseToken(line.type)}</span>
-                        <span className="data-table-secondary">{humaniseToken(line.type)}</span>
-                      </>
-                    ),
-                  },
-                  {
-                    key: 'amount',
-                    header: 'Amount',
-                    numeric: true,
-                    render: (line) =>
-                      money(line.totalAmountMinor ?? line.unitAmountMinor, detail.invoice?.currency ?? detail.currency),
-                  },
-                ]}
-                rows={detail.invoice.lines}
-                rowKey={(line, index) => `${line.type}-${index}`}
-                caption={`Lines on invoice ${detail.invoice.number}`}
-                stacked
-                empty={<span className="data-table-secondary">No invoice lines recorded.</span>}
-              />
+              <div className={tableBleed}>
+                <DataTable
+                  columns={[
+                    {
+                      key: 'line',
+                      header: 'Line',
+                      label: '',
+                      render: (line) => (
+                        <>
+                          <span className="font-medium text-ink break-words">{line.description ?? humaniseToken(line.type)}</span>
+                          <span className="m-0 block text-xs text-ink-3 break-words">{humaniseToken(line.type)}</span>
+                        </>
+                      ),
+                    },
+                    {
+                      key: 'amount',
+                      header: 'Amount',
+                      numeric: true,
+                      render: (line) =>
+                        money(line.totalAmountMinor ?? line.unitAmountMinor, detail.invoice?.currency ?? detail.currency),
+                    },
+                  ]}
+                  rows={detail.invoice.lines}
+                  rowKey={(line, index) => `${line.type}-${index}`}
+                  caption={`Lines on invoice ${detail.invoice.number}`}
+                  stacked
+                  empty={<span className="m-0 block text-xs text-ink-3 break-words">No invoice lines recorded.</span>}
+                />
+              </div>
             </>
           ) : (
             <StateBlock
@@ -2382,15 +2390,15 @@ function CommercialTransactionDetailDialog({
           {detail.receipt ? (
             <DefList
               rows={[
-                { term: 'Receipt', value: <span className="mono">{detail.receipt.number}</span> },
+                { term: 'Receipt', value: <span className="font-mono text-[0.92em]">{detail.receipt.number}</span> },
                 { term: 'Receipt amount', value: money(detail.receipt.amountMinor, detail.receipt.currency) },
                 { term: 'Receipt mode', value: humaniseToken(detail.receipt.paymentMode) },
                 {
                   term: 'Receipt reference',
                   value: detail.receipt.providerReference ? (
-                    <span className="mono">{detail.receipt.providerReference}</span>
+                    <span className="font-mono text-[0.92em]">{detail.receipt.providerReference}</span>
                   ) : (
-                    <span className="is-locked">None recorded</span>
+                    <span className="m-0 break-words text-[13px] text-ink-3">None recorded</span>
                   ),
                   muted: detail.receipt.providerReference === null,
                 },
@@ -2399,7 +2407,7 @@ function CommercialTransactionDetailDialog({
                   value: detail.receipt.paidAt ? (
                     formatDateTime(detail.receipt.paidAt)
                   ) : (
-                    <span className="is-locked">Not marked paid</span>
+                    <span className="m-0 break-words text-[13px] text-ink-3">Not marked paid</span>
                   ),
                   muted: detail.receipt.paidAt === null,
                 },
@@ -2413,14 +2421,14 @@ function CommercialTransactionDetailDialog({
             />
           )}
 
-          <p className="plat-section-sub">Subscription effect</p>
+          <p className="m-0 mb-2 mt-5 text-[13px] font-semibold text-ink-2">Subscription effect</p>
           {effect ? (
             <DefList
               rows={[
                 { term: 'Subscription', value: <StatusBadge status={effect.status} /> },
                 {
                   term: 'Current period',
-                  value: periodLine ?? <span className="is-locked">Period bounds not recorded</span>,
+                  value: periodLine ?? <span className="m-0 break-words text-[13px] text-ink-3">Period bounds not recorded</span>,
                   muted: periodLine === null,
                 },
                 {
@@ -2435,7 +2443,7 @@ function CommercialTransactionDetailDialog({
                   value: effect.entitlementStatus ? (
                     <StatusBadge status={effect.entitlementStatus} />
                   ) : (
-                    <span className="is-locked">No entitlement for this product</span>
+                    <span className="m-0 break-words text-[13px] text-ink-3">No entitlement for this product</span>
                   ),
                   muted: effect.entitlementStatus === null,
                 },
@@ -2444,7 +2452,7 @@ function CommercialTransactionDetailDialog({
                   value: effect.entitlementActivatedAt ? (
                     formatDateTime(effect.entitlementActivatedAt)
                   ) : (
-                    <span className="is-locked">Not recorded</span>
+                    <span className="m-0 break-words text-[13px] text-ink-3">Not recorded</span>
                   ),
                   muted: effect.entitlementActivatedAt === null,
                 },
@@ -2453,16 +2461,16 @@ function CommercialTransactionDetailDialog({
                   value: effect.entitlementExpiresAt ? (
                     `${formatDateTime(effect.entitlementExpiresAt)} · ${formatRelative(effect.entitlementExpiresAt)}`
                   ) : (
-                    <span className="is-locked">No expiry recorded</span>
+                    <span className="m-0 break-words text-[13px] text-ink-3">No expiry recorded</span>
                   ),
                   muted: effect.entitlementExpiresAt === null,
                 },
                 {
                   term: 'Entitlement plan version',
                   value: effect.entitlementPlanVersionId ? (
-                    <span className="mono">{effect.entitlementPlanVersionId}</span>
+                    <span className="font-mono text-[0.92em]">{effect.entitlementPlanVersionId}</span>
                   ) : (
-                    <span className="is-locked">Not recorded</span>
+                    <span className="m-0 break-words text-[13px] text-ink-3">Not recorded</span>
                   ),
                   muted: effect.entitlementPlanVersionId === null,
                 },
@@ -2476,7 +2484,7 @@ function CommercialTransactionDetailDialog({
             />
           )}
 
-          <p className="plat-section-sub">Refunds</p>
+          <p className="m-0 mb-2 mt-5 text-[13px] font-semibold text-ink-2">Refunds</p>
           {detail.refund && detail.refund.state === 'not_implemented' ? (
             <StateBlock
               variant="unavailable"
@@ -2782,8 +2790,8 @@ export default function BillingArea() {
         sortValue: (plan) => plan.name.toLowerCase(),
         render: (plan) => (
           <div>
-            <span className="data-table-primary">{plan.name}</span> <span className="mono">{plan.key}</span>
-            <div className="chip-row">
+            <span className="font-medium text-ink break-words">{plan.name}</span> <span className="font-mono text-[0.92em]">{plan.key}</span>
+            <div className="flex flex-wrap gap-2">
               {plan.isDefault && <Badge tone="brand">default</Badge>}
               <Badge tone={isCustomerVisible(plan) ? 'success' : 'neutral'}>
                 {isCustomerVisible(plan) ? 'on sale' : 'not on sale'}
@@ -2800,11 +2808,11 @@ export default function BillingArea() {
         render: (plan) =>
           plan.monthlyPrice === null ? (
             <div>
-              <span className="data-table-primary">{priceLabel(plan.monthlyPrice, plan.currency)}</span>
-              <p className="data-table-secondary">negotiated</p>
+              <span className="font-medium text-ink break-words">{priceLabel(plan.monthlyPrice, plan.currency)}</span>
+              <p className="m-0 text-xs text-ink-3 break-words">negotiated</p>
             </div>
           ) : (
-            <span className="data-table-primary">{priceLabel(plan.monthlyPrice, plan.currency)}</span>
+            <span className="font-medium text-ink break-words">{priceLabel(plan.monthlyPrice, plan.currency)}</span>
           ),
       },
       {
@@ -2815,11 +2823,11 @@ export default function BillingArea() {
         render: (plan) =>
           plan.annualPrice === null ? (
             <div>
-              <span className="data-table-primary">{priceLabel(plan.annualPrice, plan.currency)}</span>
-              <p className="data-table-secondary">negotiated</p>
+              <span className="font-medium text-ink break-words">{priceLabel(plan.annualPrice, plan.currency)}</span>
+              <p className="m-0 text-xs text-ink-3 break-words">negotiated</p>
             </div>
           ) : (
-            <span className="data-table-primary">{priceLabel(plan.annualPrice, plan.currency)}</span>
+            <span className="font-medium text-ink break-words">{priceLabel(plan.annualPrice, plan.currency)}</span>
           ),
       },
       {
@@ -2829,7 +2837,7 @@ export default function BillingArea() {
           const offer = annualOffer(plan);
           if (!offer) {
             return (
-              <span className="data-table-secondary">
+              <span className="m-0 block text-xs text-ink-3 break-words">
                 {plan.monthlyPrice === null || plan.annualPrice === null ? 'Not priced' : 'No monthly price'}
               </span>
             );
@@ -2838,7 +2846,7 @@ export default function BillingArea() {
             return (
               <div>
                 <Badge tone="warning">Annual costs more</Badge>
-                <p className="data-table-secondary">
+                <p className="m-0 text-xs text-ink-3 break-words">
                   {formatMoney(Math.abs(offer.amount), plan.currency)} more than 12 months
                 </p>
               </div>
@@ -2846,8 +2854,8 @@ export default function BillingArea() {
           }
           return (
             <div>
-              <span className="data-table-primary">{formatMoney(offer.amount, plan.currency)} saved</span>
-              <p className="data-table-secondary">{monthsFreeLabel(offer.months)} free</p>
+              <span className="font-medium text-ink break-words">{formatMoney(offer.amount, plan.currency)} saved</span>
+              <p className="m-0 text-xs text-ink-3 break-words">{monthsFreeLabel(offer.months)} free</p>
             </div>
           );
         },
@@ -2859,11 +2867,11 @@ export default function BillingArea() {
         render: (plan) =>
           plan.userLimit === null ? (
             <div>
-              <span className="data-table-primary">{formatSeatLimit(plan.userLimit)}</span>
-              <p className="data-table-secondary">agreed per deal</p>
+              <span className="font-medium text-ink break-words">{formatSeatLimit(plan.userLimit)}</span>
+              <p className="m-0 text-xs text-ink-3 break-words">agreed per deal</p>
             </div>
           ) : (
-            <span className="data-table-primary">{formatSeatLimit(plan.userLimit)}</span>
+            <span className="font-medium text-ink break-words">{formatSeatLimit(plan.userLimit)}</span>
           ),
       },
       {
@@ -2873,7 +2881,7 @@ export default function BillingArea() {
         sortValue: (plan) => plan.subscriberCount,
         render: (plan) => (
           <div>
-            <span className="data-table-primary">{formatNumber(plan.subscriberCount)}</span>
+            <span className="font-medium text-ink break-words">{formatNumber(plan.subscriberCount)}</span>
           </div>
         ),
       },
@@ -2887,7 +2895,7 @@ export default function BillingArea() {
         key: 'actions',
         header: 'Detail',
         render: (plan) => (
-          <div className="data-table-cell-actions">
+          <div className="data-table-cell-actions flex flex-wrap items-center justify-end gap-2">
             <Button
               variant="ghost"
               className="btn-sm"
@@ -2912,11 +2920,11 @@ export default function BillingArea() {
         sortValue: (row) => row.name.toLowerCase(),
         render: (row) => (
           <div>
-            <Link className="data-table-primary" to={`/platform/businesses/${row.orgId}`}>
+            <Link className="font-medium text-ink no-underline break-words hover:text-brand-ink hover:underline" to={`/platform/businesses/${row.orgId}`}>
               {row.name}
             </Link>{' '}
             {row.isSandbox && <Badge tone="workspace">sandbox</Badge>}
-            <p className="data-table-secondary">{row.ownerEmail ?? 'No owner email'}</p>
+            <p className="m-0 text-xs text-ink-3 break-words">{row.ownerEmail ?? 'No owner email'}</p>
           </div>
         ),
       },
@@ -2928,11 +2936,11 @@ export default function BillingArea() {
           const listPlan = mayView ? findListPlan(plans, row) : null;
           return (
             <div>
-              <span className="data-table-primary">{row.planName ?? 'No plan'}</span>
-              <p className="data-table-secondary">
-                {row.productName} <span className="mono">{row.planKey ?? '—'}</span>
+              <span className="font-medium text-ink break-words">{row.planName ?? 'No plan'}</span>
+              <p className="m-0 text-xs text-ink-3 break-words">
+                {row.productName} <span className="font-mono text-[0.92em]">{row.planKey ?? '—'}</span>
               </p>
-              <p className="data-table-secondary">
+              <p className="m-0 text-xs text-ink-3 break-words">
                 {!mayView
                   ? 'Billing cycle not readable with this account'
                   : listPlan
@@ -2950,7 +2958,7 @@ export default function BillingArea() {
         render: (row) => (
           <div>
             <StatusBadge status={row.entitlementStatus} />
-            <p className="data-table-secondary">Billing: {humaniseToken(row.billingStatus)}</p>
+            <p className="m-0 text-xs text-ink-3 break-words">Billing: {humaniseToken(row.billingStatus)}</p>
           </div>
         ),
       },
@@ -2964,8 +2972,8 @@ export default function BillingArea() {
           const over = limit !== null && limit > -1 && row.seatUsed > limit;
           return (
             <div>
-              <span className="data-table-primary">{formatNumber(row.seatUsed)}</span>
-              <p className="data-table-secondary">of {formatSeatLimit(limit)}</p>
+              <span className="font-medium text-ink break-words">{formatNumber(row.seatUsed)}</span>
+              <p className="m-0 text-xs text-ink-3 break-words">of {formatSeatLimit(limit)}</p>
               {over && <Badge tone="warning">over the agreed limit</Badge>}
             </div>
           );
@@ -2977,13 +2985,13 @@ export default function BillingArea() {
         sortValue: (row) => row.expiresAt ?? '',
         render: (row) => {
           if (row.expiresAt === null) {
-            return <span className="data-table-secondary">No expiry set</span>;
+            return <span className="m-0 block text-xs text-ink-3 break-words">No expiry set</span>;
           }
           const days = daysUntil(row.expiresAt);
           return (
             <div>
-              <span className="data-table-primary">{formatDate(row.expiresAt)}</span>
-              <p className="data-table-secondary">
+              <span className="font-medium text-ink whitespace-nowrap">{formatDate(row.expiresAt)}</span>
+              <p className="m-0 text-xs text-ink-3 break-words">
                 {days !== null && days < 0 ? `Passed ${formatRelative(row.expiresAt)}` : formatRelative(row.expiresAt)}
               </p>
             </div>
@@ -2996,13 +3004,13 @@ export default function BillingArea() {
         render: (row) => {
           // Without platform:view the catalogue was never read, so "not in the
           // catalogue" would be a false absence rather than a real one.
-          if (!mayView) return <span className="data-table-secondary">Catalogue not readable with this account</span>;
+          if (!mayView) return <span className="m-0 block text-xs text-ink-3 break-words">Catalogue not readable with this account</span>;
           const plan = findListPlan(plans, row);
-          if (!plan) return <span className="data-table-secondary">Plan not in the catalogue</span>;
+          if (!plan) return <span className="m-0 block text-xs text-ink-3 break-words">Plan not in the catalogue</span>;
           return (
             <div>
-              <span className="data-table-primary">{priceLabel(plan.monthlyPrice, plan.currency)}/mo</span>
-              <p className="data-table-secondary">{priceLabel(plan.annualPrice, plan.currency)}/yr</p>
+              <span className="font-medium text-ink break-words">{priceLabel(plan.monthlyPrice, plan.currency)}/mo</span>
+              <p className="m-0 text-xs text-ink-3 break-words">{priceLabel(plan.annualPrice, plan.currency)}/yr</p>
             </div>
           );
         },
@@ -3026,8 +3034,8 @@ export default function BillingArea() {
               (listPlan.annualPrice ?? null) !== agreed.annualPrice);
           return (
             <div>
-              <span className="data-table-primary">{priceLabel(agreed.monthlyPrice, agreed.currency ?? 'NGN')}/mo</span>
-              <p className="data-table-secondary">{priceLabel(agreed.annualPrice, agreed.currency ?? 'NGN')}/yr</p>
+              <span className="font-medium text-ink break-words">{priceLabel(agreed.monthlyPrice, agreed.currency ?? 'NGN')}/mo</span>
+              <p className="m-0 text-xs text-ink-3 break-words">{priceLabel(agreed.annualPrice, agreed.currency ?? 'NGN')}/yr</p>
               {listPlan && (
                 <Badge tone={differs ? 'warning' : 'neutral'}>{differs ? 'bespoke deal' : 'matches list'}</Badge>
               )}
@@ -3041,8 +3049,8 @@ export default function BillingArea() {
         sortValue: (row) => row.trialEndsAt ?? '',
         render: (row) => (
           <div>
-            <span className="data-table-primary">{row.trialEndsAt ? formatDate(row.trialEndsAt) : 'No trial'}</span>
-            {row.trialEndsAt && <p className="data-table-secondary">{formatRelative(row.trialEndsAt)}</p>}
+            <span className="font-medium text-ink break-words">{row.trialEndsAt ? formatDate(row.trialEndsAt) : 'No trial'}</span>
+            {row.trialEndsAt && <p className="m-0 text-xs text-ink-3 whitespace-nowrap">{formatRelative(row.trialEndsAt)}</p>}
           </div>
         ),
       },
@@ -3051,13 +3059,13 @@ export default function BillingArea() {
         header: 'Change',
         render: (row) =>
           mayManagePayments ? (
-            <div className="data-table-cell-actions">
+            <div className="data-table-cell-actions flex flex-wrap items-center justify-end gap-2">
               <Button variant="outline" className="btn-sm" onClick={() => setAdjustTarget(row)}>
                 Subscription
               </Button>
             </div>
           ) : (
-            <span className="is-locked">platform:manage_payments required</span>
+            <span className="m-0 break-words text-[13px] text-ink-3">platform:manage_payments required</span>
           ),
       },
     ],
@@ -3081,12 +3089,12 @@ export default function BillingArea() {
   const filtersActive = Boolean(search || statusFilter || productFilter || planFilter || expiryWindow);
   const compareSnapshot = compare ? agreedByOrg[compare.row.orgId] : undefined;
   const periodChips = (
-    <div className="chip-row">
+    <div className="flex flex-wrap gap-2">
       {REPORT_DATE_RANGE_PRESETS.map((option) => (
         <button
           key={option.value}
           type="button"
-          className={`chip${preset === option.value ? ' active' : ''}`}
+          className={chipClass}
           aria-pressed={preset === option.value}
           onClick={() => setPreset(option.value)}
         >
@@ -3096,10 +3104,10 @@ export default function BillingArea() {
     </div>
   );
   const productChips = (
-    <div className="chip-row">
+    <div className="flex flex-wrap gap-2">
       <button
         type="button"
-        className={`chip${productFilter === '' ? ' active' : ''}`}
+        className={chipClass}
         aria-pressed={productFilter === ''}
         onClick={() => setFilter('product', '')}
       >
@@ -3109,7 +3117,7 @@ export default function BillingArea() {
         <button
           key={product.key}
           type="button"
-          className={`chip${productFilter === product.key ? ' active' : ''}`}
+          className={chipClass}
           aria-pressed={productFilter === product.key}
           onClick={() => setFilter('product', product.key)}
         >
@@ -3286,10 +3294,10 @@ export default function BillingArea() {
       />
 
       <Disclosure summary="More billing tools">
-        <div className="btn-row">
-          {availableIds.has('activation') && <Link className="btn btn-ghost btn-sm" to="/platform/activation">Activation keys</Link>}
-          {availableIds.has('settings') && <Link className="btn btn-ghost btn-sm" to="/platform/settings">Billing settings</Link>}
-          {availableIds.has('audit') && <Link className="btn btn-ghost btn-sm" to="/platform/audit">Audit trail</Link>}
+        <div className="flex flex-wrap items-center gap-2">
+          {availableIds.has('activation') && <Link className={btn('ghost', 'sm')} to="/platform/activation">Activation keys</Link>}
+          {availableIds.has('settings') && <Link className={btn('ghost', 'sm')} to="/platform/settings">Billing settings</Link>}
+          {availableIds.has('audit') && <Link className={btn('ghost', 'sm')} to="/platform/audit">Audit trail</Link>}
         </div>
       </Disclosure>
 
@@ -3301,18 +3309,18 @@ export default function BillingArea() {
       ) : section === 'overview' ? (
         <>
           {/* ── Overview: needs attention ─────────────────────────── */}
-          <section className="card" aria-labelledby="billing-overview-attention">
+          <section className="min-w-0 rounded-xl border border-line bg-surface p-5 shadow-card [&>*+*]:mt-4 [&>.section-head+*]:mt-0" aria-labelledby="billing-overview-attention">
             <SectionHead
               id="billing-overview-attention"
               title="Needs attention"
               sub={`${periodLabel} · sandbox payments excluded`}
               actions={
-                attention.length > 0 ? <span className="badge badge-warning">{attention.length}</span> : undefined
+                attention.length > 0 ? <Pill tone="warn">{attention.length}</Pill> : undefined
               }
             />
 
             {overview.error && (
-              <p className="form-hint">
+              <p className="m-0 text-xs text-ink-3">
                 Some overview figures could not be loaded: {overview.error}
               </p>
             )}
@@ -3336,14 +3344,14 @@ export default function BillingArea() {
           </section>
 
           {/* ── Overview: counts, each a route to the list behind it ── */}
-          <section className="card" aria-labelledby="billing-overview-metrics">
+          <section className="min-w-0 [&>*+*]:mt-3 [&>.section-head+*]:mt-0" aria-labelledby="billing-overview-metrics">
             <SectionHead
               id="billing-overview-metrics"
               title="Billing summary"
             />
             <MetricStrip metrics={metrics} />
             {mayReadEntitlements && watchlist.rows.length >= WATCHLIST_LIMIT && (
-              <p className="form-hint">
+              <p className="m-0 text-xs text-ink-3">
                 Trial and expiry windows are computed from the newest {formatNumber(WATCHLIST_LIMIT)} entitlements, so
                 those two counts can under-report. The other counts are totals.
               </p>
@@ -3355,7 +3363,7 @@ export default function BillingArea() {
       ) : section === 'plans' ? (
         <>
           {/* ── Plans: catalogue ──────────────────────────────────── */}
-          <section className="card" aria-labelledby="billing-catalogue">
+          <section className="min-w-0 rounded-xl border border-line bg-surface p-5 shadow-card [&>*+*]:mt-4 [&>.section-head+*]:mt-0" aria-labelledby="billing-catalogue">
             <SectionHead
               id="billing-catalogue"
               title="Plan catalogue"
@@ -3406,27 +3414,29 @@ export default function BillingArea() {
             ) : catalogue.error ? (
               <SectionFailure message={catalogue.error} onRetry={catalogue.reload} />
             ) : (
-              <DataTable
-                columns={planColumns}
-                rows={plans}
-                rowKey={(plan) => plan.id}
-                stacked
-                loading={catalogue.loading}
-                caption="Product plans and list prices"
-                empty={
-                  <StateBlock
-                    variant="empty"
-                    title={
-                      productFilter
-                        ? `No plans exist for ${
-                            products.find((product) => product.key === productFilter)?.name ?? productFilter
-                          }`
-                        : 'No plans exist yet'
-                    }
-                    body="Plans appear here once they are created."
-                  />
-                }
-              />
+              <div className={tableBleed}>
+                <DataTable
+                  columns={planColumns}
+                  rows={plans}
+                  rowKey={(plan) => plan.id}
+                  stacked
+                  loading={catalogue.loading}
+                  caption="Product plans and list prices"
+                  empty={
+                    <StateBlock
+                      variant="empty"
+                      title={
+                        productFilter
+                          ? `No plans exist for ${
+                              products.find((product) => product.key === productFilter)?.name ?? productFilter
+                            }`
+                          : 'No plans exist yet'
+                      }
+                      body="Plans appear here once they are created."
+                    />
+                  }
+                />
+              </div>
             )}
 
             <Disclosure summary="What makes a plan customer-visible">
@@ -3462,7 +3472,7 @@ export default function BillingArea() {
                       term: 'Annual offer',
                       value: (() => {
                         const offer = annualOffer(visiblePlan);
-                        if (!offer) return <span className="is-locked">Not priced — nothing to compare</span>;
+                        if (!offer) return <span className="m-0 break-words text-[13px] text-ink-3">Not priced — nothing to compare</span>;
                         if (offer.amount < 0) {
                           return `${formatMoney(Math.abs(offer.amount), visiblePlan.currency)} more than 12 monthly payments`;
                         }
@@ -3501,19 +3511,19 @@ export default function BillingArea() {
                     },
                     {
                       term: 'Description',
-                      value: visiblePlan.description ?? <span className="is-locked">No description recorded</span>,
+                      value: visiblePlan.description ?? <span className="m-0 break-words text-[13px] text-ink-3">No description recorded</span>,
                     },
                     {
                       term: 'Onboarding note',
                       value: visiblePlan.onboardingNote ?? (
-                        <span className="is-locked">No onboarding note recorded</span>
+                        <span className="m-0 break-words text-[13px] text-ink-3">No onboarding note recorded</span>
                       ),
                     },
                     {
                       term: 'Feature list',
                       value:
                         visiblePlan.features.length > 0 ? (
-                          <div className="chip-row">
+                          <div className="flex flex-wrap gap-2">
                             {visiblePlan.features.map((feature) => (
                               <Badge key={feature.key} tone={feature.upcoming ? 'outline' : 'neutral'}>
                                 {feature.label}
@@ -3522,7 +3532,7 @@ export default function BillingArea() {
                             ))}
                           </div>
                         ) : (
-                          <span className="is-locked">No features recorded for this plan</span>
+                          <span className="m-0 break-words text-[13px] text-ink-3">No features recorded for this plan</span>
                         ),
                     },
                     {
@@ -3534,19 +3544,19 @@ export default function BillingArea() {
                   ]}
                 />
 
-                <p className="form-hint">
+                <p className="m-0 text-xs text-ink-3">
                   The setup fee is charged. A checkout is quoted as the published version&rsquo;s recurring price plus
                   that version&rsquo;s setup fee, and settlement records the fee as its own invoice line. It applies
                   once per product: a business with a successful payment for this product is quoted the recurring price
                   alone. Because checkout quotes the immutable version rather than this row, an edit here reaches
                   customers only through a new published version. Trial length is a plan attribute nothing applies:
                   a trial is granted from the platform setting{' '}
-                  <span className="mono">billing.default_trial_days</span>, and{' '}
-                  <span className="mono">product_plan_versions.trial_days</span> is constrained to 0, so a per-plan
+                  <span className="font-mono text-[0.92em]">billing.default_trial_days</span>, and{' '}
+                  <span className="font-mono text-[0.92em]">product_plan_versions.trial_days</span> is constrained to 0, so a per-plan
                   trial cannot exist.
                 </p>
 
-                <div className="btn-row">
+                <div className="flex flex-wrap items-center gap-2">
                   {mayManagePlans ? (
                     <>
                       <Button onClick={() => setEditingPlan(visiblePlan)}>Edit plan</Button>
@@ -3555,15 +3565,15 @@ export default function BillingArea() {
                       </Button>
                     </>
                   ) : (
-                    <span className="is-locked">Read-only. Changing a plan needs platform:manage_plans.</span>
+                    <span className="m-0 break-words text-[13px] text-ink-3">Read-only. Changing a plan needs platform:manage_plans.</span>
                   )}
                 </div>
-                <p className="form-hint">
+                <p className="m-0 text-xs text-ink-3">
                   Editing saves the row and journals a revision; it never publishes. Publishing stamps the dates and
                   forces the status to active, so a plan also has to be publicly offered before customers see it.
                 </p>
 
-                <p className="plat-section-sub">Who a published change affects</p>
+                <p className="m-0 mb-2 mt-5 text-[13px] font-semibold text-ink-2">Who a published change affects</p>
                 <DefList
                   rows={[
                     {
@@ -3582,7 +3592,7 @@ export default function BillingArea() {
                     {
                       term: 'Named subscribers',
                       value: (
-                        <span className="is-locked">
+                        <span className="m-0 break-words text-[13px] text-ink-3">
                           Not listed: nothing records which subscriptions a price change would touch, so any list here
                           would be invented.
                         </span>
@@ -3592,7 +3602,7 @@ export default function BillingArea() {
                   ]}
                 />
 
-                <p className="plat-section-sub">Change history</p>
+                <p className="m-0 mb-2 mt-5 text-[13px] font-semibold text-ink-2">Change history</p>
                 <SectionState
                   loading={revisionsLoading}
                   error={revisionsError}
@@ -3610,7 +3620,7 @@ export default function BillingArea() {
       ) : section === 'subscriptions' ? (
         <>
           {/* ── Subscriptions: the directory ──────────────────────── */}
-          <section className="card" aria-labelledby="billing-entitlements">
+          <section className="min-w-0 rounded-xl border border-line bg-surface p-5 shadow-card [&>*+*]:mt-4 [&>.section-head+*]:mt-0" aria-labelledby="billing-entitlements">
             <SectionHead
               id="billing-entitlements"
               title="Subscriptions"
@@ -3627,17 +3637,17 @@ export default function BillingArea() {
             ) : (
               <>
                 <form
-                  className="toolbar"
+                  className="flex flex-wrap items-end gap-3"
                   onSubmit={(event) => {
                     event.preventDefault();
                     setFilter('q', searchDraft.trim());
                   }}
                 >
-                  <div className="toolbar-grow">
-                    <label className="form-label" htmlFor="billing-search">
+                  <div className="flex min-w-0 flex-1 basis-60 flex-col gap-1.5">
+                    <label className="text-[13px] font-medium text-ink-2" htmlFor="billing-search">
                       Search businesses
                     </label>
-                    <SearchInput aria-label="Search businesses"
+                    <SearchInput className="mb-0" aria-label="Search businesses"
                       id="billing-search"
 
 
@@ -3647,13 +3657,13 @@ export default function BillingArea() {
                     />
                   </div>
 
-                  <div className="plat-field">
-                    <label className="form-label" htmlFor="billing-status">
+                  <div className="flex min-w-0 flex-col gap-1.5">
+                    <label className="text-[13px] font-medium text-ink-2" htmlFor="billing-status">
                       Entitlement status
                     </label>
                     <select
                       id="billing-status"
-                      className="select-input"
+                      className="block h-10 w-full min-w-0 rounded-md border border-line-strong bg-surface px-3 text-sm text-ink placeholder:text-ink-3 focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/15 cursor-pointer pr-8"
                       value={statusFilter}
                       onChange={(event) => setFilter('status', event.target.value)}
                     >
@@ -3666,13 +3676,13 @@ export default function BillingArea() {
                     </select>
                   </div>
 
-                  <div className="plat-field">
-                    <label className="form-label" htmlFor="billing-plan">
+                  <div className="flex min-w-0 flex-col gap-1.5">
+                    <label className="text-[13px] font-medium text-ink-2" htmlFor="billing-plan">
                       Plan
                     </label>
                     <select
                       id="billing-plan"
-                      className="select-input"
+                      className="block h-10 w-full min-w-0 rounded-md border border-line-strong bg-surface px-3 text-sm text-ink placeholder:text-ink-3 focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/15 cursor-pointer pr-8"
                       value={planFilter}
                       onChange={(event) => setFilter('plan', event.target.value)}
                       disabled={plans.length === 0}
@@ -3686,14 +3696,14 @@ export default function BillingArea() {
                     </select>
                   </div>
 
-                  <button type="submit" className="btn btn-neutral btn-sm">
-                    <span className="btn-label">Search</span>
+                  <button type="submit" className={btn('primary')}>
+                    Search
                   </button>
 
                   {filtersActive && (
                     <button
                       type="button"
-                      className="btn btn-ghost btn-sm"
+                      className={btn('ghost')}
                       onClick={() => {
                         setSearchDraft('');
                         // The section is navigation, not a filter: clearing the
@@ -3704,32 +3714,32 @@ export default function BillingArea() {
                         setSearchParams(next, { replace: true });
                       }}
                     >
-                      <span className="btn-label">Clear filters</span>
+                      Clear filters
                     </button>
                   )}
                 </form>
 
                 {expiryWindow !== null ? (
-                  <p className="form-hint">
+                  <p className="m-0 text-xs text-ink-3">
                     Showing {expiryWindow === 'trials' ? 'trials' : 'entitlements'} inside the next 30 days. The window is
                     applied in this browser because the endpoint filters on status only, so a page can hold fewer rows
                     than its page size.
                   </p>
                 ) : (
                   (searchParams.get('filter') ?? '') !== '' && (
-                    <p className="form-hint">
-                      The dashboard link asked for <span className="mono">{searchParams.get('filter')}</span>, translated
+                    <p className="m-0 text-xs text-ink-3">
+                      The dashboard link asked for <span className="font-mono text-[0.92em]">{searchParams.get('filter')}</span>, translated
                       to {statusFilter ? `${humaniseToken(statusFilter)} entitlements` : 'no filter'}.
                     </p>
                   )
                 )}
                 {planFilter !== '' && (
-                  <p className="form-hint">
+                  <p className="m-0 text-xs text-ink-3">
                     The plan filter is applied in this browser, so a page can show fewer rows than the page size.
                   </p>
                 )}
                 {plans.length === 0 && !catalogue.loading && (
-                  <p className="form-hint">
+                  <p className="m-0 text-xs text-ink-3">
                     The plan list could not be read (it needs platform:view), so only the status filter is available.
                   </p>
                 )}
@@ -3738,25 +3748,27 @@ export default function BillingArea() {
                   <SectionFailure message={entitlements.error} onRetry={entitlements.reload} />
                 ) : (
                   <>
-                    <DataTable
-                      columns={entitlementColumns}
-                      rows={visibleRows}
-                      rowKey={(row) => `${row.orgId}:${row.productKey}`}
-                      stacked
-                      loading={entitlements.loading}
-                      caption="Businesses, their plan and their agreed price"
-                      empty={
-                        <StateBlock
-                          variant="empty"
-                          title={filtersActive ? 'No businesses match these filters' : 'No entitlements yet'}
-                          body={
-                            filtersActive
-                              ? 'Clear the filters or widen the search.'
-                              : 'Entitlements appear as businesses subscribe or redeem an activation key.'
-                          }
-                        />
-                      }
-                    />
+                    <div className={tableBleed}>
+                      <DataTable
+                        columns={entitlementColumns}
+                        rows={visibleRows}
+                        rowKey={(row) => `${row.orgId}:${row.productKey}`}
+                        stacked
+                        loading={entitlements.loading}
+                        caption="Businesses, their plan and their agreed price"
+                        empty={
+                          <StateBlock
+                            variant="empty"
+                            title={filtersActive ? 'No businesses match these filters' : 'No entitlements yet'}
+                            body={
+                              filtersActive
+                                ? 'Clear the filters or widen the search.'
+                                : 'Entitlements appear as businesses subscribe or redeem an activation key.'
+                            }
+                          />
+                        }
+                      />
+                    </div>
                     <Pagination
                       page={page}
                       pageSize={PAGE_SIZE}
@@ -3768,7 +3780,7 @@ export default function BillingArea() {
                   </>
                 )}
 
-                <p className="form-hint">
+                <p className="m-0 text-xs text-ink-3">
                   Check reads the agreed price for one business, from get_platform_business. The renewal date is the
                   entitlement's expiry; a renewal is the extend_expiry adjustment below.
                 </p>
@@ -3777,7 +3789,7 @@ export default function BillingArea() {
           </section>
 
           {/* ── Subscriptions: authorised changes ─────────────────── */}
-          <section className="card" aria-labelledby="billing-changes">
+          <section className="min-w-0 rounded-xl border border-line bg-surface p-5 shadow-card [&>*+*]:mt-4 [&>.section-head+*]:mt-0" aria-labelledby="billing-changes">
             <SectionHead
               id="billing-changes"
               title="Subscription changes"
@@ -3803,7 +3815,7 @@ export default function BillingArea() {
                   <Timeline items={adjustmentEntries} />
                 </SectionState>
 
-                <p className="form-hint">
+                <p className="m-0 text-xs text-ink-3">
                   Most recent 100 platform-wide; no total is returned. A reason of at least 5 characters is required for
                   every adjustment, and each one is copied to the business's support timeline and the audit trail.
                 </p>
@@ -3812,7 +3824,7 @@ export default function BillingArea() {
           </section>
         </>
       ) : section === 'payments' ? (
-        <section className="card" aria-labelledby="billing-payments">
+        <section className="min-w-0 rounded-xl border border-line bg-surface p-5 shadow-card [&>*+*]:mt-4 [&>.section-head+*]:mt-0" aria-labelledby="billing-payments">
           <SectionHead
             id="billing-payments"
             title="Payments and invoices"
@@ -3820,7 +3832,7 @@ export default function BillingArea() {
             actions={periodChips}
           />
 
-          <p className="form-hint">Test transactions are marked and excluded from production revenue.</p>
+          <p className="m-0 text-xs text-ink-3">Test transactions are marked and excluded from production revenue.</p>
 
           {!mayView ? (
             <StateBlock
@@ -3832,7 +3844,7 @@ export default function BillingArea() {
             <SectionFailure message={revenue.error} onRetry={revenue.reload} />
           ) : (
             <>
-              {inbound.paymentsUnavailable && <p className="form-hint">Arrived from the failed-payments link: the transaction table below opens filtered to failed attempts. The period totals cover the full selected range.</p>}
+              {inbound.paymentsUnavailable && <p className="m-0 text-xs text-ink-3">Arrived from the failed-payments link: the transaction table below opens filtered to failed attempts. The period totals cover the full selected range.</p>}
 
               <KpiGrid>
                 <KpiCard
@@ -3858,17 +3870,19 @@ export default function BillingArea() {
                 />
               </KpiGrid>
 
-              <SectionHead title="Recent transactions" sub="The newest 100 attempts matching the filters, across the platform." />
+              <div className="!mt-6 border-t border-line pt-5 [&>.section-head]:mb-0">
+                <SectionHead title="Recent transactions" sub="The newest 100 attempts matching the filters, across the platform." />
+              </div>
               <CommercialTransactionsPanel
                 permitted={mayViewPaymentRecords}
                 refreshToken={refreshToken}
                 initialStatus={inbound.paymentsUnavailable ? 'failed' : 'all'}
               />
 
-              <div className="section-head">
-                <div className="section-head-text">
-                  <h3 className="section-title">Revenue by plan</h3>
-                  <p className="section-sub">
+              <div className="!mt-6 border-t border-line pt-5">
+                <div>
+                  <h3 className="m-0 text-[15px] font-semibold text-ink">Revenue by plan</h3>
+                  <p className="m-0 mt-0.5 text-[13px] text-ink-3">
                     Period total: {revenue.loading ? '—' : formatMoney(revenue.summary?.totalRevenue ?? null)}
                   </p>
                 </div>
@@ -3939,10 +3953,10 @@ export default function BillingArea() {
         description="Snapshotted at activation; never rewritten by a catalogue edit."
       >
         {compare?.loading && (
-          <div className="skeleton-inline" role="status" aria-label="Loading the agreed deal">
-            <span className="skeleton skeleton-text" />
-            <span className="skeleton skeleton-text" />
-            <span className="skeleton skeleton-text is-short" />
+          <div className="py-1" role="status" aria-label="Loading the agreed deal">
+            <span className="my-1.5 block h-3 animate-pulse rounded bg-tray" />
+            <span className="my-1.5 block h-3 animate-pulse rounded bg-tray" />
+            <span className="my-1.5 block h-3 w-3/5 animate-pulse rounded bg-tray" />
           </div>
         )}
 
@@ -3959,9 +3973,9 @@ export default function BillingArea() {
                 ((listPlan.monthlyPrice ?? null) !== compareSnapshot.monthlyPrice ||
                   (listPlan.annualPrice ?? null) !== compareSnapshot.annualPrice);
               return (
-                <div className={differs ? 'callout callout-warning' : 'callout callout-info'}>
+                <div className={`flex min-w-0 flex-col gap-0.5 rounded-lg border px-4 py-3 text-[13px] break-words ${differs ? 'border-warn/30 bg-warn-soft' : 'border-brand-line bg-brand-soft/60'}`}>
                   <div>
-                    <p className="callout-title">
+                    <p className="m-0 text-sm font-semibold text-ink">
                       {!mayView
                         ? 'The catalogue is not readable with this account, so list and agreed cannot be compared'
                         : listPlan === null
@@ -3970,7 +3984,7 @@ export default function BillingArea() {
                             ? 'This customer is on a bespoke deal'
                             : 'This customer is on the published price'}
                     </p>
-                    <p className="callout-text">
+                    <p className="m-0 text-[13px] text-ink-2">
                       Where the two differ, the agreed figure is the deal in force; the catalogue figure applies to new
                       subscriptions only.
                     </p>
@@ -4020,7 +4034,7 @@ export default function BillingArea() {
           </>
         )}
 
-        <p className="form-hint">
+        <p className="m-0 text-xs text-ink-3">
           Read from get_platform_business. &ldquo;Custom&rdquo; means NULL is recorded, not a zero.
         </p>
       </Dialog>

@@ -1,5 +1,6 @@
 import { SearchInput } from '../../../components/ui/SearchInput';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Card, btn } from '../../../components/kit';
 import {
   PlatformAdminService,
   type ProductBusiness,
@@ -246,68 +247,60 @@ export default function SupportArea() {
 
       <AreaCoverage gaps={AREA.gaps} title="What this page cannot do yet" />
 
-      <section className="card" aria-labelledby="support-notes">
-        <SectionHead
-          id="support-notes"
-          title="Support notes"
-          sub="Internal history for the selected business."
-          actions={
-            <Button className="btn-sm" onClick={openDialog} disabled={!selected}>
-              Add note
-            </Button>
-          }
-        />
-
+      <div className="grid min-w-0 items-start gap-4 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:gap-6">
+      <Card aria-labelledby="support-business-title">
+        <SectionHead id="support-business-title" title="Business" sub="Search the directory, then choose whose history to read." />
         <form
-          className="toolbar"
+          className="flex flex-wrap items-end gap-3"
           onSubmit={(event) => {
             event.preventDefault();
             setSearch(searchDraft.trim());
           }}
         >
-          <div className="toolbar-grow">
-            <label className="form-label" htmlFor="support-business-search">
+          <div className="flex min-w-0 flex-1 basis-60 flex-col gap-1.5">
+            <label className="text-[13px] font-medium text-ink-2" htmlFor="support-business-search">
               Find a business
             </label>
-            <SearchInput aria-label="Search businesses"
+            <SearchInput className="mb-0" aria-label="Search businesses"
               id="support-business-search"
               value={searchDraft}
               placeholder="Name, owner email or slug"
               onChange={(event) => setSearchDraft(event.target.value)}
             />
           </div>
-          <button type="submit" className="btn btn-neutral btn-sm">
-            <span className="btn-label">Search</span>
+          <button type="submit" className={btn('primary')}>
+            Search
           </button>
           {search !== '' && (
             <button
               type="button"
-              className="btn btn-ghost btn-sm"
+              className={btn('ghost')}
               onClick={() => {
                 setSearchDraft('');
                 setSearch('');
               }}
             >
-              <span className="btn-label">Clear</span>
+              Clear
             </button>
           )}
         </form>
 
+        <div className="mt-1">
         {directoryError ? (
           <StateBlock
             variant="error"
             title="Could not list businesses"
             body={directoryError}
             actions={
-              <button type="button" className="btn btn-outline btn-sm" onClick={() => void reloadDirectory()}>
-                <span className="btn-label">Try again</span>
+              <button type="button" className={btn('outline', 'sm')} onClick={() => void reloadDirectory()}>
+                Try again
               </button>
             }
           />
         ) : directoryLoading ? (
-          <div className="skeleton-inline" role="status" aria-label="Loading businesses">
-            <span className="skeleton skeleton-text" />
-            <span className="skeleton skeleton-text is-short" />
+          <div className="py-1" role="status" aria-label="Loading businesses">
+            <span className="my-1.5 block h-3 animate-pulse rounded bg-tray" />
+            <span className="my-1.5 block h-3 w-3/5 animate-pulse rounded bg-tray" />
           </div>
         ) : businesses.length === 0 ? (
           <StateBlock
@@ -320,14 +313,14 @@ export default function SupportArea() {
             }
           />
         ) : (
-          <div className="toolbar">
-            <div className="plat-field plat-field-grow">
-              <label className="form-label" htmlFor="support-business">
+          <div className="mt-4 flex flex-wrap items-end gap-3">
+            <div className="flex min-w-0 flex-1 basis-60 flex-col gap-1.5">
+              <label className="text-[13px] font-medium text-ink-2" htmlFor="support-business">
                 Business
               </label>
               <select
                 id="support-business"
-                className="select-input"
+                className="block h-10 w-full min-w-0 rounded-md border border-line-strong bg-surface px-3 text-sm text-ink placeholder:text-ink-3 focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/15 cursor-pointer pr-8"
                 value={selected?.orgId ?? ''}
                 onChange={(event) => {
                   const next = businesses.find((row) => row.orgId === event.target.value) ?? null;
@@ -346,7 +339,7 @@ export default function SupportArea() {
                   </option>
                 ))}
               </select>
-              <p className="form-hint">
+              <p className="m-0 text-xs text-ink-3">
                 {formatNumber(businesses.length)} business{businesses.length === 1 ? '' : 'es'} found
                 {search ? ' for this search' : ''}.
               </p>
@@ -354,8 +347,9 @@ export default function SupportArea() {
           </div>
         )}
 
+        </div>
         {selected && (
-          <div className="plat-section">
+          <div className="mt-5 flex min-w-0 flex-col gap-3 border-t border-line pt-5">
             <DefList
               rows={[
                 { term: 'Business', value: selected.name },
@@ -374,23 +368,36 @@ export default function SupportArea() {
           </div>
         )}
 
+      </Card>
+
+      <section className="min-w-0 rounded-xl border border-line bg-surface p-5 shadow-card [&>*+*]:mt-4 [&>.section-head+*]:mt-0" aria-labelledby="support-notes">
+        <SectionHead
+          id="support-notes"
+          title="Support notes"
+          sub={selected ? `Internal history for ${selected.name}.` : 'Internal history for the selected business.'}
+          actions={
+            <Button className="btn-sm" onClick={openDialog} disabled={!selected}>
+              Add note
+            </Button>
+          }
+        />
         {notesError ? (
           <StateBlock
             variant="error"
             title="Could not load support notes"
             body={notesError}
             actions={
-              <button type="button" className="btn btn-outline btn-sm" onClick={() => void reloadNotes()}>
-                <span className="btn-label">Try again</span>
+              <button type="button" className={btn('outline', 'sm')} onClick={() => void reloadNotes()}>
+                Try again
               </button>
             }
           />
         ) : selected ? (
           <>
-            <div className="callout callout-info">
+            <div className="mb-5 flex min-w-0 flex-col gap-0.5 rounded-lg border px-4 py-3 text-[13px] break-words border-brand-line bg-brand-soft/60">
               <div>
-                <p className="callout-title">Notes are append-only</p>
-                <p className="callout-text">
+                <p className="m-0 text-sm font-semibold text-ink">Notes are append-only</p>
+                <p className="m-0 text-[13px] text-ink-2">
                   There is no edit and no delete path, so a correction means another note — the original stays
                   in the history.
                 </p>
@@ -398,10 +405,10 @@ export default function SupportArea() {
             </div>
 
             {notesLoading ? (
-              <div className="skeleton-inline" role="status" aria-label="Loading notes">
-                <span className="skeleton skeleton-text" />
-                <span className="skeleton skeleton-text" />
-                <span className="skeleton skeleton-text is-short" />
+              <div className="py-1" role="status" aria-label="Loading notes">
+                <span className="my-1.5 block h-3 animate-pulse rounded bg-tray" />
+                <span className="my-1.5 block h-3 animate-pulse rounded bg-tray" />
+                <span className="my-1.5 block h-3 w-3/5 animate-pulse rounded bg-tray" />
               </div>
             ) : (
               <Timeline items={noteEntries} />
@@ -415,6 +422,7 @@ export default function SupportArea() {
           />
         )}
       </section>
+      </div>
 
       <Dialog
         open={dialogOpen}
@@ -432,13 +440,13 @@ export default function SupportArea() {
           </>
         }
       >
-        <div className="form-group">
-          <label className="form-label" htmlFor="support-note-type">
+        <div className="mb-4 flex min-w-0 flex-col gap-1.5">
+          <label className="text-[13px] font-medium text-ink-2" htmlFor="support-note-type">
             Note type
           </label>
           <select
             id="support-note-type"
-            className="select-input"
+            className="block h-10 w-full min-w-0 rounded-md border border-line-strong bg-surface px-3 text-sm text-ink placeholder:text-ink-3 focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/15 cursor-pointer pr-8"
             value={noteType}
             onChange={(event) => setNoteType(event.target.value)}
             disabled={saving}
@@ -449,16 +457,16 @@ export default function SupportArea() {
               </option>
             ))}
           </select>
-          <p className="form-hint">Choose the reason for this note.</p>
+          <p className="m-0 text-xs text-ink-3">Choose the reason for this note.</p>
         </div>
 
-        <div className="form-group">
-          <label className="form-label" htmlFor="support-note-body">
+        <div className="mb-4 flex min-w-0 flex-col gap-1.5">
+          <label className="text-[13px] font-medium text-ink-2" htmlFor="support-note-body">
             Note
           </label>
           <textarea
             id="support-note-body"
-            className="form-input"
+            className="block min-h-24 w-full min-w-0 rounded-md border border-line-strong bg-surface px-3 py-2.5 text-sm text-ink placeholder:text-ink-3 focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/15"
             value={noteBody}
             onChange={(event) => setNoteBody(event.target.value)}
             disabled={saving}
@@ -466,16 +474,16 @@ export default function SupportArea() {
             aria-describedby={noteError ? 'support-note-error' : undefined}
           />
           {noteError && (
-            <p className="form-error" id="support-note-error" role="alert">
+            <p className="m-0 text-xs text-danger" id="support-note-error" role="alert">
               {noteError}
             </p>
           )}
         </div>
 
-        <div className="callout callout-warning">
+        <div className="flex min-w-0 flex-col gap-0.5 rounded-lg border px-4 py-3 text-[13px] break-words border-warn/30 bg-warn-soft">
           <div>
-            <p className="callout-title">This cannot be edited or deleted</p>
-            <p className="callout-text">
+            <p className="m-0 text-sm font-semibold text-ink">This cannot be edited or deleted</p>
+            <p className="m-0 text-[13px] text-ink-2">
               A correction means another note. The audit row records the note type and who wrote it, not the
               text.
             </p>

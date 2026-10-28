@@ -1,3 +1,4 @@
+import { tableBleed, textareaClass } from '../../../components/platform/ui';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   PlatformAdminService,
@@ -163,11 +164,11 @@ function ValueControl({
 }) {
   // The label element may wrap a paragraph for a null value, so it is only used
   // for the control branches below and rendered separately there.
-  const labelClass = hideLabel ? 'form-label sr-only' : 'form-label';
+  const labelClass = hideLabel ? 'sr-only' : 'text-[13px] font-medium text-ink-2';
 
   if (sample === null) {
     return (
-      <p className="is-locked" id={id}>
+      <p className="m-0 break-words text-[13px] text-ink-3" id={id}>
         {hideLabel ? 'Value' : label}: stored as null and cannot be rewritten here.
       </p>
     );
@@ -181,7 +182,7 @@ function ValueControl({
         </label>
         <select
           id={id}
-          className="select-input"
+          className="block h-10 w-full min-w-0 rounded-md border border-line-strong bg-surface px-3 text-sm text-ink placeholder:text-ink-3 focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/15 cursor-pointer pr-8"
           value={value}
           disabled={disabled}
           onChange={(event) => onChange(event.target.value)}
@@ -200,7 +201,7 @@ function ValueControl({
       </label>
       <input
         id={id}
-        className={typeof sample === 'number' ? 'form-input' : 'form-input mono'}
+        className={typeof sample === 'number' ? 'block h-10 w-full min-w-0 rounded-md border border-line-strong bg-surface px-3 text-sm text-ink placeholder:text-ink-3 focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/15' : 'block h-10 w-full min-w-0 rounded-md border border-line-strong bg-surface px-3 text-sm text-ink placeholder:text-ink-3 focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/15 font-mono'}
         type={typeof sample === 'number' ? 'number' : 'text'}
         value={value}
         disabled={disabled}
@@ -397,8 +398,8 @@ export default function SettingsArea() {
         sortValue: (row) => row.name.toLowerCase(),
         render: (row) => (
           <div>
-            <span className="data-table-primary">{row.name}</span>
-            <p className="data-table-secondary mono">{row.key}</p>
+            <span className="font-medium text-ink break-words">{row.name}</span>
+            <p className="m-0 font-mono text-xs text-ink-3 break-words">{row.key}</p>
           </div>
         ),
       },
@@ -411,7 +412,7 @@ export default function SettingsArea() {
       {
         key: 'subject',
         header: 'Subject',
-        render: (row) => row.subject ?? <span className="data-table-secondary">Not set</span>,
+        render: (row) => row.subject ?? <span className="m-0 block text-xs text-ink-3 break-words">Not set</span>,
       },
       {
         key: 'status',
@@ -426,11 +427,11 @@ export default function SettingsArea() {
         render: (row) =>
           row.updatedAt ? (
             <div>
-              <span className="data-table-primary">{formatDateTime(row.updatedAt)}</span>
-              <p className="data-table-secondary">{formatRelative(row.updatedAt)}</p>
+              <span className="font-medium text-ink whitespace-nowrap">{formatDateTime(row.updatedAt)}</span>
+              <p className="m-0 text-xs text-ink-3 whitespace-nowrap">{formatRelative(row.updatedAt)}</p>
             </div>
           ) : (
-            <span className="data-table-secondary">—</span>
+            <span className="m-0 block text-xs text-ink-3 break-words">—</span>
           ),
       },
       {
@@ -517,8 +518,7 @@ export default function SettingsArea() {
       <AreaCoverage gaps={AREA.gaps} title="What this screen cannot do" />
 
       {/* ── How these settings behave ───────────────────────────────── */}
-      <Disclosure summary="Setting constraints and reference">
-      <section className="card" aria-labelledby="settings-rules">
+      <Disclosure summary="Setting constraints and reference"><section className="min-w-0 [&>*+*]:mt-4 [&>.section-head+*]:mt-0" aria-labelledby="settings-rules">
         <SectionHead
           id="settings-rules"
           title="How these settings behave"
@@ -527,45 +527,45 @@ export default function SettingsArea() {
 
         <Disclosure summary="What the server refuses, and which keys anything reads">
           <p>
-            <span className="mono">set_platform_setting()</span> (rewritten in migration 089, section 7.5) cannot create a
+            <span className="font-mono text-[0.92em]">set_platform_setting()</span> (rewritten in migration 089, section 7.5) cannot create a
             setting: an unknown key is refused outright. It cannot add a key to an object value, because the replacement must not define a key the stored
             value does not, and it refuses a value whose JSON type differs from the stored one. Any key or value matching{' '}
-            <span className="mono">secret|password|token|api_key|private_key|service_role</span> is refused — credentials
+            <span className="font-mono text-[0.92em]">secret|password|token|api_key|private_key|service_role</span> is refused — credentials
             belong in server-side secret storage, which is why this screen offers no field for them. A refused save shows
             the server&rsquo;s own message on the row.
           </p>
 
-          <p className="section-sub">
+          <p className="m-0 mt-0.5 text-[13px] text-ink-3">
             Billing availability, trial rules and sandbox restrictions use the operational settings shown above.
             The legacy keys below are retained for compatibility and do not control those rules.
           </p>
-          <ul className="list">
+          <ul className="m-0 flex list-none flex-col divide-y divide-line p-0">
             {INERT_NOTES.map((entry) => (
-              <li className="list-item" key={entry.key}>
+              <li className="flex min-w-0 items-center justify-between gap-3 py-3 first:pt-0 last:pb-0" key={entry.key}>
                 <div>
-                  <p className="list-item-title">
-                    <span className="mono">{entry.key}</span> <Badge tone="outline">read by nothing</Badge>
+                  <p className="m-0 text-sm font-medium text-ink break-words">
+                    <span className="font-mono text-[0.92em]">{entry.key}</span> <Badge tone="outline">read by nothing</Badge>
                   </p>
-                  <p className="list-item-subtitle">{entry.note}</p>
+                  <p className="m-0 mt-0.5 text-xs text-ink-3 break-words">{entry.note}</p>
                 </div>
               </li>
             ))}
           </ul>
-          <p className="section-sub">
+          <p className="m-0 mt-0.5 text-[13px] text-ink-3">
             A key this build does not declare is not listed anywhere in the repository either: treat it as inert until a
             migration or a service starts to read it.
           </p>
         </Disclosure>
 
         {!canManage && (
-          <p className="is-locked">
+          <p className="m-0 break-words text-[13px] text-ink-3">
             Read-only: values are visible, no control is offered, because this account lacks
             platform:manage_settings.
           </p>
         )}
 
-        <p className="section-sub">
-          <span className="mono">{ENVIRONMENT_SETTING_KEY}</span> is declared by no migration and cannot be created here
+        <p className="m-0 mt-0.5 text-[13px] text-ink-3">
+          <span className="font-mono text-[0.92em]">{ENVIRONMENT_SETTING_KEY}</span> is declared by no migration and cannot be created here
           either, so the environment marker on the developer screen falls back to the build and reads &ldquo;Not
           configured&rdquo;.
         </p>
@@ -574,16 +574,16 @@ export default function SettingsArea() {
 
       {/* ── Settings by category ────────────────────────────────────── */}
       {error && (
-        <div className="callout callout-danger" role="alert">
+        <div className="flex min-w-0 flex-col gap-0.5 rounded-lg border px-4 py-3 text-[13px] break-words border-danger/30 bg-danger-soft" role="alert">
           <div>
-            <p className="callout-title">Platform settings could not be loaded</p>
-            <p className="callout-text">{error}</p>
+            <p className="m-0 text-sm font-semibold text-ink">Platform settings could not be loaded</p>
+            <p className="m-0 text-[13px] text-ink-2">{error}</p>
           </div>
         </div>
       )}
 
       {grouped.map((group) => (
-        <section className="card" key={group.id} aria-labelledby={`settings-${group.id}`}>
+        <section className="min-w-0 rounded-xl border border-line bg-surface p-5 shadow-card [&>*+*]:mt-4 [&>.section-head+*]:mt-0" key={group.id} aria-labelledby={`settings-${group.id}`}>
           <SectionHead id={`settings-${group.id}`} title={group.title} />
 
           {loading && settings.length === 0 ? (
@@ -591,16 +591,16 @@ export default function SettingsArea() {
               {null}
             </SectionState>
           ) : group.entries.length === 0 ? (
-            <p className="section-sub">No settings are stored in this group.</p>
+            <p className="m-0 mt-0.5 text-[13px] text-ink-3">No settings are stored in this group.</p>
           ) : (
             group.entries.map((entry) => {
               const label = CATEGORY_LABEL[entry.category];
               return (
                 <div key={entry.category}>
-                  <h3 className="section-title">{label ?? entry.category}</h3>
-                  {!label && <p className="section-sub">This category is not described in this build.</p>}
+                  <h3 className="m-0 text-[13px] font-semibold text-ink-2">{label ?? entry.category}</h3>
+                  {!label && <p className="m-0 mt-0.5 text-[13px] text-ink-3">This category is not described in this build.</p>}
 
-                  <ul className="list">
+                  <ul className="m-0 mt-2 flex list-none flex-col divide-y divide-line border-t border-line p-0 [&>li:first-child]:pt-4">
                     {entry.rows.map((setting) => {
                       const readBy = READ_BY_CODE[setting.key];
                       const value = setting.value;
@@ -609,50 +609,50 @@ export default function SettingsArea() {
                       const rowError = rowErrors[setting.key];
 
                       return (
-                        <li className="list-item" key={setting.key}>
-                          <div className="plat-setting-main">
-                            <p className="list-item-title">
-                              <span className="mono">{setting.key}</span>{' '}
+                        <li className="flex min-w-0 flex-col gap-3 py-4 first:pt-0 last:pb-0 md:flex-row md:items-start md:justify-between" key={setting.key}>
+                          <div className="min-w-0 flex-1">
+                            <p className="m-0 text-sm font-medium text-ink break-words">
+                              <span className="font-mono text-[0.92em]">{setting.key}</span>{' '}
                               {readBy ? (
                                 <Badge tone="info">read by code</Badge>
                               ) : (
                                 <Badge tone="outline">read by nothing</Badge>
                               )}
                             </p>
-                            <p className="list-item-subtitle">
+                            <p className="m-0 mt-0.5 text-xs text-ink-3 break-words">
                               {setting.description ?? 'No description recorded for this setting.'}
                             </p>
                             {readBy && (
-                              <p className="list-item-subtitle">
+                              <p className="m-0 mt-0.5 text-xs text-ink-3 break-words">
                                 Fails closed: anything other than true refuses every override, and so does the absence of
                                 the row.
                               </p>
                             )}
-                            <p className="list-item-subtitle">
+                            <p className="m-0 mt-0.5 text-xs text-ink-3 break-words">
                               Last updated {formatDateTime(setting.updatedAt)}
                               {setting.updatedAt ? ` (${formatRelative(setting.updatedAt)})` : ''}
                             </p>
                             {isObject && (
-                              <p className="list-item-subtitle">
+                              <p className="m-0 mt-0.5 text-xs text-ink-3 break-words">
                                 Only options the stored object already defines can be changed; a new one needs a
                                 migration.
                               </p>
                             )}
 
                             {rowError && (
-                              <p className="form-error" role="alert">
+                              <p className="m-0 text-xs text-danger" role="alert">
                                 {rowError}
                               </p>
                             )}
                           </div>
 
-                          <div className="plat-setting-edit">
+                          <div className="flex min-w-0 flex-wrap items-end gap-2 md:w-[360px] md:shrink-0 md:flex-nowrap">
                             {isObject ? (
                               // One control per key the stored object already defines.
                               // A new option has to arrive by migration, because the
                               // server refuses a key the stored object does not define.
                               Object.keys(value as Record<string, unknown>).map((objectKey) => (
-                                <div className="plat-field" key={objectKey}>
+                                <div className="flex min-w-0 flex-col gap-1.5" key={objectKey}>
                                   <ValueControl
                                     id={`setting-${setting.key}-${objectKey}`}
                                     label={objectKey}
@@ -672,6 +672,7 @@ export default function SettingsArea() {
                                 </div>
                               ))
                             ) : (
+                              <div className="flex min-w-0 flex-1 flex-col gap-1.5">
                               <ValueControl
                                 id={`setting-${setting.key}`}
                                 label={setting.key}
@@ -683,11 +684,11 @@ export default function SettingsArea() {
                                   setDrafts((current) => ({ ...current, [setting.key]: next }))
                                 }
                               />
+                              </div>
                             )}
 
                             {canManage ? (
                               <Button
-                                className="btn-sm"
                                 loading={busyRow}
                                 disabled={!isDirty(setting) || busyRow}
                                 onClick={() => void saveSetting(setting)}
@@ -695,7 +696,7 @@ export default function SettingsArea() {
                                 Save
                               </Button>
                             ) : (
-                              <span className="is-locked">Needs platform:manage_settings</span>
+                              <span className="m-0 break-words text-[13px] text-ink-3">Needs platform:manage_settings</span>
                             )}
                           </div>
                         </li>
@@ -710,7 +711,7 @@ export default function SettingsArea() {
       ))}
 
       {/* ── Notification templates ──────────────────────────────────── */}
-      <section className="card" aria-labelledby="settings-templates">
+      <section className="min-w-0 rounded-xl border border-line bg-surface p-5 shadow-card [&>*+*]:mt-4 [&>.section-head+*]:mt-0" aria-labelledby="settings-templates">
         <SectionHead
           id="settings-templates"
           title="Notification templates"
@@ -737,20 +738,20 @@ export default function SettingsArea() {
           }
         />
 
-        <div className="callout callout-warning">
+        <div className="flex min-w-0 flex-col gap-0.5 rounded-lg border px-4 py-3 text-[13px] break-words border-warn/30 bg-warn-soft">
           <div>
-            <p className="callout-title">No template is sent, and none is seeded</p>
-            <p className="callout-text">
+            <p className="m-0 text-sm font-semibold text-ink">No template is sent, and none is seeded</p>
+            <p className="m-0 text-[13px] text-ink-2">
               A template saved here is stored, recorded in the audit trail, and never delivered. Treat this as content
               preparation, not as message configuration.
             </p>
             <Disclosure summary="Why nothing sends these">
               <p>
-                The <span className="mono">notification_templates</span> table is created by migration 066 and no migration
+                The <span className="font-mono text-[0.92em]">notification_templates</span> table is created by migration 066 and no migration
                 inserts a row into it, so a fresh database genuinely has none. No email or SMS <em>sender</em> exists
                 anywhere in this application either: the only Edge Functions are the payment and logout ones. The single
                 email the application can trigger is Supabase Auth&rsquo;s own verification resend (
-                <span className="mono">src/services/auth.service.ts</span>), which is not an application sender and cannot
+                <span className="font-mono text-[0.92em]">src/services/auth.service.ts</span>), which is not an application sender and cannot
                 read these templates.
               </p>
             </Disclosure>
@@ -765,20 +766,22 @@ export default function SettingsArea() {
           emptyBody="No rows. Anything created here is stored and never sent."
           onRetry={load}
         >
-          <DataTable
-            columns={templateColumns}
-            rows={templates}
-            rowKey={(row) => row.id}
-            caption="Notification templates"
-            stacked
-          />
+          <div className={tableBleed}>
+            <DataTable
+              columns={templateColumns}
+              rows={templates}
+              rowKey={(row) => row.id}
+              caption="Notification templates"
+              stacked
+            />
+          </div>
         </SectionState>
       </section>
 
       {/* ── Missing ─────────────────────────────────────────────────── */}
-      <section className="card" aria-labelledby="settings-missing">
+      <section className="min-w-0 rounded-xl border border-line bg-surface p-5 shadow-card [&>*+*]:mt-4 [&>.section-head+*]:mt-0" aria-labelledby="settings-missing">
         <SectionHead id="settings-missing" title="Not built for settings" />
-        <ul className="list">
+        <ul className="m-0 flex list-none flex-col divide-y divide-line p-0">
           {[
             'No history: the previous value survives only in the PLATFORM_SETTING_UPDATED audit row.',
             'No delete: no endpoint removes a setting or a template, so a declared key is permanent.',
@@ -786,12 +789,12 @@ export default function SettingsArea() {
             'No secrets management, deliberately: the server refuses credential-shaped keys and values.',
             'No preview or dry run: a change takes effect immediately, today for a single key.',
           ].map((item) => (
-            <li className="list-item" key={item}>
+            <li className="flex min-w-0 items-center justify-between gap-3 py-3 first:pt-0 last:pb-0" key={item}>
               <div>
-                <p className="list-item-title">
+                <p className="m-0 text-sm font-medium text-ink break-words">
                   <StatusBadge status="not_configured" /> <Badge tone="outline">no endpoint</Badge>
                 </p>
-                <p className="list-item-subtitle">{item}</p>
+                <p className="m-0 mt-0.5 text-xs text-ink-3 break-words">{item}</p>
               </div>
             </li>
           ))}
@@ -817,22 +820,22 @@ export default function SettingsArea() {
       >
         {templateDraft && (
           <>
-            <div className="callout callout-warning">
+            <div className="flex min-w-0 flex-col gap-0.5 rounded-lg border px-4 py-3 text-[13px] break-words border-warn/30 bg-warn-soft">
               <div>
-                <p className="callout-title">Stored, never sent</p>
-                <p className="callout-text">
+                <p className="m-0 text-sm font-semibold text-ink">Stored, never sent</p>
+                <p className="m-0 text-[13px] text-ink-2">
                   The one message this application can trigger — Supabase Auth&rsquo;s verification resend — does not read
                   this table, and the body is deliberately kept out of the audit trail.
                 </p>
               </div>
             </div>
 
-            <label className="form-label" htmlFor="template-key">
+            <label className="text-[13px] font-medium text-ink-2" htmlFor="template-key">
               Key
             </label>
             <input
               id="template-key"
-              className="form-input mono"
+              className="block h-10 w-full min-w-0 rounded-md border border-line-strong bg-surface px-3 text-sm text-ink placeholder:text-ink-3 focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/15 font-mono"
               value={templateDraft.key}
               // The RPC upserts on the key, so editing one here would insert a
               // second template instead of renaming this one.
@@ -840,26 +843,26 @@ export default function SettingsArea() {
               onChange={(event) => setTemplateDraft({ ...templateDraft, key: event.target.value })}
             />
             {templateDraft.existingKey !== null && (
-              <p className="form-hint">The key cannot be changed: the save is an upsert keyed on it.</p>
+              <p className="m-0 text-xs text-ink-3">The key cannot be changed: the save is an upsert keyed on it.</p>
             )}
 
-            <label className="form-label" htmlFor="template-name">
+            <label className="text-[13px] font-medium text-ink-2" htmlFor="template-name">
               Name
             </label>
             <input
               id="template-name"
-              className="form-input"
+              className="block h-10 w-full min-w-0 rounded-md border border-line-strong bg-surface px-3 text-sm text-ink placeholder:text-ink-3 focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/15"
               value={templateDraft.name}
               disabled={savingTemplate}
               onChange={(event) => setTemplateDraft({ ...templateDraft, name: event.target.value })}
             />
 
-            <label className="form-label" htmlFor="template-channel">
+            <label className="text-[13px] font-medium text-ink-2" htmlFor="template-channel">
               Channel
             </label>
             <select
               id="template-channel"
-              className="select-input"
+              className="block h-10 w-full min-w-0 rounded-md border border-line-strong bg-surface px-3 text-sm text-ink placeholder:text-ink-3 focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/15 cursor-pointer pr-8"
               value={templateDraft.channel}
               disabled={savingTemplate}
               onChange={(event) => setTemplateDraft({ ...templateDraft, channel: event.target.value })}
@@ -871,37 +874,35 @@ export default function SettingsArea() {
               ))}
             </select>
 
-            <label className="form-label" htmlFor="template-subject">
+            <label className="text-[13px] font-medium text-ink-2" htmlFor="template-subject">
               Subject (optional)
             </label>
             <input
               id="template-subject"
-              className="form-input"
+              className="block h-10 w-full min-w-0 rounded-md border border-line-strong bg-surface px-3 text-sm text-ink placeholder:text-ink-3 focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/15"
               value={templateDraft.subject}
               disabled={savingTemplate}
               onChange={(event) => setTemplateDraft({ ...templateDraft, subject: event.target.value })}
             />
 
-            <label className="form-label" htmlFor="template-body">
+            <label className="text-[13px] font-medium text-ink-2" htmlFor="template-body">
               Body
             </label>
             <textarea
               id="template-body"
-              // Deliberately not .form-input: that class pins height and horizontal
-              // padding for single-line controls, while waya.css styles a bare
-              // textarea with min-height and vertical resize.
+              className={textareaClass}
               rows={6}
               value={templateDraft.body}
               disabled={savingTemplate}
               onChange={(event) => setTemplateDraft({ ...templateDraft, body: event.target.value })}
             />
 
-            <label className="form-label" htmlFor="template-status">
+            <label className="text-[13px] font-medium text-ink-2" htmlFor="template-status">
               Status
             </label>
             <select
               id="template-status"
-              className="select-input"
+              className="block h-10 w-full min-w-0 rounded-md border border-line-strong bg-surface px-3 text-sm text-ink placeholder:text-ink-3 focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/15 cursor-pointer pr-8"
               value={templateDraft.status}
               disabled={savingTemplate}
               onChange={(event) => setTemplateDraft({ ...templateDraft, status: event.target.value })}
@@ -911,7 +912,7 @@ export default function SettingsArea() {
             </select>
 
             {templateFormError && (
-              <p className="form-error" role="alert">
+              <p className="m-0 text-xs text-danger" role="alert">
                 {templateFormError}
               </p>
             )}

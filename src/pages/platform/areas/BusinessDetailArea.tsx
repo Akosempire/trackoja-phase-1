@@ -1,3 +1,4 @@
+import { tableBleed } from '../../../components/platform/ui';
 import { TrialExtension } from '../../../components/platform/TrialExtension';
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -219,7 +220,7 @@ export default function BusinessDetailArea() {
 
   const identityRows: DefRow[] = [
     { term: 'Business name', value: name },
-    { term: 'Slug', value: <span className="mono">{str(organization, 'slug') ?? '—'}</span> },
+    { term: 'Slug', value: <span className="font-mono text-[0.92em]">{str(organization, 'slug') ?? '—'}</span> },
     { term: 'Business type', value: categoryLabel(str(organization, 'business_category')) },
     { term: 'Owner', value: str(organization, 'owner_email') ?? 'Not recorded' },
     billingEmailRow(detail?.billingEmail),
@@ -276,8 +277,8 @@ export default function BusinessDetailArea() {
       label: '',
       render: (row) => (
         <div>
-          <span className="data-table-primary">{str(row, 'email') ?? str(row, 'user_email') ?? 'Unknown'}</span>
-          <p className="data-table-secondary">{str(row, 'role') ?? 'No role'}</p>
+          <span className="font-medium text-ink break-words">{str(row, 'email') ?? str(row, 'user_email') ?? 'Unknown'}</span>
+          <p className="m-0 text-xs text-ink-3 break-words">{str(row, 'role') ?? 'No role'}</p>
         </div>
       ),
     },
@@ -297,7 +298,7 @@ export default function BusinessDetailArea() {
       render: (row) => formatMoney(num(row, 'amount')),
     },
     { key: 'status', header: 'Status', render: (row) => <StatusBadge status={str(row, 'status')} /> },
-    { key: 'reference', header: 'Reference', render: (row) => <span className="mono">{str(row, 'reference') ?? '—'}</span> },
+    { key: 'reference', header: 'Reference', render: (row) => <span className="font-mono text-[0.92em]">{str(row, 'reference') ?? '—'}</span> },
     { key: 'created', header: 'Recorded', render: (row) => formatDateTime(str(row, 'created_at')) },
   ];
 
@@ -347,7 +348,8 @@ export default function BusinessDetailArea() {
         ]}
       />
 
-      <section className="card">
+            <div className="grid min-w-0 items-start gap-4 lg:grid-cols-2 lg:gap-6">
+<section className="min-w-0 rounded-xl border border-line bg-surface p-5 shadow-card [&>*+*]:mt-4 [&>.section-head+*]:mt-0">
         <SectionHead
           title="Business"
           sub="Identity and billing"
@@ -362,7 +364,7 @@ export default function BusinessDetailArea() {
         <DefList rows={identityRows} />
       </section>
 
-      <section className="card">
+      <section className="min-w-0 rounded-xl border border-line bg-surface p-5 shadow-card [&>*+*]:mt-4 [&>.section-head+*]:mt-0">
         <SectionHead
           title="Access & entitlement"
           sub="What grants access. The seat limit is enforced against it."
@@ -371,10 +373,10 @@ export default function BusinessDetailArea() {
           <>
             <DefList rows={subscriptionRows} />
             {seatsAtLimit && (
-              <div className="callout callout-warning">
+              <div className="mt-4 flex min-w-0 flex-col gap-0.5 rounded-lg border px-4 py-3 text-[13px] break-words border-warn/30 bg-warn-soft">
                 <div>
-                  <p className="callout-title">Seat allowance is full</p>
-                  <p className="callout-text">
+                  <p className="m-0 text-sm font-semibold text-ink">Seat allowance is full</p>
+                  <p className="m-0 text-[13px] text-ink-2">
                     {formatNumber(seatUsed)} of {formatSeatLimit(seatLimit)} in use. Adding staff will be refused.
                   </p>
                 </div>
@@ -390,70 +392,82 @@ export default function BusinessDetailArea() {
         )}
 
         {can('platform:manage_payments') && entitlements.filter((row) => str(row, 'status') === 'trialing' && str(row, 'id')).map((row) =>
-          <TrialExtension key={str(row, 'id')!} entitlementId={str(row, 'id')!} onSaved={load} />)}
+          <div className="mt-4" key={str(row, 'id')!}><TrialExtension entitlementId={str(row, 'id')!} onSaved={load} /></div>)}
         {entitlements.length > 1 && (
-          <div>
+          <div className="mt-6">
             <SectionHead title="Other products" />
-            <DataTable
-              columns={[
-                { key: 'product', header: 'Product', render: (row) => str(row, 'product_name') ?? '—' },
-                { key: 'status', header: 'Status', render: (row) => <StatusBadge status={str(row, 'status')} /> },
-                { key: 'plan', header: 'Plan', render: (row) => str(row, 'plan_name') ?? '—' },
-                { key: 'expires', header: 'Expires', render: (row) => formatDate(str(row, 'expires_at')) },
-              ]}
-              rows={entitlements.slice(1)}
-              rowKey={(row, index) => str(row, 'id') ?? `entitlement-${index}`}
-              stacked
-              caption="Additional product entitlements"
-            />
+            <div className={tableBleed}>
+              <DataTable
+                columns={[
+                  { key: 'product', header: 'Product', render: (row) => str(row, 'product_name') ?? '—' },
+                  { key: 'status', header: 'Status', render: (row) => <StatusBadge status={str(row, 'status')} /> },
+                  { key: 'plan', header: 'Plan', render: (row) => str(row, 'plan_name') ?? '—' },
+                  { key: 'expires', header: 'Expires', render: (row) => formatDate(str(row, 'expires_at')) },
+                ]}
+                rows={entitlements.slice(1)}
+                rowKey={(row, index) => str(row, 'id') ?? `entitlement-${index}`}
+                stacked
+                caption="Additional product entitlements"
+              />
+            </div>
           </div>
         )}
       </section>
+      </div>
 
-      <section className="card">
+            <div className="grid min-w-0 items-start gap-4 lg:grid-cols-2 lg:gap-6">
+<section className="min-w-0 rounded-xl border border-line bg-surface p-5 shadow-card [&>*+*]:mt-4 [&>.section-head+*]:mt-0">
         <SectionHead title="Stores" />
-        <DataTable
-          columns={[
-            { key: 'name', header: 'Store', label: '', render: (row) => str(row, 'name') ?? 'Unnamed store' },
-            { key: 'status', header: 'Status', render: (row) => <StatusBadge status={str(row, 'status')} /> },
-            { key: 'created', header: 'Created', render: (row) => formatDate(str(row, 'created_at')) },
-          ]}
-          rows={detail?.stores ?? []}
-          rowKey={(row, index) => str(row, 'id') ?? `store-${index}`}
-          stacked
-          caption="Stores"
-          empty={<p className="data-table-secondary">No stores recorded for this business.</p>}
-        />
+        <div className={tableBleed}>
+          <DataTable
+            columns={[
+              { key: 'name', header: 'Store', label: '', render: (row) => str(row, 'name') ?? 'Unnamed store' },
+              { key: 'status', header: 'Status', render: (row) => <StatusBadge status={str(row, 'status')} /> },
+              { key: 'created', header: 'Created', render: (row) => formatDate(str(row, 'created_at')) },
+            ]}
+            rows={detail?.stores ?? []}
+            rowKey={(row, index) => str(row, 'id') ?? `store-${index}`}
+            stacked
+            caption="Stores"
+            empty={<p className="m-0 text-xs text-ink-3 break-words">No stores recorded for this business.</p>}
+          />
+        </div>
       </section>
 
-      <section className="card">
+      <section className="min-w-0 rounded-xl border border-line bg-surface p-5 shadow-card [&>*+*]:mt-4 [&>.section-head+*]:mt-0">
         <SectionHead
           title={`Staff (${formatNumber(seatUsed)} seats used)`}
           sub="Across this business's stores"
         />
-        <DataTable
-          columns={staffColumns}
-          rows={detail?.staff ?? []}
-          rowKey={(row, index) => str(row, 'user_id') ?? str(row, 'id') ?? `staff-${index}`}
-          stacked
-          caption="Staff accounts"
-          empty={<p className="data-table-secondary">No staff records. The business owner is not listed as staff.</p>}
-        />
+        <div className={tableBleed}>
+          <DataTable
+            columns={staffColumns}
+            rows={detail?.staff ?? []}
+            rowKey={(row, index) => str(row, 'user_id') ?? str(row, 'id') ?? `staff-${index}`}
+            stacked
+            caption="Staff accounts"
+            empty={<p className="m-0 text-xs text-ink-3 break-words">No staff records. The business owner is not listed as staff.</p>}
+          />
+        </div>
       </section>
+      </div>
 
-      <section className="card">
+      <section className="min-w-0 rounded-xl border border-line bg-surface p-5 shadow-card [&>*+*]:mt-4 [&>.section-head+*]:mt-0">
         <SectionHead title="Payments" sub="Most recent first" />
-        <DataTable
-          columns={paymentColumns}
-          rows={detail?.payments ?? []}
-          rowKey={(row, index) => str(row, 'id') ?? `payment-${index}`}
-          stacked
-          caption="Subscription payments"
-          empty={<p className="data-table-secondary">No payments recorded.</p>}
-        />
+        <div className={tableBleed}>
+          <DataTable
+            columns={paymentColumns}
+            rows={detail?.payments ?? []}
+            rowKey={(row, index) => str(row, 'id') ?? `payment-${index}`}
+            stacked
+            caption="Subscription payments"
+            empty={<p className="m-0 text-xs text-ink-3 break-words">No payments recorded.</p>}
+          />
+        </div>
       </section>
 
-      <section className="card">
+            <div className="grid min-w-0 items-start gap-4 lg:grid-cols-2 lg:gap-6">
+<section className="min-w-0 rounded-xl border border-line bg-surface p-5 shadow-card [&>*+*]:mt-4 [&>.section-head+*]:mt-0">
         <SectionHead
           title="Support history"
           sub="Append-only. A correction is another note."
@@ -468,7 +482,7 @@ export default function BusinessDetailArea() {
         <Timeline items={noteEntries} />
       </section>
 
-      <section className="card">
+      <section className="min-w-0 rounded-xl border border-line bg-surface p-5 shadow-card [&>*+*]:mt-4 [&>.section-head+*]:mt-0">
         <SectionHead
           title="Subscription changes"
           sub="Manual changes, with the reason given"
@@ -482,6 +496,7 @@ export default function BusinessDetailArea() {
         />
         <Timeline items={adjustmentEntries} />
       </section>
+      </div>
 
       {/* ── Change subscription ─────────────────────────────────── */}
       <Dialog
@@ -500,11 +515,11 @@ export default function BusinessDetailArea() {
           </>
         }
       >
-        <div className="form-group">
-          <label className="form-label" htmlFor="adjust-type">Change</label>
+        <div className="mb-4 flex min-w-0 flex-col gap-1.5">
+          <label className="text-[13px] font-medium text-ink-2" htmlFor="adjust-type">Change</label>
           <select
             id="adjust-type"
-            className="select-input"
+            className="block h-10 w-full min-w-0 rounded-md border border-line-strong bg-surface px-3 text-sm text-ink placeholder:text-ink-3 focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/15 cursor-pointer pr-8"
             value={adjustType}
             onChange={(event) => setAdjustType(event.target.value)}
             disabled={adjustBusy}
@@ -557,9 +572,9 @@ export default function BusinessDetailArea() {
           disabled={adjustBusy}
         />
 
-        <div className="callout callout-info">
+        <div className="flex min-w-0 flex-col gap-0.5 rounded-lg border px-4 py-3 text-[13px] break-words border-brand-line bg-brand-soft/60">
           <div>
-            <p className="callout-text">
+            <p className="m-0 text-[13px] text-ink-2">
               Changes the <strong>entitlement</strong>. Leaves billing status and the agreed price alone.
             </p>
           </div>
@@ -583,11 +598,11 @@ export default function BusinessDetailArea() {
           </>
         }
       >
-        <div className="form-group">
-          <label className="form-label" htmlFor="note-type">Note type</label>
+        <div className="mb-4 flex min-w-0 flex-col gap-1.5">
+          <label className="text-[13px] font-medium text-ink-2" htmlFor="note-type">Note type</label>
           <select
             id="note-type"
-            className="select-input"
+            className="block h-10 w-full min-w-0 rounded-md border border-line-strong bg-surface px-3 text-sm text-ink placeholder:text-ink-3 focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/15 cursor-pointer pr-8"
             value={noteType}
             onChange={(event) => setNoteType(event.target.value)}
             disabled={noteBusy}
@@ -602,17 +617,17 @@ export default function BusinessDetailArea() {
             <option value="developer_test">Developer test</option>
           </select>
         </div>
-        <div className="form-group">
-          <label className="form-label" htmlFor="note-body">Note</label>
+        <div className="mb-4 flex min-w-0 flex-col gap-1.5">
+          <label className="text-[13px] font-medium text-ink-2" htmlFor="note-body">Note</label>
           <textarea
             id="note-body"
-            className="form-input"
+            className="block min-h-24 w-full min-w-0 rounded-md border border-line-strong bg-surface px-3 py-2.5 text-sm text-ink placeholder:text-ink-3 focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/15"
             value={noteBody}
             onChange={(event) => setNoteBody(event.target.value)}
             disabled={noteBusy}
             aria-invalid={noteError ? true : undefined}
           />
-          {noteError && <p className="form-error" role="alert">{noteError}</p>}
+          {noteError && <p className="m-0 text-xs text-danger" role="alert">{noteError}</p>}
         </div>
       </Dialog>
 

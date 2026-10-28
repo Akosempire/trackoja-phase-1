@@ -10,10 +10,10 @@ import {
 } from '../../config/platformAreas';
 import { usePlatform } from './PlatformContext';
 import { EnvironmentMarker } from './EnvironmentBadge';
-import { ContractIcon } from './icons';
-import { HomeIcon, LogoutIcon, SidebarIcon } from '../icons';
-import { DownloadIcon } from '../icons';
+import { ArrowLeftIcon, HomeIcon, LogoutIcon, SidebarIcon, DownloadIcon } from '../icons';
 import { InstallAppAction } from '../InstallAppAction';
+import { APP_MARK, APP_NAME } from '../../config/brand';
+import { cn } from '../kit';
 
 interface PlatformSideNavProps {
   mobile?: boolean;
@@ -22,13 +22,15 @@ interface PlatformSideNavProps {
   loggingOut?: boolean;
 }
 
+const linkBase = 'flex h-9 w-full items-center gap-3 rounded-lg px-2.5 text-sm font-medium no-underline transition-colors';
+
 /**
  * Platform console navigation.
  *
- * Built from the same WAYA sidebar primitives as the merchant workspace
- * (247px, collapses to 60px, tooltips when collapsed, modal drawer on mobile),
- * so the two halves of the product feel like one system. Entries are grouped so
- * ten destinations stay scannable.
+ * The same sidebar anatomy as the merchant workspace (white rail, grouped
+ * links, collapses to icons, modal drawer on mobile) so the two halves of the
+ * product feel like one system. Entries are grouped so ten destinations stay
+ * scannable.
  */
 export function PlatformSideNav({ mobile = false, onClose, onLogout, loggingOut = false }: PlatformSideNavProps) {
   const { access, environment } = usePlatform();
@@ -40,7 +42,6 @@ export function PlatformSideNav({ mobile = false, onClose, onLogout, loggingOut 
       return false;
     }
   });
-  const [tooltipTop, setTooltipTop] = useState(0);
 
   const compact = collapsed && !mobile;
   const visible = access
@@ -51,108 +52,127 @@ export function PlatformSideNav({ mobile = false, onClose, onLogout, loggingOut 
   // where you are rather than leaving ten peer links to scan.
   const activeGroup = findPlatformArea(location.pathname)?.group ?? null;
 
+  function toggle() {
+    const next = !collapsed;
+    setCollapsed(next);
+    try {
+      localStorage.setItem('trackoja-platform-sidebar-collapsed', String(next));
+    } catch {
+      /* Session-only is acceptable. */
+    }
+  }
+
   function renderLink(area: PlatformArea) {
-    const to = platformAreaPath(area);
-    const isIndex = area.path === '';
     return (
-      <span
+      <NavLink
         key={area.id}
-        className="nav-tooltip-wrap t-tt-wrap"
-        onMouseEnter={(event) => setTooltipTop(event.currentTarget.getBoundingClientRect().top)}
-        onFocus={(event) => setTooltipTop(event.currentTarget.getBoundingClientRect().top)}
+        to={platformAreaPath(area)}
+        end={area.path === ''}
+        aria-label={area.label}
+        // The area's description lives here rather than at the top of the page:
+        // it is useful once, on hover, and noise on every visit.
+        title={compact ? area.label : area.description}
+        onClick={onClose}
+        className={({ isActive }) => cn(linkBase, compact && 'justify-center px-0',
+          isActive ? 'bg-brand-soft text-brand-ink' : 'text-ink-2 hover:bg-hover hover:text-ink')}
       >
-        <NavLink
-          to={to}
-          end={isIndex}
-          aria-label={area.label}
-          // The area's description lives here rather than at the top of the page:
-          // it is useful once, on hover, and noise on every visit.
-          title={area.description}
-          onClick={onClose}
-          className={({ isActive }) => `side-nav-link t-tt-trigger${isActive ? ' active' : ''}`}
-        >
-          <area.icon width={17} height={17} />
-          <span className="nav-label">{area.short}</span>
-        </NavLink>
-        {compact && (
-          <span className="t-tt nav-tooltip" role="tooltip" style={{ top: tooltipTop }}>
-            {area.label}
-          </span>
-        )}
-      </span>
+        <area.icon width={18} height={18} className="shrink-0" />
+        {!compact && <span className="truncate">{area.short}</span>}
+      </NavLink>
     );
   }
 
   return (
     <aside
-      className={`side-nav${compact ? ' is-collapsed' : ''}${mobile ? ' is-mobile' : ''}`}
+      className={cn('flex flex-col bg-surface',
+        mobile ? 'h-full w-full' : 'sticky top-0 hidden h-dvh shrink-0 border-r border-line lg:flex',
+        !mobile && (compact ? 'w-[72px]' : 'w-64'))}
       aria-label="Platform administration"
     >
-      <div className="side-nav-brand">
-        <span className="workspace-mark" aria-label="TrackOja Platform">
-          <ContractIcon width={16} height={16} />
+      <div className={cn('flex h-16 shrink-0 items-center gap-2.5 px-4', compact && 'justify-center px-0')}>
+        <span className="inline-flex size-8 shrink-0 items-center justify-center rounded-lg bg-ink text-[15px] font-bold text-surface" aria-label={`${APP_NAME} Platform`}>
+          {APP_MARK}
         </span>
-        <span className="side-nav-logo nav-label">Platform</span>
+        {!compact && (
+          <span className="min-w-0 flex-1 leading-tight">
+            <span className="block truncate text-[15px] font-semibold text-ink">{APP_NAME}</span>
+            <span className="block truncate text-xs font-medium text-ink-3">Platform console</span>
+          </span>
+        )}
+        {!mobile && !compact && (
+          <button
+            type="button"
+            className="inline-flex size-8 items-center justify-center rounded-lg text-ink-3 hover:bg-hover hover:text-ink"
+            aria-label="Collapse navigation"
+            aria-expanded
+            onClick={toggle}
+          >
+            <SidebarIcon width={17} height={17} />
+          </button>
+        )}
         {mobile && (
-          <button type="button" className="icon-button" onClick={onClose} aria-label="Close navigation">
-            ×
+          <button type="button" className="inline-flex size-9 items-center justify-center rounded-lg text-ink-2 hover:bg-hover" onClick={onClose} aria-label="Close navigation">
+            <ArrowLeftIcon width={18} height={18} />
           </button>
         )}
       </div>
 
-      {!mobile && (
-        <button
-          type="button"
-          className="sidebar-toggle"
-          aria-label={compact ? 'Expand navigation' : 'Collapse navigation'}
-          aria-expanded={!compact}
-          onClick={() => {
-            const next = !collapsed;
-            setCollapsed(next);
-            try {
-              localStorage.setItem('trackoja-platform-sidebar-collapsed', String(next));
-            } catch {
-              /* Session-only is acceptable. */
-            }
-          }}
-        >
-          <SidebarIcon width={17} height={17} />
-          <span className="nav-label">Collapse sidebar</span>
-        </button>
-      )}
-
-      <nav className="side-nav-items" aria-label="Platform areas">
-        {visible
-          .filter((area) => area.group === null)
-          .map(renderLink)}
+      <nav className="flex-1 overflow-y-auto px-3 pb-3" aria-label="Platform areas">
+        <div className="flex flex-col gap-0.5">
+          {visible.filter((area) => area.group === null).map(renderLink)}
+        </div>
 
         {PLATFORM_GROUPS.map((group) => {
           const areas = visible.filter((area) => area.group === group.id);
           if (areas.length === 0) return null;
           return (
-            <div className="side-nav-group" key={group.id}>
-              <p className={`side-nav-group-label nav-label${activeGroup === group.id ? ' is-active' : ''}`}>
-                {group.label}
-              </p>
-              {areas.map(renderLink)}
+            <div className="mt-4" key={group.id}>
+              {!compact && (
+                <p className={cn('m-0 mb-1 px-2.5 text-[11px] font-semibold uppercase tracking-[.06em]', activeGroup === group.id ? 'text-ink-2' : 'text-ink-3')}>
+                  {group.label}
+                </p>
+              )}
+              {compact && <div className="mx-auto mb-2 h-px w-8 bg-line" aria-hidden="true" />}
+              <div className="flex flex-col gap-0.5">{areas.map(renderLink)}</div>
             </div>
           );
         })}
+
+        {compact && (
+          <div className="mt-3 flex justify-center">
+            <button
+              type="button"
+              className="inline-flex size-8 items-center justify-center rounded-lg text-ink-3 hover:bg-hover hover:text-ink"
+              aria-label="Expand navigation"
+              aria-expanded={false}
+              onClick={toggle}
+            >
+              <SidebarIcon width={17} height={17} />
+            </button>
+          </div>
+        )}
       </nav>
 
-      <div className="side-nav-env">
-        <EnvironmentMarker environment={environment} />
-      </div>
+      {!compact && (
+        <div className="px-3 pb-2">
+          <EnvironmentMarker environment={environment} />
+        </div>
+      )}
 
-      <div className="side-nav-footer">
-        <InstallAppAction className="side-nav-link" label="Install TrackOja" labelClassName="nav-label" icon={<DownloadIcon width={17} height={17} />} />
-        <Link to="/dashboard" className="side-nav-link" onClick={onClose}>
-          <HomeIcon width={17} height={17} />
-          <span className="nav-label">Customer workspace</span>
+      <div className="flex flex-col gap-0.5 border-t border-line p-3">
+        <InstallAppAction
+          className={cn(linkBase, 'bg-transparent text-ink-2 hover:bg-hover hover:text-ink', compact && 'justify-center px-0')}
+          label={`Install ${APP_NAME}`}
+          labelClassName={compact ? 'sr-only' : 'truncate'}
+          icon={<DownloadIcon width={18} height={18} className="shrink-0" />}
+        />
+        <Link to="/dashboard" className={cn(linkBase, 'text-ink-2 hover:bg-hover hover:text-ink', compact && 'justify-center px-0')} onClick={onClose} title={compact ? 'Customer workspace' : undefined}>
+          <HomeIcon width={18} height={18} className="shrink-0" />
+          <span className={compact ? 'sr-only' : 'truncate'}>Customer workspace</span>
         </Link>
         <button
           type="button"
-          className="side-nav-link platform-logout"
+          className={cn(linkBase, 'bg-transparent text-ink-2 hover:bg-hover hover:text-ink disabled:opacity-50', compact && 'justify-center px-0')}
           onClick={() => {
             onClose?.();
             onLogout();
@@ -161,8 +181,8 @@ export function PlatformSideNav({ mobile = false, onClose, onLogout, loggingOut 
           aria-label="Log out"
           title={compact ? 'Log out' : undefined}
         >
-          <LogoutIcon width={17} height={17} />
-          <span className="nav-label">{loggingOut ? 'Logging out…' : 'Log out'}</span>
+          <LogoutIcon width={18} height={18} className="shrink-0" />
+          {!compact && <span className="truncate">{loggingOut ? 'Logging out…' : 'Log out'}</span>}
         </button>
       </div>
     </aside>

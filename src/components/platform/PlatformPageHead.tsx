@@ -4,6 +4,8 @@ import type { PlatformArea } from '../../config/platformAreas';
 import { Button } from '../ui/Button';
 import { Disclosure } from '../ui/Disclosure';
 import { LockIcon } from '../icons';
+import { btn } from '../kit';
+import { BulletList, monoClass } from './ui';
 
 interface PlatformPageHeadProps {
   area: PlatformArea;
@@ -25,21 +27,21 @@ interface PlatformPageHeadProps {
  */
 export function PlatformPageHead({ area, description, parent, current, actions }: PlatformPageHeadProps) {
   return (
-    <div className="plat-page-head">
-      <div className="plat-page-head-text">
+    <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
+      <div className="min-w-0 flex-1">
         {parent && (
-          <nav className="plat-breadcrumb" aria-label="Breadcrumb">
-            <Link to="/platform">Platform</Link>
+          <nav className="mb-1.5 flex min-w-0 flex-wrap items-center gap-1.5 text-[13px] text-ink-3" aria-label="Breadcrumb">
+            <Link className="text-ink-2 no-underline hover:text-ink hover:underline" to="/platform">Platform</Link>
             <span aria-hidden="true">/</span>
-            <Link to={parent.to}>{parent.label}</Link>
+            <Link className="text-ink-2 no-underline hover:text-ink hover:underline" to={parent.to}>{parent.label}</Link>
             <span aria-hidden="true">/</span>
-            <span>{current ?? area.label}</span>
+            <span className="min-w-0 truncate">{current ?? area.label}</span>
           </nav>
         )}
-        <h1 className="plat-page-title">{current ?? area.label}</h1>
-        {description && <p className="plat-page-desc">{description}</p>}
+        <h1 className="m-0 break-words text-2xl font-semibold leading-8 tracking-tight text-ink lg:text-[28px] lg:leading-9">{current ?? area.label}</h1>
+        {description && <p className="m-0 mt-1 text-sm text-ink-2">{description}</p>}
       </div>
-      {actions && <div className="plat-page-actions">{actions}</div>}
+      {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
     </div>
   );
 }
@@ -56,11 +58,7 @@ export function AreaCoverage({ gaps, title = 'Not built here' }: { gaps?: string
   if (!gaps || gaps.length === 0) return null;
   return (
     <Disclosure summary={`${title} (${gaps.length})`}>
-      <ul className="plat-coverage-list">
-        {gaps.map((gap) => (
-          <li key={gap}>{gap}</li>
-        ))}
-      </ul>
+      <BulletList items={gaps} />
     </Disclosure>
   );
 }
@@ -68,18 +66,16 @@ export function AreaCoverage({ gaps, title = 'Not built here' }: { gaps?: string
 /** Shown when an operator reaches a screen their permissions do not cover. */
 export function PermissionDenied({ what, permission }: { what: string; permission: string }) {
   return (
-    <div className="state-block state-denied">
-      <span className="state-icon" aria-hidden="true">
+    <div className="flex flex-col items-center rounded-xl border border-dashed border-line-strong bg-surface px-6 py-12 text-center">
+      <span className="mb-3 inline-flex size-10 items-center justify-center rounded-full bg-tray text-ink-2" aria-hidden="true">
         <LockIcon width={18} height={18} />
       </span>
-      <p className="state-title">You do not have access to {what}</p>
-      <p className="state-body">
-        Ask a platform owner for the <span className="mono">{permission}</span> permission.
+      <p className="m-0 text-[15px] font-semibold text-ink">You do not have access to {what}</p>
+      <p className="m-0 mt-1 max-w-sm text-sm text-ink-2">
+        Ask a platform owner for the <span className={monoClass}>{permission}</span> permission.
       </p>
-      <div className="state-actions">
-        <Link className="btn btn-outline btn-sm" to="/platform">
-          <span className="btn-label">Back to overview</span>
-        </Link>
+      <div className="mt-4">
+        <Link className={btn('outline', 'sm')} to="/platform">Back to overview</Link>
       </div>
     </div>
   );
@@ -88,7 +84,7 @@ export function PermissionDenied({ what, permission }: { what: string; permissio
 /** Standard refresh control, used by most read-only panels. */
 export function RefreshButton({ onClick, loading }: { onClick: () => void; loading?: boolean }) {
   return (
-    <Button variant="ghost" className="btn-sm" onClick={onClick} loading={loading}>
+    <Button variant="outline" className="btn-sm" onClick={onClick} loading={loading}>
       Refresh
     </Button>
   );

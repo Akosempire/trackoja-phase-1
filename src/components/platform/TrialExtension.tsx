@@ -25,10 +25,10 @@ export function TrialExtension({ entitlementId, onSaved }: { entitlementId: stri
     } finally { setBusy(false); }
   }
   return <Disclosure summary="Extend this trial">
-    <form className="form-stack" onSubmit={(event) => { event.preventDefault(); void extend(); }}>
+    <form className="flex flex-col" onSubmit={(event) => { event.preventDefault(); void extend(); }}>
       <FormField id={`trial-days-${entitlementId}`} label="Additional days (1–365)" type="number" value={days} onChange={setDays} required />
       <FormField id={`trial-reason-${entitlementId}`} label="Reason for extension" value={reason} onChange={setReason} required hint="At least 10 characters. This action is recorded in the audit log." />
-      <div className="form-actions"><Button type="submit" loading={busy} disabled={!Number.isInteger(Number(days)) || Number(days) < 1 || Number(days) > 365 || reason.trim().length < 10}>Extend trial</Button></div>
+      <div className="flex justify-end"><Button type="submit" loading={busy} disabled={!Number.isInteger(Number(days)) || Number(days) < 1 || Number(days) > 365 || reason.trim().length < 10}>Extend trial</Button></div>
     </form>
   </Disclosure>;
 }

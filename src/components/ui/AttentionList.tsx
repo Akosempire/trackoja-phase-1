@@ -13,6 +13,10 @@ export interface AttentionItem {
   action?: ReactNode;
 }
 
+const DOT: Record<AttentionTone, string> = {
+  danger: 'bg-danger', warning: 'bg-warn', info: 'bg-brand', ok: 'bg-success', muted: 'bg-ink-3',
+};
+
 /**
  * A queue of things that need a decision.
  *
@@ -22,15 +26,15 @@ export interface AttentionItem {
  */
 export function AttentionList({ items }: { items: AttentionItem[] }) {
   return (
-    <ul className="attention-list">
+    <ul className="m-0 list-none divide-y divide-line p-0">
       {items.map((item) => (
-        <li className={`attention-item is-${item.tone}`} key={item.id}>
-          <span className="attention-dot" aria-hidden="true" />
-          <div className="attention-body">
-            <p className="attention-title">{item.title}</p>
-            {item.meta && <p className="attention-meta">{item.meta}</p>}
+        <li className={`flex items-start gap-3 py-3 first:pt-0 last:pb-0`} key={item.id}>
+          <span className={`mt-1.5 size-2 shrink-0 rounded-full ${DOT[item.tone]}`} aria-hidden="true" />
+          <div className="min-w-0 flex-1">
+            <p className="m-0 text-sm font-medium text-ink">{item.title}</p>
+            {item.meta && <p className="m-0 mt-0.5 text-[13px] text-ink-3">{item.meta}</p>}
           </div>
-          {item.action && <div className="attention-action">{item.action}</div>}
+          {item.action && <div className="shrink-0">{item.action}</div>}
         </li>
       ))}
     </ul>
@@ -45,9 +49,9 @@ export function AttentionList({ items }: { items: AttentionItem[] }) {
  */
 export function HealthyStrip({ children }: { children: ReactNode }) {
   return (
-    <div className="healthy-strip" role="status">
-      <span className="attention-dot" aria-hidden="true" />
-      <span>{children}</span>
+    <div className="flex items-start gap-3 rounded-lg bg-success-soft px-4 py-3 text-[13px] text-success-ink" role="status">
+      <span className="mt-1.5 size-2 shrink-0 rounded-full bg-success" aria-hidden="true" />
+      <span className="min-w-0">{children}</span>
     </div>
   );
 }

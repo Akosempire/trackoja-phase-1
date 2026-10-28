@@ -1,5 +1,8 @@
+import { tableInset } from '../../../components/platform/ui';
 import { Link } from 'react-router-dom';
 import { useBillingAvailability } from '../../../hooks/useBillingAvailability';
+import { APP_NAME } from '../../../config/brand';
+import { btn } from '../../../components/kit';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { usePlatform } from '../../../components/platform/PlatformContext';
 import { AreaCoverage, PlatformPageHead } from '../../../components/platform/PlatformPageHead';
@@ -28,7 +31,7 @@ const SERVICE_LOCATIONS: ServiceLocation[] = [
   {
     key: 'paystack',
     name: 'Paystack',
-    purpose: 'TrackOja subscription checkout and payment confirmation',
+    purpose: `${APP_NAME} subscription checkout and payment confirmation`,
     setup: 'Server-side Edge Function secret and Paystack webhook settings',
   },
   {
@@ -81,7 +84,7 @@ export default function IntegrationsArea() {
       key: 'service',
       header: 'Service',
       sortValue: (row) => row.name.toLowerCase(),
-      render: (row) => <span className="data-table-primary">{row.name}</span>,
+      render: (row) => <span className="font-medium text-ink break-words">{row.name}</span>,
     },
     { key: 'purpose', header: 'Used for', render: (row) => row.purpose },
     { key: 'setup', header: 'Configured in', render: (row) => row.setup },
@@ -94,23 +97,24 @@ export default function IntegrationsArea() {
         description={`Payment and account-email services for ${environment.label.toLowerCase()}. Merchant payment diagnostics are shown below when available.`}
       />
 
-      <section className="card">
-        <SectionHead title="Paystack subscription billing" actions={<Button variant="outline" onClick={reloadBilling}>Refresh status</Button>} />
-        {billingError ? <p role="alert">{billingError}</p> : billing ? <>
+      <div className="grid min-w-0 items-start gap-4 xl:grid-cols-2 lg:gap-6">
+      <section className="min-w-0 rounded-xl border border-line bg-surface p-5 shadow-card [&>*+*]:mt-4 [&>.section-head+*]:mt-0" aria-labelledby="paystack-billing-title">
+        <SectionHead id="paystack-billing-title" title="Paystack subscription billing" sub="How businesses pay for their own subscription." actions={<Button variant="outline" className="btn-sm" onClick={reloadBilling}>Refresh status</Button>} />
+        {billingError ? <p className="m-0 text-sm text-danger" role="alert">{billingError}</p> : billing ? <>
           <DefList rows={[
             { term: 'Payment system', value: billing.paymentSystem === 'DISABLED' ? 'Not configured - payments disabled' : billing.paymentSystem === 'TEST' ? 'Test - sandbox businesses only' : 'Live mode selected - connection not verified' },
             { term: 'Free trials', value: billing.trialEnabled ? `${billing.trialDays} days` : 'Disabled' },
           ]} />
-          <p className="section-sub">Payment credentials stay on the server. A mode setting does not verify a provider connection. Existing paid subscriptions are preserved.</p>
-          {can('platform:manage_settings') && <Link className="btn btn-outline" to="/platform/settings">Manage billing availability</Link>}
-        </> : <p role="status">Loading billing availability...</p>}
+          <p className="m-0 mt-4 text-xs text-ink-3">Payment credentials stay on the server. A mode setting does not verify a provider connection. Existing paid subscriptions are preserved.</p>
+          {can('platform:manage_settings') && <div className="mt-4"><Link className={btn('outline', 'sm')} to="/platform/settings">Manage billing availability</Link></div>}
+        </> : <p className="m-0 text-[13px] text-ink-3" role="status">Loading billing availability...</p>}
       </section>
       {canManage && (
-        <section className="card" aria-labelledby="moniepoint-platform-title">
+        <section className="min-w-0 rounded-xl border border-line bg-surface p-5 shadow-card [&>*+*]:mt-4 [&>.section-head+*]:mt-0" aria-labelledby="moniepoint-platform-title">
           <SectionHead
             id="moniepoint-platform-title"
             title="Moniepoint merchant POS"
-            sub="Customer payments to businesses, separate from TrackOja subscription billing"
+            sub={`Customer payments to businesses, separate from ${APP_NAME} subscription billing`}
             actions={<Button variant="outline" className="btn-sm" loading={moniepointLoading} onClick={refreshMoniepoint}>Refresh</Button>}
           />
           <SectionState
@@ -144,28 +148,31 @@ export default function IntegrationsArea() {
               },
             ]} />}
           </SectionState>
-          <p className="form-hint">Credentials and individual customer amounts are never returned here. A configured key is only marked verified after a real terminal transaction.</p>
+          <p className="m-0 mt-4 text-xs text-ink-3">Credentials and individual customer amounts are never returned here. A configured key is only marked verified after a real terminal transaction.</p>
         </section>
       )}
+      </div>
 
       <Disclosure summary="Service setup and delivery monitoring">
-      <section className="card" aria-labelledby="integrations-services">
+      <section className="min-w-0" aria-labelledby="integrations-services">
         <SectionHead
           id="integrations-services"
           title="Other service setup"
           sub="Where each service is configured; this list does not claim that a connection is healthy"
         />
-        <DataTable
-          columns={columns}
-          rows={SERVICE_LOCATIONS}
-          rowKey={(row) => row.key}
-          stacked
-          caption="Platform service setup locations"
-        />
-        <p className="form-hint">Keep payment keys in server-side secrets. This dashboard cannot display or change them.</p>
+        <div className={tableInset}>
+          <DataTable
+            columns={columns}
+            rows={SERVICE_LOCATIONS}
+            rowKey={(row) => row.key}
+            stacked
+            caption="Platform service setup locations"
+          />
+        </div>
+        <p className="m-0 mt-3 text-xs text-ink-3">Keep payment keys in server-side secrets. This dashboard cannot display or change them.</p>
       </section>
 
-      <section className="card" aria-labelledby="integrations-delivery">
+      <section className="mt-6 min-w-0 border-t border-line pt-5" aria-labelledby="integrations-delivery">
         <SectionHead id="integrations-delivery" title="Delivery monitoring" />
         <StateBlock
           variant="unavailable"
@@ -173,7 +180,7 @@ export default function IntegrationsArea() {
           title="No webhook delivery history"
           body="Paystack and OPay delivery logs and connection tests are not available in this dashboard. Check the provider dashboard and Edge Function logs when a payment is missing."
         />
-        <p className="form-hint">Application notification emails are not enabled yet. Supabase Auth handles account verification and password recovery email through its own SMTP settings.</p>
+        <p className="m-0 mt-2 text-xs text-ink-3">Application notification emails are not enabled yet. Supabase Auth handles account verification and password recovery email through its own SMTP settings.</p>
       </section>
 
       </Disclosure>

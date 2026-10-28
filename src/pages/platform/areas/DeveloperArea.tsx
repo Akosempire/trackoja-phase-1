@@ -1,4 +1,6 @@
+import { tableBleed } from '../../../components/platform/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { APP_NAME } from '../../../config/brand';
 import {
   PlatformAdminService,
   type DeveloperGrant,
@@ -342,7 +344,7 @@ export default function DeveloperArea() {
         sandboxOwner.trim() || undefined,
       );
       toast.success(`${created.name} created`, {
-        description: `Organisation ${created.orgId} now exists permanently and holds one TrackOja entitlement.`,
+        description: `Organisation ${created.orgId} now exists permanently and holds one ${APP_NAME} entitlement.`,
       });
       setSandboxOpen(false);
       setSandboxName('');
@@ -379,8 +381,8 @@ export default function DeveloperArea() {
         sortValue: (row) => row.email.toLowerCase(),
         render: (row) => (
           <div>
-            <span className="data-table-primary">{row.email}</span>
-            <p className="data-table-secondary">{row.level.replace(/_/g, ' ')}</p>
+            <span className="font-medium text-ink break-words">{row.email}</span>
+            <p className="m-0 text-xs text-ink-3 break-words">{row.level.replace(/_/g, ' ')}</p>
           </div>
         ),
       },
@@ -391,7 +393,7 @@ export default function DeveloperArea() {
         render: (row) => (
           <div>
             <StatusBadge status={row.status} />
-            <p className="data-table-secondary">
+            <p className="m-0 text-xs text-ink-3 break-words">
               {row.revokedAt
                 ? `Revoked ${formatRelative(row.revokedAt)}`
                 : row.expiresAt
@@ -407,15 +409,15 @@ export default function DeveloperArea() {
         sortValue: (row) => row.grantedAt ?? '',
         render: (row) => (
           <div>
-            <span className="data-table-primary">{formatDateTime(row.grantedAt)}</span>
-            <p className="data-table-secondary">by {row.grantedByEmail ?? 'not recorded'}</p>
+            <span className="font-medium text-ink whitespace-nowrap">{formatDateTime(row.grantedAt)}</span>
+            <p className="m-0 text-xs text-ink-3 break-words">by {row.grantedByEmail ?? 'not recorded'}</p>
           </div>
         ),
       },
       {
         key: 'reason',
         header: 'Reason',
-        render: (row) => <span className="data-table-secondary">{row.reason ?? '—'}</span>,
+        render: (row) => <span className="m-0 block text-xs text-ink-3 break-words">{row.reason ?? '—'}</span>,
       },
       {
         key: 'actions',
@@ -432,7 +434,7 @@ export default function DeveloperArea() {
               Revoke
             </Button>
           ) : (
-            <span className="data-table-secondary">—</span>
+            <span className="m-0 block text-xs text-ink-3 break-words">—</span>
           ),
       },
     ],
@@ -448,8 +450,8 @@ export default function DeveloperArea() {
         sortValue: (row) => row.name.toLowerCase(),
         render: (row) => (
           <div>
-            <span className="data-table-primary">{row.name}</span>
-            <p className="data-table-secondary mono">{row.slug}</p>
+            <span className="font-medium text-ink break-words">{row.name}</span>
+            <p className="m-0 font-mono text-xs text-ink-3 break-words">{row.slug}</p>
           </div>
         ),
       },
@@ -465,8 +467,8 @@ export default function DeveloperArea() {
         sortValue: (row) => row.createdAt,
         render: (row) => (
           <div>
-            <span className="data-table-primary">{formatDateTime(row.createdAt)}</span>
-            <p className="data-table-secondary">{formatRelative(row.createdAt)}</p>
+            <span className="font-medium text-ink whitespace-nowrap">{formatDateTime(row.createdAt)}</span>
+            <p className="m-0 text-xs text-ink-3 whitespace-nowrap">{formatRelative(row.createdAt)}</p>
           </div>
         ),
       },
@@ -490,7 +492,7 @@ export default function DeveloperArea() {
     {
       term: `${ENVIRONMENT_SETTING_KEY} setting`,
       value: environmentSetting ? (
-        <span className="mono">{JSON.stringify(environmentSetting.value)}</span>
+        <span className="font-mono text-[0.92em]">{JSON.stringify(environmentSetting.value)}</span>
       ) : (
         'Not configured'
       ),
@@ -520,7 +522,7 @@ export default function DeveloperArea() {
     },
     {
       term: 'Active session id',
-      value: status?.activeSessionId ? <span className="mono">{status.activeSessionId}</span> : 'No open session',
+      value: status?.activeSessionId ? <span className="font-mono text-[0.92em]">{status.activeSessionId}</span> : 'No open session',
       muted: !status?.activeSessionId,
     },
   ];
@@ -534,10 +536,10 @@ export default function DeveloperArea() {
       />
 
       {failed.length > 0 && (
-        <div className="callout callout-warning" role="status">
+        <div className="flex min-w-0 flex-col gap-0.5 rounded-lg border px-4 py-3 text-[13px] break-words border-warn/30 bg-warn-soft" role="status">
           <div>
-            <p className="callout-title">Part of this page did not load</p>
-            <p className="callout-text">
+            <p className="m-0 text-sm font-semibold text-ink">Part of this page did not load</p>
+            <p className="m-0 text-[13px] text-ink-2">
               {failed.length} source{failed.length === 1 ? '' : 's'} failed ({failed.join(', ')}). Panels that answered
               are accurate; treat the rest as unknown, not as empty.
             </p>
@@ -546,10 +548,10 @@ export default function DeveloperArea() {
       )}
 
       {actionError && (
-        <div className="callout callout-danger" role="alert">
+        <div className="flex min-w-0 flex-col gap-0.5 rounded-lg border px-4 py-3 text-[13px] break-words border-danger/30 bg-danger-soft" role="alert">
           <div>
-            <p className="callout-title">That action was refused</p>
-            <p className="callout-text">{actionError}</p>
+            <p className="m-0 text-sm font-semibold text-ink">That action was refused</p>
+            <p className="m-0 text-[13px] text-ink-2">{actionError}</p>
           </div>
         </div>
       )}
@@ -557,24 +559,24 @@ export default function DeveloperArea() {
       <AreaCoverage gaps={AREA.gaps} title="Diagnostic limits" />
 
       {/* ── Environment ─────────────────────────────────────────────── */}
-      <Disclosure summary="Environment"><section className="card" aria-labelledby="developer-environment">
-        <SectionHead id="developer-environment" title="Environment" />
+      <Disclosure summary="Environment"><section className="min-w-0 [&>*+*]:mt-4 [&>.section-head+*]:mt-0" aria-labelledby="developer-environment">
+        <h2 id="developer-environment" className="sr-only">Environment</h2>
         <DefList rows={environmentRows} />
-        <div className="callout callout-info">
+        <div className="flex min-w-0 flex-col gap-0.5 rounded-lg border px-4 py-3 text-[13px] break-words border-brand-line bg-brand-soft/60">
           <div>
-            <p className="callout-title">The environment is only what this build was told</p>
-            <p className="callout-text">
+            <p className="m-0 text-sm font-semibold text-ink">The environment is only what this build was told</p>
+            <p className="m-0 text-[13px] text-ink-2">
               Nothing here inspects the database or the deployed region, so an undeclared environment reads as{' '}
-              <span className="mono">unknown</span> rather than being guessed.
+              <span className="font-mono text-[0.92em]">unknown</span> rather than being guessed.
             </p>
             <Disclosure summary="Resolution order and caveats">
               <p>
-                The order is the <span className="mono">{ENVIRONMENT_SETTING_KEY}</span> setting, then this build&rsquo;s{' '}
-                <span className="mono">VITE_ENVIRONMENT</span>, then the Vite build mode — and a plain production build
+                The order is the <span className="font-mono text-[0.92em]">{ENVIRONMENT_SETTING_KEY}</span> setting, then this build&rsquo;s{' '}
+                <span className="font-mono text-[0.92em]">VITE_ENVIRONMENT</span>, then the Vite build mode — and a plain production build
                 mode counts as no evidence. No migration declares{' '}
-                <span className="mono">{ENVIRONMENT_SETTING_KEY}</span>: the only inserts into{' '}
-                <span className="mono">platform_settings</span> are in migrations 068 and 074, and{' '}
-                <span className="mono">set_platform_setting()</span> refuses a key a migration has not declared. Unless
+                <span className="font-mono text-[0.92em]">{ENVIRONMENT_SETTING_KEY}</span>: the only inserts into{' '}
+                <span className="font-mono text-[0.92em]">platform_settings</span> are in migrations 068 and 074, and{' '}
+                <span className="font-mono text-[0.92em]">set_platform_setting()</span> refuses a key a migration has not declared. Unless
                 the row was inserted by hand, the marker falls back to the build.
               </p>
             </Disclosure>
@@ -584,12 +586,12 @@ export default function DeveloperArea() {
       </Disclosure>
 
       {/* ── Developer session ───────────────────────────────────────── */}
-      <section className="card" aria-labelledby="developer-session">
+      <section className="min-w-0 rounded-xl border border-line bg-surface p-5 shadow-card [&>*+*]:mt-4 [&>.section-head+*]:mt-0" aria-labelledby="developer-session">
         <SectionHead
           id="developer-session"
           title="Developer session"
           actions={
-            <div className="toolbar-group">
+            <div className="flex flex-wrap items-center gap-2">
               <Button
                 variant="outline"
                 className="btn-sm"
@@ -618,7 +620,7 @@ export default function DeveloperArea() {
         >
           <>
             <DefList rows={sessionRows} />
-            <p className="section-sub">
+            <p className="m-0 mt-0.5 text-[13px] text-ink-3">
               Your grant is managed by a platform owner. Starting or ending a session records diagnostic work; it does not change customer access.
             </p>
           </>
@@ -627,41 +629,41 @@ export default function DeveloperArea() {
 
       {/* ── Developer mode grants ───────────────────────────────────── */}
       {isSuperAdmin && (
-        <section className="card" aria-labelledby="developer-grants">
+        <section className="min-w-0 rounded-xl border border-line bg-surface p-5 shadow-card [&>*+*]:mt-4 [&>.section-head+*]:mt-0" aria-labelledby="developer-grants">
           <SectionHead
             id="developer-grants"
             title="Developer mode grants"
             sub="Grantable only to an existing active platform admin."
           />
 
-          <div className="callout callout-info">
+          <div className="flex min-w-0 flex-col gap-0.5 rounded-lg border px-4 py-3 text-[13px] break-words border-brand-line bg-brand-soft/60">
             <div>
-              <p className="callout-title">What developer mode does and does not do</p>
-              <p className="callout-text">
+              <p className="m-0 text-sm font-semibold text-ink">What developer mode does and does not do</p>
+              <p className="m-0 text-[13px] text-ink-2">
                 Nothing here bypasses payment verification, tenant isolation or production permissions.
               </p>
               <Disclosure summary="Where the sandbox limits are enforced">
                 <p>
-                  <span className="mono">enforce_seat_limit()</span> returns early for a sandbox organisation so test
+                  <span className="font-mono text-[0.92em]">enforce_seat_limit()</span> returns early for a sandbox organisation so test
                   staff can be added — verified in{' '}
-                  <span className="mono">supabase/migrations/20260926000069_platform_products_functions.sql</span>. Every
+                  <span className="font-mono text-[0.92em]">supabase/migrations/20260926000069_platform_products_functions.sql</span>. Every
                   other override path in{' '}
-                  <span className="mono">20260926000072_platform_developer_mode_functions.sql</span> raises unless the
-                  target organisation is a sandbox, and <span className="mono">assert_sandbox_override()</span> fails
-                  closed even if the <span className="mono">developer.sandbox_required</span> setting is absent.
+                  <span className="font-mono text-[0.92em]">20260926000072_platform_developer_mode_functions.sql</span> raises unless the
+                  target organisation is a sandbox, and <span className="font-mono text-[0.92em]">assert_sandbox_override()</span> fails
+                  closed even if the <span className="font-mono text-[0.92em]">developer.sandbox_required</span> setting is absent.
                 </p>
               </Disclosure>
             </div>
           </div>
 
-          <div className="plat-toolbar">
-            <div className="plat-field plat-field-grow">
-              <label className="form-label" htmlFor="developer-grant-target">
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="flex min-w-0 flex-1 basis-60 flex-col gap-1.5">
+              <label className="text-[13px] font-medium text-ink-2" htmlFor="developer-grant-target">
                 Platform admin
               </label>
               <select
                 id="developer-grant-target"
-                className="select-input"
+                className="block h-10 w-full min-w-0 rounded-md border border-line-strong bg-surface px-3 text-sm text-ink placeholder:text-ink-3 focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/15 cursor-pointer pr-8"
                 value={grantTarget}
                 onChange={(event) => setGrantTarget(event.target.value)}
                 disabled={admins.length === 0}
@@ -676,13 +678,13 @@ export default function DeveloperArea() {
               </select>
             </div>
 
-            <div className="plat-field">
-              <label className="form-label" htmlFor="developer-grant-days">
+            <div className="flex min-w-0 flex-col gap-1.5">
+              <label className="text-[13px] font-medium text-ink-2" htmlFor="developer-grant-days">
                 Valid for (days)
               </label>
               <input
                 id="developer-grant-days"
-                className="form-input"
+                className="block h-10 w-full min-w-0 rounded-md border border-line-strong bg-surface px-3 text-sm text-ink placeholder:text-ink-3 focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/15"
                 type="number"
                 min={1}
                 max={3650}
@@ -693,7 +695,7 @@ export default function DeveloperArea() {
 
             <Button
               variant="outline"
-              className="btn-sm"
+             
               disabled={!grantTarget || busy !== null}
               onClick={() => setConfirm({ kind: 'grant' })}
             >
@@ -701,9 +703,9 @@ export default function DeveloperArea() {
             </Button>
           </div>
 
-          {adminError && <p className="form-error">{adminError}</p>}
+          {adminError && <p className="m-0 text-xs text-danger">{adminError}</p>}
           {!adminError && admins.length === 0 && (
-            <p className="form-hint">
+            <p className="m-0 text-xs text-ink-3">
               No platform admin accounts returned; a grant needs an existing active platform admin.
             </p>
           )}
@@ -715,19 +717,21 @@ export default function DeveloperArea() {
             emptyBody="Nobody holds developer mode on this platform yet."
             onRetry={reload}
           >
-            <DataTable
-              columns={grantColumns}
-              rows={grants}
-              rowKey={(row) => row.userId}
-              caption="Developer mode grants"
-              stacked
-            />
+            <div className={tableBleed}>
+              <DataTable
+                columns={grantColumns}
+                rows={grants}
+                rowKey={(row) => row.userId}
+                caption="Developer mode grants"
+                stacked
+              />
+            </div>
           </SectionState>
         </section>
       )}
 
       {/* ── Sandbox businesses ──────────────────────────────────────── */}
-      <section className="card" aria-labelledby="developer-sandbox">
+      <section className="min-w-0 rounded-xl border border-line bg-surface p-5 shadow-card [&>*+*]:mt-4 [&>.section-head+*]:mt-0" aria-labelledby="developer-sandbox">
         <SectionHead
           id="developer-sandbox"
           title="Sandbox businesses"
@@ -744,11 +748,11 @@ export default function DeveloperArea() {
           }
         />
 
-        <div className="callout callout-warning">
+        <div className="flex min-w-0 flex-col gap-0.5 rounded-lg border px-4 py-3 text-[13px] break-words border-warn/30 bg-warn-soft">
           <div>
-            <p className="callout-title">Sandboxes cannot be deleted</p>
-            <p className="callout-text">
-              <span className="mono">create_sandbox_business()</span> writes the organisation and its TrackOja entitlement
+            <p className="m-0 text-sm font-semibold text-ink">Sandboxes cannot be deleted</p>
+            <p className="m-0 text-[13px] text-ink-2">
+              <span className="font-mono text-[0.92em]">create_sandbox_business()</span> writes the organisation and its {APP_NAME} entitlement
               and nothing else.
             </p>
           </div>
@@ -775,23 +779,25 @@ export default function DeveloperArea() {
           onRetry={reload}
         >
           <>
-            <DataTable
-              columns={sandboxColumns}
-              rows={sandboxes}
-              rowKey={(row) => row.orgId}
-              caption="Sandbox businesses"
-              stacked
-            />
-            <p className="section-sub">
+            <div className={tableBleed}>
+              <DataTable
+                columns={sandboxColumns}
+                rows={sandboxes}
+                rowKey={(row) => row.orgId}
+                caption="Sandbox businesses"
+                stacked
+              />
+            </div>
+            <p className="m-0 mt-0.5 text-[13px] text-ink-3">
               {formatNumber(sandboxes.length)} sandbox record{sandboxes.length === 1 ? '' : 's'}. A{' '}
-              <span className="mono">[SANDBOX]</span> prefix marks each one, so none is mistaken for a customer.
+              <span className="font-mono text-[0.92em]">[SANDBOX]</span> prefix marks each one, so none is mistaken for a customer.
             </p>
           </>
         </SectionState>
       </section>
 
       {/* ── Redacted diagnostics ────────────────────────────────────── */}
-      <section className="card" aria-labelledby="developer-diagnostics">
+      <section className="min-w-0 rounded-xl border border-line bg-surface p-5 shadow-card [&>*+*]:mt-4 [&>.section-head+*]:mt-0" aria-labelledby="developer-diagnostics">
         <SectionHead
           id="developer-diagnostics"
           title="Diagnostics (redacted)"
@@ -800,14 +806,14 @@ export default function DeveloperArea() {
 
         {canListBusinesses ? (
           <>
-            <div className="plat-toolbar">
-              <div className="plat-field plat-field-grow">
-                <label className="form-label" htmlFor="developer-diagnostics-org">
+            <div className="flex flex-wrap items-end gap-3">
+              <div className="flex min-w-0 flex-1 basis-60 flex-col gap-1.5">
+                <label className="text-[13px] font-medium text-ink-2" htmlFor="developer-diagnostics-org">
                   Business
                 </label>
                 <select
                   id="developer-diagnostics-org"
-                  className="select-input"
+                  className="block h-10 w-full min-w-0 rounded-md border border-line-strong bg-surface px-3 text-sm text-ink placeholder:text-ink-3 focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/15 cursor-pointer pr-8"
                   value={diagnosticsOrgId}
                   onChange={(event) => setDiagnosticsOrgId(event.target.value)}
                 >
@@ -822,7 +828,7 @@ export default function DeveloperArea() {
               </div>
               <Button
                 variant="outline"
-                className="btn-sm"
+               
                 loading={diagnosticsLoading}
                 disabled={!diagnosticsOrgId}
                 onClick={loadDiagnostics}
@@ -840,16 +846,16 @@ export default function DeveloperArea() {
               onRetry={loadDiagnostics}
             >
               <>
-                <pre className="code-panel">{JSON.stringify(diagnostics, null, 2)}</pre>
-                <p className="section-sub">
+                <pre className="m-0 max-h-[360px] min-w-0 overflow-auto whitespace-pre-wrap rounded-lg border border-line bg-subtle p-3 font-mono text-xs leading-5 text-ink-2 break-words">{JSON.stringify(diagnostics, null, 2)}</pre>
+                <p className="m-0 mt-0.5 text-[13px] text-ink-3">
                   Redaction happens in the database: emails arrive masked, and nothing here acts as the customer.
                 </p>
                 <Disclosure summary="What the payload excludes">
                   <p>
                     Secret keys, API tokens, passwords, payment provider payloads, webhook signatures, raw metadata and
-                    transaction references are excluded — the payload&rsquo;s own <span className="mono">excluded</span>{' '}
+                    transaction references are excluded — the payload&rsquo;s own <span className="font-mono text-[0.92em]">excluded</span>{' '}
                     list names them, so withheld detail is not absent detail.{' '}
-                    <span className="mono">override_allowed</span> is true only for a sandbox organisation.
+                    <span className="font-mono text-[0.92em]">override_allowed</span> is true only for a sandbox organisation.
                   </p>
                 </Disclosure>
               </>
@@ -865,28 +871,28 @@ export default function DeveloperArea() {
       </section>
 
       {/* ── Impersonation ───────────────────────────────────────────── */}
-      <section className="card" aria-labelledby="developer-impersonation">
+      <section className="min-w-0 rounded-xl border border-line bg-surface p-5 shadow-card [&>*+*]:mt-4 [&>.section-head+*]:mt-0" aria-labelledby="developer-impersonation">
         <SectionHead
           id="developer-impersonation"
           title="Read-only support session"
           sub="Named, reasoned, time-limited; audited at both ends."
         />
 
-        <div className="callout callout-warning">
+        <div className="flex min-w-0 flex-col gap-0.5 rounded-lg border px-4 py-3 text-[13px] break-words border-warn/30 bg-warn-soft">
           <div>
-            <p className="callout-title">How far read-only is actually enforced</p>
-            <p className="callout-text">
+            <p className="m-0 text-sm font-semibold text-ink">How far read-only is actually enforced</p>
+            <p className="m-0 text-[13px] text-ink-2">
               The guard covers 20 tenant business tables: writes outside them, and callers with no JWT, are not blocked.
             </p>
             <Disclosure summary="Origin of the guard">
               <p>
-                <span className="mono">block_writes_while_impersonating()</span> was declared in{' '}
-                <span className="mono">20260926000065_platform_developer_mode_schema.sql</span> and attached to no table,
+                <span className="font-mono text-[0.92em]">block_writes_while_impersonating()</span> was declared in{' '}
+                <span className="font-mono text-[0.92em]">20260926000065_platform_developer_mode_schema.sql</span> and attached to no table,
                 so the guarantee did not exist. Migration 089 (section 4) attached it to 20 tenant business tables but
                 exempted platform admins — the only callers that can own a session, so the exemption covered every caller
                 the predicate could match. Migration 090 removed it and asserts that all 20 triggers are still attached. A
-                caller with no JWT — a <span className="mono">service_role</span> webhook, a migration or the seed path —
-                is never blocked, because <span className="mono">auth.uid()</span> is NULL. The &ldquo;attached to no
+                caller with no JWT — a <span className="font-mono text-[0.92em]">service_role</span> webhook, a migration or the seed path —
+                is never blocked, because <span className="font-mono text-[0.92em]">auth.uid()</span> is NULL. The &ldquo;attached to no
                 table&rdquo; wording in the coverage notice above predates 090 and comes from the shared area registry.
               </p>
             </Disclosure>
@@ -899,7 +905,7 @@ export default function DeveloperArea() {
               rows={[
                 { term: 'Business being viewed', value: impersonation.orgName },
                 { term: 'Reason recorded', value: impersonation.reason },
-                { term: 'Session id', value: <span className="mono">{impersonation.sessionId}</span> },
+                { term: 'Session id', value: <span className="font-mono text-[0.92em]">{impersonation.sessionId}</span> },
                 { term: 'Expires at', value: formatDateTime(impersonation.expiresAt) },
                 {
                   term: 'Time remaining',
@@ -907,7 +913,7 @@ export default function DeveloperArea() {
                 },
               ]}
             />
-            <div className="state-actions">
+            <div className="mt-3 flex flex-wrap gap-2">
               <Button
                 variant="outline"
                 className="btn-sm"
@@ -918,22 +924,22 @@ export default function DeveloperArea() {
                 End support session
               </Button>
             </div>
-            <p className="section-sub">
-              The target is the business owner, always: <span className="mono">start_impersonation()</span> writes{' '}
-              <span className="mono">target_user_id = organizations.owner_id</span>, so a session cannot be narrowed to a
+            <p className="m-0 mt-0.5 text-[13px] text-ink-3">
+              The target is the business owner, always: <span className="font-mono text-[0.92em]">start_impersonation()</span> writes{' '}
+              <span className="font-mono text-[0.92em]">target_user_id = organizations.owner_id</span>, so a session cannot be narrowed to a
               particular staff member. Only one live session is allowed.
             </p>
           </>
         ) : canListBusinesses ? (
           <>
-            <div className="plat-toolbar">
-              <div className="plat-field plat-field-grow">
-                <label className="form-label" htmlFor="developer-impersonate-org">
+            <div className="flex flex-wrap items-end gap-3">
+              <div className="flex min-w-0 flex-1 basis-60 flex-col gap-1.5">
+                <label className="text-[13px] font-medium text-ink-2" htmlFor="developer-impersonate-org">
                   Business
                 </label>
                 <select
                   id="developer-impersonate-org"
-                  className="select-input"
+                  className="block h-10 w-full min-w-0 rounded-md border border-line-strong bg-surface px-3 text-sm text-ink placeholder:text-ink-3 focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/15 cursor-pointer pr-8"
                   value={impersonateOrgId}
                   onChange={(event) => setImpersonateOrgId(event.target.value)}
                 >
@@ -946,13 +952,13 @@ export default function DeveloperArea() {
                 </select>
               </div>
 
-              <div className="plat-field">
-                <label className="form-label" htmlFor="developer-impersonate-minutes">
+              <div className="flex min-w-0 flex-col gap-1.5">
+                <label className="text-[13px] font-medium text-ink-2" htmlFor="developer-impersonate-minutes">
                   Minutes (1–60)
                 </label>
                 <input
                   id="developer-impersonate-minutes"
-                  className="form-input"
+                  className="block h-10 w-full min-w-0 rounded-md border border-line-strong bg-surface px-3 text-sm text-ink placeholder:text-ink-3 focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/15"
                   type="number"
                   min={1}
                   max={60}
@@ -963,7 +969,7 @@ export default function DeveloperArea() {
 
               <Button
                 variant="outline"
-                className="btn-sm"
+               
                 disabled={!impersonateOrgId || busy !== null}
                 onClick={() => setConfirm({ kind: 'impersonate-start' })}
               >
@@ -971,8 +977,8 @@ export default function DeveloperArea() {
               </Button>
             </div>
 
-            <p className="section-sub">
-              Sandboxes are excluded: <span className="mono">start_impersonation()</span> refuses them. A live session is
+            <p className="m-0 mt-0.5 text-[13px] text-ink-3">
+              Sandboxes are excluded: <span className="font-mono text-[0.92em]">start_impersonation()</span> refuses them. A live session is
               never ended implicitly, and the 1–60 minute duration is clamped by the server too.
             </p>
           </>
@@ -986,16 +992,16 @@ export default function DeveloperArea() {
       </section>
 
       {/* ── Not built ───────────────────────────────────────────────── */}
-      <Disclosure summary="Not built in this area"><section className="card" aria-labelledby="developer-not-built">
-        <SectionHead id="developer-not-built" title="Not built in this area" />
-        <ul className="list">
+      <Disclosure summary="Not built in this area"><section className="min-w-0 [&>*+*]:mt-4 [&>.section-head+*]:mt-0" aria-labelledby="developer-not-built">
+        <h2 id="developer-not-built" className="sr-only">Not built in this area</h2>
+        <ul className="m-0 flex list-none flex-col divide-y divide-line p-0">
           {NOT_BUILT.map((item) => (
-            <li className="list-item" key={item}>
+            <li className="flex min-w-0 items-center justify-between gap-3 py-3 first:pt-0 last:pb-0" key={item}>
               <div>
-                <p className="list-item-title">
+                <p className="m-0 text-sm font-medium text-ink break-words">
                   <StatusBadge status="not_configured" /> <Badge tone="outline">no endpoint</Badge>
                 </p>
-                <p className="list-item-subtitle">{item}</p>
+                <p className="m-0 mt-0.5 text-xs text-ink-3 break-words">{item}</p>
               </div>
             </li>
           ))}
@@ -1024,12 +1030,12 @@ export default function DeveloperArea() {
           </>
         }
       >
-        <div className="callout callout-warning">
+        <div className="flex min-w-0 flex-col gap-0.5 rounded-lg border px-4 py-3 text-[13px] break-words border-warn/30 bg-warn-soft">
           <div>
-            <p className="callout-title">What will actually exist afterwards</p>
-            <p className="callout-text">
-              One sandbox organisation with a <span className="mono">[SANDBOX]</span> name prefix and a generated slug,
-              plus one active TrackOja entitlement at zero agreed price. No store, products, staff or sales — and no
+            <p className="m-0 text-sm font-semibold text-ink">What will actually exist afterwards</p>
+            <p className="m-0 text-[13px] text-ink-2">
+              One sandbox organisation with a <span className="font-mono text-[0.92em]">[SANDBOX]</span> name prefix and a generated slug,
+              plus one active {APP_NAME} entitlement at zero agreed price. No store, products, staff or sales — and no
               delete endpoint.
             </p>
           </div>
@@ -1056,12 +1062,12 @@ export default function DeveloperArea() {
         />
 
         {sandboxError && (
-          <p className="form-error" role="alert">
+          <p className="m-0 text-xs text-danger" role="alert">
             {sandboxError}
           </p>
         )}
 
-        <label className="plat-check" htmlFor="sandbox-acknowledge">
+        <label className="flex items-center gap-2 text-sm text-ink-2" htmlFor="sandbox-acknowledge">
           <input
             id="sandbox-acknowledge"
             type="checkbox"

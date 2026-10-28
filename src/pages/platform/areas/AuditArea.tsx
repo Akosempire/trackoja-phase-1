@@ -1,5 +1,6 @@
 import { updateListFilter } from '../../../utils/list-filters';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { chipClass, tableBleed } from '../../../components/platform/ui';
 import { useSearchParams } from 'react-router-dom';
 import {
   PlatformAdminService,
@@ -289,8 +290,8 @@ export default function AuditArea() {
         sortValue: (row) => row.createdAt,
         render: (row) => (
           <div>
-            <span className="data-table-primary">{formatDateTime(row.createdAt)}</span>
-            <p className="data-table-secondary">{formatRelative(row.createdAt)}</p>
+            <span className="font-medium text-ink whitespace-nowrap">{formatDateTime(row.createdAt)}</span>
+            <p className="m-0 text-xs text-ink-3 whitespace-nowrap">{formatRelative(row.createdAt)}</p>
           </div>
         ),
       },
@@ -299,7 +300,7 @@ export default function AuditArea() {
         header: 'Actor',
         sortValue: (row) => row.actorEmail ?? '',
         render: (row) =>
-          row.actorEmail ?? <span className="data-table-secondary">Not recorded</span>,
+          row.actorEmail ?? <span className="m-0 block text-xs text-ink-3 break-words">Not recorded</span>,
       },
       {
         key: 'action',
@@ -308,8 +309,8 @@ export default function AuditArea() {
         sortValue: (row) => row.action,
         render: (row) => (
           <div>
-            <span className="data-table-primary">{humaniseToken(row.action)}</span>
-            <p className="data-table-secondary mono">{row.action}</p>
+            <span className="font-medium text-ink break-words">{humaniseToken(row.action)}</span>
+            <p className="m-0 font-mono text-xs text-ink-3 break-words">{row.action}</p>
           </div>
         ),
       },
@@ -319,8 +320,8 @@ export default function AuditArea() {
         sortValue: (row) => row.resourceType,
         render: (row) => (
           <div>
-            <span className="data-table-primary">{row.resourceName ?? humaniseToken(row.resourceType)}</span>
-            <p className="data-table-secondary">
+            <span className="font-medium text-ink break-words">{row.resourceName ?? humaniseToken(row.resourceType)}</span>
+            <p className="m-0 text-xs text-ink-3 break-words">
               {humaniseToken(row.resourceType)}
               {row.resourceId ? ` · ${row.resourceId}` : ''}
             </p>
@@ -331,7 +332,7 @@ export default function AuditArea() {
         key: 'business',
         header: 'Business',
         sortValue: (row) => row.orgName ?? '',
-        render: (row) => row.orgName ?? <span className="data-table-secondary">Platform-wide</span>,
+        render: (row) => row.orgName ?? <span className="m-0 block text-xs text-ink-3 break-words">Platform-wide</span>,
       },
       {
         key: 'status',
@@ -378,12 +379,12 @@ export default function AuditArea() {
           value: detail.actorEmail ?? 'Not recorded',
           muted: !detail.actorEmail,
         },
-        { term: 'Action', value: <span className="mono">{detail.action}</span> },
+        { term: 'Action', value: <span className="font-mono text-[0.92em]">{detail.action}</span> },
         { term: 'Resource type', value: detail.resourceType },
         { term: 'Resource name', value: detail.resourceName ?? '—', muted: !detail.resourceName },
         {
           term: 'Resource id',
-          value: detail.resourceId ? <span className="mono">{detail.resourceId}</span> : '—',
+          value: detail.resourceId ? <span className="font-mono text-[0.92em]">{detail.resourceId}</span> : '—',
           muted: !detail.resourceId,
         },
         {
@@ -407,16 +408,16 @@ export default function AuditArea() {
       <AreaCoverage gaps={AREA.gaps} title="What this trail does not cover" />
 
       {/* ── What the environment column means ───────────────────────── */}
-      <div className="callout callout-warning" role="status">
+      <div className="flex min-w-0 flex-col gap-0.5 rounded-lg border px-4 py-3 text-[13px] break-words border-warn/30 bg-warn-soft" role="status">
         <div>
-          <p className="callout-title">The environment column is this session, not the action</p>
-          <p className="callout-text">
-            <span className="mono">audit_logs</span> has no environment column, so every row carries the environment you
+          <p className="m-0 text-sm font-semibold text-ink">The environment column is this session, not the action</p>
+          <p className="m-0 text-[13px] text-ink-2">
+            <span className="font-mono text-[0.92em]">audit_logs</span> has no environment column, so every row carries the environment you
             are reading from — it is not evidence of where a change was made.
           </p>
           <Disclosure summary="Where that is verified">
             <p>
-              Verified in <span className="mono">supabase/migrations/20260612000005_audit_logging_schema.sql</span>, and no
+              Verified in <span className="font-mono text-[0.92em]">supabase/migrations/20260612000005_audit_logging_schema.sql</span>, and no
               later migration adds one. The value is resolved now by the platform context, so a row written by another
               deployment of this database carries this session&rsquo;s label.
             </p>
@@ -425,7 +426,7 @@ export default function AuditArea() {
       </div>
 
       {/* ── Filters ─────────────────────────────────────────────────── */}
-      <section className="card" aria-labelledby="audit-filters">
+      <section className="min-w-0 rounded-xl border border-line bg-surface p-5 shadow-card [&>*+*]:mt-4 [&>.section-head+*]:mt-0" aria-labelledby="audit-filters">
         <SectionHead
           id="audit-filters"
           title="Filter the trail"
@@ -433,19 +434,19 @@ export default function AuditArea() {
         />
 
         <form
-          className="plat-toolbar"
+          className="flex flex-wrap items-end gap-3"
           onSubmit={(event) => {
             event.preventDefault();
             void applyFilters();
           }}
         >
-          <div className="plat-field plat-field-grow">
-            <label className="form-label" htmlFor="audit-actor">
+          <div className="flex min-w-0 flex-1 basis-60 flex-col gap-1.5">
+            <label className="text-[13px] font-medium text-ink-2" htmlFor="audit-actor">
               Actor (email or user id)
             </label>
             <input
               id="audit-actor"
-              className="form-input"
+              className="block h-10 w-full min-w-0 rounded-md border border-line-strong bg-surface px-3 text-sm text-ink placeholder:text-ink-3 focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/15"
               value={actorDraft}
               placeholder={actorId ? `filtering on ${actorLabel ?? actorId}` : 'name@example.com'}
               onChange={(event) => setActorDraft(event.target.value)}
@@ -453,13 +454,13 @@ export default function AuditArea() {
             />
           </div>
 
-          <div className="plat-field plat-field-grow">
-            <label className="form-label" htmlFor="audit-business">
+          <div className="flex min-w-0 flex-1 basis-60 flex-col gap-1.5">
+            <label className="text-[13px] font-medium text-ink-2" htmlFor="audit-business">
               Business (name or org id)
             </label>
             <input
               id="audit-business"
-              className="form-input"
+              className="block h-10 w-full min-w-0 rounded-md border border-line-strong bg-surface px-3 text-sm text-ink placeholder:text-ink-3 focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/15"
               value={orgDraft}
               placeholder={orgId ? `filtering on ${orgLabel ?? orgId}` : 'Business name'}
               onChange={(event) => setOrgDraft(event.target.value)}
@@ -467,13 +468,13 @@ export default function AuditArea() {
             />
           </div>
 
-          <div className="plat-field">
-            <label className="form-label" htmlFor="audit-action">
+          <div className="flex min-w-0 flex-col gap-1.5">
+            <label className="text-[13px] font-medium text-ink-2" htmlFor="audit-action">
               Action contains
             </label>
             <input
               id="audit-action"
-              className="form-input"
+              className="block h-10 w-full min-w-0 rounded-md border border-line-strong bg-surface px-3 text-sm text-ink placeholder:text-ink-3 focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/15"
               value={actionDraft}
               placeholder="developer"
               onChange={(event) => setActionDraft(event.target.value)}
@@ -481,13 +482,13 @@ export default function AuditArea() {
             />
           </div>
 
-          <div className="plat-field">
-            <label className="form-label" htmlFor="audit-resource">
+          <div className="flex min-w-0 flex-col gap-1.5">
+            <label className="text-[13px] font-medium text-ink-2" htmlFor="audit-resource">
               Resource type
             </label>
             <select
               id="audit-resource"
-              className="select-input"
+              className="block h-10 w-full min-w-0 rounded-md border border-line-strong bg-surface px-3 text-sm text-ink placeholder:text-ink-3 focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/15 cursor-pointer pr-8"
               value={resourceType}
               onChange={(event) => setFilter('resourceType', event.target.value)}
               disabled={resolving}
@@ -501,13 +502,13 @@ export default function AuditArea() {
             </select>
           </div>
 
-          <div className="plat-field">
-            <label className="form-label" htmlFor="audit-status">
+          <div className="flex min-w-0 flex-col gap-1.5">
+            <label className="text-[13px] font-medium text-ink-2" htmlFor="audit-status">
               Status
             </label>
             <select
               id="audit-status"
-              className="select-input"
+              className="block h-10 w-full min-w-0 rounded-md border border-line-strong bg-surface px-3 text-sm text-ink placeholder:text-ink-3 focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/15 cursor-pointer pr-8"
               value={status}
               onChange={(event) => setFilter('status', event.target.value)}
               disabled={resolving}
@@ -521,13 +522,13 @@ export default function AuditArea() {
             </select>
           </div>
 
-          <div className="plat-field">
-            <label className="form-label" htmlFor="audit-from">
+          <div className="flex min-w-0 flex-col gap-1.5">
+            <label className="text-[13px] font-medium text-ink-2" htmlFor="audit-from">
               From
             </label>
             <input
               id="audit-from"
-              className="form-input"
+              className="block h-10 w-full min-w-0 rounded-md border border-line-strong bg-surface px-3 text-sm text-ink placeholder:text-ink-3 focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/15"
               type="date"
               value={fromDraft}
               onChange={(event) => setFromDraft(event.target.value)}
@@ -535,13 +536,13 @@ export default function AuditArea() {
             />
           </div>
 
-          <div className="plat-field">
-            <label className="form-label" htmlFor="audit-to">
+          <div className="flex min-w-0 flex-col gap-1.5">
+            <label className="text-[13px] font-medium text-ink-2" htmlFor="audit-to">
               To
             </label>
             <input
               id="audit-to"
-              className="form-input"
+              className="block h-10 w-full min-w-0 rounded-md border border-line-strong bg-surface px-3 text-sm text-ink placeholder:text-ink-3 focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/15"
               type="date"
               value={toDraft}
               onChange={(event) => setToDraft(event.target.value)}
@@ -549,12 +550,12 @@ export default function AuditArea() {
             />
           </div>
 
-          <Button type="submit" variant="neutral" className="btn-sm" loading={resolving}>
+          <Button type="submit" variant="neutral" loading={resolving}>
             Apply filters
           </Button>
 
           {filtersActive && (
-            <Button type="button" variant="ghost" className="btn-sm" onClick={clearFilters} disabled={resolving}>
+            <Button type="button" variant="ghost" onClick={clearFilters} disabled={resolving}>
               Clear filters
             </Button>
           )}
@@ -563,7 +564,7 @@ export default function AuditArea() {
         {/* Two filters are ids on the wire, so the resolution step is explicit
             rather than implied by a field that looks like free text. */}
         {(actorId || orgId) && (
-          <p className="form-hint">
+          <p className="m-0 text-xs text-ink-3">
             Matched by id. Filtering on
             {actorId ? ` actor ${actorLabel ?? actorId}` : ''}
             {actorId && orgId ? ' and' : ''}
@@ -572,30 +573,30 @@ export default function AuditArea() {
         )}
 
         {!canResolveUsers && (
-          <p className="form-hint">
+          <p className="m-0 text-xs text-ink-3">
             An actor email cannot be resolved without platform:manage_users. Paste the user id instead.
           </p>
         )}
 
         {!canResolveBusinesses && (
-          <p className="form-hint">
+          <p className="m-0 text-xs text-ink-3">
             A business name cannot be resolved without platform:manage_businesses. Paste the organisation id instead.
           </p>
         )}
 
         {resolveError && (
-          <p className="form-error" role="alert">
+          <p className="m-0 text-xs text-danger" role="alert">
             {resolveError}
           </p>
         )}
 
         {actorMatches.length > 0 && (
-          <div className="chip-row">
+          <div className="flex flex-wrap gap-2">
             {actorMatches.map((match) => (
               <button
                 key={match.userId}
                 type="button"
-                className="chip"
+                className={chipClass}
                 onClick={() => {
                   setActorLabel(match.email);
                   setActorMatches([]);
@@ -610,12 +611,12 @@ export default function AuditArea() {
         )}
 
         {orgMatches.length > 0 && (
-          <div className="chip-row">
+          <div className="flex flex-wrap gap-2">
             {orgMatches.map((match) => (
               <button
                 key={match.orgId}
                 type="button"
-                className="chip"
+                className={chipClass}
                 onClick={() => {
                   setOrgLabel(match.name);
                   setOrgMatches([]);
@@ -631,7 +632,7 @@ export default function AuditArea() {
       </section>
 
       {/* ── The table ───────────────────────────────────────────────── */}
-      <section className="card" aria-labelledby="audit-table">
+      <section className="min-w-0 rounded-xl border border-line bg-surface p-5 shadow-card [&>*+*]:mt-4 [&>.section-head+*]:mt-0" aria-labelledby="audit-table">
         <SectionHead
           id="audit-table"
           title="Audit entries"
@@ -660,25 +661,27 @@ export default function AuditArea() {
           </>
         ) : (
           <>
-            <DataTable
-              columns={columns}
-              rows={entries}
-              rowKey={(row) => row.id}
-              caption="Platform audit log"
-              stacked
-              loading={loading}
-              empty={
-                <StateBlock
-                  variant="empty"
-                  title={filtersActive ? 'No audit entries match these filters' : 'No audit entries'}
-                  body={
-                    filtersActive
-                      ? 'Widen the range or clear a filter. Only the actions listed below write a row.'
-                      : 'Nothing has been audited yet. Only the actions listed below write a row.'
-                  }
-                />
-              }
-            />
+            <div className={tableBleed}>
+              <DataTable
+                columns={columns}
+                rows={entries}
+                rowKey={(row) => row.id}
+                caption="Platform audit log"
+                stacked
+                loading={loading}
+                empty={
+                  <StateBlock
+                    variant="empty"
+                    title={filtersActive ? 'No audit entries match these filters' : 'No audit entries'}
+                    body={
+                      filtersActive
+                        ? 'Widen the range or clear a filter. Only the actions listed below write a row.'
+                        : 'Nothing has been audited yet. Only the actions listed below write a row.'
+                    }
+                  />
+                }
+              />
+            </div>
             <Pagination
               page={page}
               pageSize={PAGE_SIZE}
@@ -689,48 +692,48 @@ export default function AuditArea() {
           </>
         )}
 
-        <p className="section-sub">
+        <p className="m-0 mt-0.5 text-[13px] text-ink-3">
           An actor of &ldquo;Not recorded&rdquo; means the row has no actor id: a server-side action, or an account since
           deleted.
         </p>
       </section>
 
       {/* ── Coverage ────────────────────────────────────────────────── */}
-      <Disclosure summary="What is and is not recorded"><section className="card" aria-labelledby="audit-coverage">
-        <SectionHead id="audit-coverage" title="What is and is not recorded" />
+      <Disclosure summary="What is and is not recorded"><section className="min-w-0 [&>*+*]:mt-4 [&>.section-head+*]:mt-0" aria-labelledby="audit-coverage">
+        <h2 id="audit-coverage" className="sr-only">What is and is not recorded</h2>
 
-        <p className="section-sub">
+        <p className="m-0 mt-0.5 text-[13px] text-ink-3">
           Not recorded: permission denials, reads, actions with no endpoint, and developer session start and end.
         </p>
 
         <Disclosure summary="Which actions write a row">
-          <h3 className="section-title">
+          <h3 className="m-0 text-[15px] font-semibold text-ink">
             Recorded <Badge tone="success">audited</Badge>
           </h3>
-          <ul className="list">
+          <ul className="m-0 flex list-none flex-col divide-y divide-line p-0">
             {AUDITED_ACTIONS.map((item) => (
-              <li className="list-item" key={item}>
-                <p className="list-item-subtitle">{item}</p>
+              <li className="flex min-w-0 items-center justify-between gap-3 py-3 first:pt-0 last:pb-0" key={item}>
+                <p className="m-0 mt-0.5 text-xs text-ink-3 break-words">{item}</p>
               </li>
             ))}
           </ul>
 
-          <h3 className="section-title">
+          <h3 className="m-0 text-[15px] font-semibold text-ink">
             Not recorded <Badge tone="outline">no audit row</Badge>
           </h3>
-          <ul className="list">
+          <ul className="m-0 flex list-none flex-col divide-y divide-line p-0">
             {UNAUDITED_ACTIONS.map((item) => (
-              <li className="list-item" key={item}>
-                <p className="list-item-subtitle">{item}</p>
+              <li className="flex min-w-0 items-center justify-between gap-3 py-3 first:pt-0 last:pb-0" key={item}>
+                <p className="m-0 mt-0.5 text-xs text-ink-3 break-words">{item}</p>
               </li>
             ))}
           </ul>
 
-          <p className="section-sub">
+          <p className="m-0 mt-0.5 text-[13px] text-ink-3">
             Rows are read through a SECURITY DEFINER function on purpose: audit rows with no organisation — every
             platform-scoped event, which is the set this screen exists to show — are invisible to every row-level security
-            policy. The same function redacts credential-looking keys from <span className="mono">changes</span> and{' '}
-            <span className="mono">details</span>, and <span className="mono">create_audit_log()</span> is no longer
+            policy. The same function redacts credential-looking keys from <span className="font-mono text-[0.92em]">changes</span> and{' '}
+            <span className="font-mono text-[0.92em]">details</span>, and <span className="font-mono text-[0.92em]">create_audit_log()</span> is no longer
             executable by authenticated or anonymous callers after migration 089, so rows cannot be forged from a client.
           </p>
         </Disclosure>
@@ -754,17 +757,17 @@ export default function AuditArea() {
           <>
             <DefList rows={detailRows} />
 
-            <div className="callout callout-info">
+            <div className="flex min-w-0 flex-col gap-0.5 rounded-lg border px-4 py-3 text-[13px] break-words border-brand-line bg-brand-soft/60">
               <div>
-                <p className="callout-title">Redaction happens in the database</p>
-                <p className="callout-text">
-                  Credential-shaped values become <span className="mono">***redacted***</span>, so withheld detail is not
+                <p className="m-0 text-sm font-semibold text-ink">Redaction happens in the database</p>
+                <p className="m-0 text-[13px] text-ink-2">
+                  Credential-shaped values become <span className="font-mono text-[0.92em]">***redacted***</span>, so withheld detail is not
                   absent detail and an empty payload does not prove nothing changed.
                 </p>
                 <Disclosure summary="Which keys are redacted">
                   <p>
                     Any value whose key looks like a credential —{' '}
-                    <span className="mono">
+                    <span className="font-mono text-[0.92em]">
                       secret, password, token, api_key, private_key, authorization, service_role
                     </span>{' '}
                     — is replaced, including inside nested objects.
@@ -774,22 +777,22 @@ export default function AuditArea() {
             </div>
 
             <div>
-              <h3 className="section-title">Changes (before and after)</h3>
-              <p className="section-sub">
-                Setting changes carry <span className="mono">{'{ previous, new }'}</span> here. Absent means the action
+              <h3 className="m-0 text-[15px] font-semibold text-ink">Changes (before and after)</h3>
+              <p className="m-0 mt-0.5 text-[13px] text-ink-3">
+                Setting changes carry <span className="font-mono text-[0.92em]">{'{ previous, new }'}</span> here. Absent means the action
                 recorded no before-and-after pair.
               </p>
               {detail.changes ? (
-                <pre className="code-panel">{JSON.stringify(detail.changes, null, 2)}</pre>
+                <pre className="m-0 max-h-[360px] min-w-0 overflow-auto whitespace-pre-wrap rounded-lg border border-line bg-subtle p-3 font-mono text-xs leading-5 text-ink-2 break-words">{JSON.stringify(detail.changes, null, 2)}</pre>
               ) : (
                 <StateBlock variant="unavailable" title="Not recorded" body="This entry has no changes payload." />
               )}
             </div>
 
             <div>
-              <h3 className="section-title">Details</h3>
+              <h3 className="m-0 text-[15px] font-semibold text-ink">Details</h3>
               {detail.details ? (
-                <pre className="code-panel">{JSON.stringify(detail.details, null, 2)}</pre>
+                <pre className="m-0 max-h-[360px] min-w-0 overflow-auto whitespace-pre-wrap rounded-lg border border-line bg-subtle p-3 font-mono text-xs leading-5 text-ink-2 break-words">{JSON.stringify(detail.details, null, 2)}</pre>
               ) : (
                 <StateBlock variant="unavailable" title="Not recorded" body="This entry has no details payload." />
               )}

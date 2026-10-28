@@ -1,4 +1,4 @@
-import { DashboardRevenuePanel, DashboardWelcome } from '../../../components/ui/DashboardRevenuePanel';
+import { DashboardRevenuePanel } from '../../../components/ui/DashboardRevenuePanel';
 import type { ReportDateRange } from '../../../utils/report-date-ranges';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -16,16 +16,10 @@ import { daysUntil, formatNumber, formatRelative, humaniseToken } from '../../..
 import { getReportDateRange } from '../../../utils/report-date-ranges';
 import type { PlatformInventoryOverview, PlatformOrganization, PlatformOverview, PlatformRecentError, PlatformRevenueSummary } from '../../../types';
 import type { PlatformOverviewV2, ProductBusiness } from '../../../services/platformAdmin.service';
-import {
-  HomeBar,
-  HomeBars,
-  HomeDashboardSkeleton,
-  HomeDonut,
-  HomeMetricCard,
-  HomePanel,
-  type HomeMetric,
-  type HomeSlice,
-} from '../../../components/home/HomeDashboard';
+import { MeterList, type MeterItem } from '../../../components/ui/MeterList';
+import { DefList, type DefRow } from '../../../components/ui/DefList';
+import { Card, Pill, Stat, btn, cn } from '../../../components/kit';
+import { Notice, SkeletonLines, linkClass } from '../../../components/platform/ui';
 
 const AREA = PLATFORM_AREAS.find((area) => area.id === 'overview')!;
 
@@ -294,180 +288,199 @@ export default function OverviewArea() {
   }, [entitlements]);
   const canAssertHealthy = Boolean(data.entitlements && data.organizations && (data.revenue || data.v2));
 
-  const platformMetrics: HomeMetric[] = [
-    { label: 'Businesses', value: data.organizations && data.entitlements ? formatNumber(counts.businesses) : '—' },
-    { label: 'Active access', value: data.entitlements ? formatNumber(counts.activeSubs) : '—' },
-    { label: 'On trial', value: data.entitlements ? formatNumber(counts.trialingSubs) : '—' },
-    { label: 'Failed payments', value: data.revenue ? formatNumber(counts.failedPayments) : '—' },
+  const totalSubs = counts.activeSubs + counts.trialingSubs + counts.pastDueSubs;
+  const subSlices: Slice[] = totalSubs > 0
+    ? [
+        { label: 'Active', value: counts.activeSubs, tone: 'bg-success' },
+        { label: 'Trialing', value: counts.trialingSubs, tone: 'bg-brand' },
+        { label: 'Past due', value: counts.pastDueSubs, tone: 'bg-danger' },
+      ]
+    : [];
+
+  const billingBars: MeterItem[] = counts.businesses > 0
+    ? [
+        { id: 'paying', label: 'Paying', value: counts.paying, max: counts.businesses, tone: 'success', display: `${formatNumber(counts.paying)} (${Math.round((counts.paying / counts.businesses) * 100)}%)` },
+        { id: 'trial', label: 'On trial', value: counts.trial, max: counts.businesses, tone: 'accent', display: `${formatNumber(counts.trial)} (${Math.round((counts.trial / counts.businesses) * 100)}%)` },
+        { id: 'suspended', label: 'Suspended', value: counts.suspendedBusinesses, max: counts.businesses, tone: 'danger', display: `${formatNumber(counts.suspendedBusinesses)} (${Math.round((counts.suspendedBusinesses / counts.businesses) * 100)}%)` },
+      ]
+    : [];
+
+  const statusLink = (to: string, value: number) => <Link className={linkClass} to={to}>{formatNumber(value)}</Link>;
+  const subscriptionState: DefRow[] = [
+    { term: 'Paying businesses', value: data.organizations && data.entitlements ? statusLink('/platform/businesses?billing=active', counts.paying) : '—' },
+    { term: 'Businesses on trial', value: data.organizations && data.entitlements ? statusLink('/platform/businesses?billing=trial', counts.trial) : '—' },
+    { term: 'Trialing subscriptions', value: data.entitlements ? statusLink('/platform/billing?filter=trialing', counts.trialingSubs) : '—' },
+    { term: 'Expiring within 30 days', value: data.entitlements ? statusLink('/platform/billing?filter=expiring', counts.expiring) : '—' },
+    { term: 'Suspended businesses', value: data.organizations && data.entitlements ? statusLink('/platform/businesses?billing=suspended', counts.suspendedBusinesses) : '—' },
+    { term: 'Recent failed events', value: data.recentErrors ? statusLink('/platform/health', counts.failedEvents) : '—' },
   ];
 
-  const totalSubs = counts.activeSubs + counts.trialingSubs + counts.pastDueSubs;
-  const subSlices: HomeSlice[] = totalSubs > 0
-    ? [
-        { label: 'Active', value: formatNumber(counts.activeSubs), percent: Math.round((counts.activeSubs / totalSubs) * 100), tone: 'success' },
-        { label: 'Trialing', value: formatNumber(counts.trialingSubs), percent: Math.round((counts.trialingSubs / totalSubs) * 100), tone: 'pending' },
-        { label: 'Past due', value: formatNumber(counts.pastDueSubs), percent: Math.round((counts.pastDueSubs / totalSubs) * 100), tone: 'failed' },
-      ]
-    : [];
-
-  const billingBars: HomeBar[] = counts.businesses > 0
-    ? [
-        { label: 'Paying', amount: formatNumber(counts.paying), percent: `${Math.round((counts.paying / counts.businesses) * 100)}%`, width: (counts.paying / counts.businesses) * 100 },
-        { label: 'On trial', amount: formatNumber(counts.trial), percent: `${Math.round((counts.trial / counts.businesses) * 100)}%`, width: (counts.trial / counts.businesses) * 100 },
-        { label: 'Suspended', amount: formatNumber(counts.suspendedBusinesses), percent: `${Math.round((counts.suspendedBusinesses / counts.businesses) * 100)}%`, width: (counts.suspendedBusinesses / counts.businesses) * 100 },
-      ]
-    : [];
-
   return (
-    <div className="platform-overview">
+    <div className="flex min-w-0 flex-col gap-4 lg:gap-6">
       <PlatformPageHead
         area={AREA}
-        description={`Signed in as ${access?.isSuperAdmin ? 'platform owner' : 'platform admin'}.`}
-        actions={<RefreshButton onClick={() => { setRevenueRevision(value => value + 1); void reload(); }} loading={loading} />}
+        description={`Signed in as ${access?.isSuperAdmin ? 'platform owner' : 'platform admin'}. Businesses, subscription activity and verified revenue.`}
+        actions={<>
+          <RefreshButton onClick={() => { setRevenueRevision(value => value + 1); void reload(); }} loading={loading} />
+          <Link className={btn('outline', 'sm')} to="/platform/businesses">View businesses</Link>
+        </>}
       />
 
       {failed > 0 && (
-        <div className="alert alert-warning" role="status">
-          <span className="alert-text">
-            Some dashboard information could not load. Available information is shown below.
-          </span>
-        </div>
+        <Notice tone="warn" role="status">
+          Some dashboard information could not load. Available information is shown below.
+        </Notice>
       )}
 
-      <DashboardWelcome title="Your platform at a glance" description="Manage businesses, follow subscription activity, and review verified revenue."
-        actions={<Link className="btn btn-outline" to="/platform/businesses">View businesses</Link>} />
-      <div className="owner-dashboard-main">
+      <section aria-label="Platform overview">
+        {loading ? (
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4" aria-label="Loading dashboard" aria-busy="true">
+            {Array.from({ length: 4 }, (_, index) => (
+              <div key={index} className="rounded-xl border border-line bg-surface p-4 shadow-card sm:p-5">
+                <span className="block h-3.5 w-20 animate-pulse rounded bg-tray" />
+                <span className="mt-3 block h-7 w-12 animate-pulse rounded-md bg-tray" />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
+            <Stat label="Businesses" value={data.organizations && data.entitlements ? formatNumber(counts.businesses) : '—'} hint={`${formatNumber(counts.new30d)} new in 30 days`} />
+            <Stat label="Active access" value={data.entitlements ? formatNumber(counts.activeSubs) : '—'} hint="Live product subscriptions" />
+            <Stat label="On trial" value={data.entitlements ? formatNumber(counts.trialingSubs) : '—'} hint="Trialing subscriptions" />
+            <Stat label="Failed payments" value={data.revenue ? <span className={counts.failedPayments > 0 ? 'text-danger' : undefined}>{formatNumber(counts.failedPayments)}</span> : '—'} hint="Last 30 days" />
+          </div>
+        )}
+      </section>
+
+      <div className="grid min-w-0 items-start gap-4 lg:gap-6 xl:grid-cols-[minmax(0,1fr)_380px]" data-overview="main">
         <DashboardRevenuePanel load={loadPlatformRevenue} refreshKey={revenueRevision} title="Subscription revenue" breakdownTitle="Revenue by recorded plan"
           note="Successful payments only. Sandbox businesses are excluded. Plan grouping follows the plan recorded on each payment."
           emptyDescription="Verified subscription payments will appear here. Choose another period to review earlier payments." />
-        <aside className="owner-dashboard-side" aria-label="Platform updates">
-      <section className="overview-panel" aria-labelledby="at-a-glance">
-        <SectionHead
-          id="at-a-glance"
-          title="Subscription state"
-          actions={
-            <Button variant="ghost" className="btn-sm" onClick={() => navigate('/platform/health')}>
-              System health
-            </Button>
-          }
-        />
-        {loading ? (
-          <div className="skeleton-inline" role="status" aria-label="Loading subscriptions"><span className="skeleton skeleton-text" /><span className="skeleton skeleton-text" /><span className="skeleton skeleton-text is-short" /></div>
-        ) : (
-          <dl className="overview-status-list">
-            <div><dt>Paying businesses</dt><dd>{data.organizations && data.entitlements ? <Link to="/platform/businesses?billing=active">{formatNumber(counts.paying)}</Link> : '—'}</dd></div>
-            <div><dt>Businesses on trial</dt><dd>{data.organizations && data.entitlements ? <Link to="/platform/businesses?billing=trial">{formatNumber(counts.trial)}</Link> : '—'}</dd></div>
-            <div><dt>Trialing subscriptions</dt><dd>{data.entitlements ? <Link to="/platform/billing?filter=trialing">{formatNumber(counts.trialingSubs)}</Link> : '—'}</dd></div>
-            <div><dt>Expiring within 30 days</dt><dd>{data.entitlements ? <Link to="/platform/billing?filter=expiring">{formatNumber(counts.expiring)}</Link> : '—'}</dd></div>
-            <div><dt>Suspended businesses</dt><dd>{data.organizations && data.entitlements ? <Link to="/platform/businesses?billing=suspended">{formatNumber(counts.suspendedBusinesses)}</Link> : '—'}</dd></div>
-            <div><dt>Recent failed events</dt><dd>{data.recentErrors ? <Link to="/platform/health">{formatNumber(counts.failedEvents)}</Link> : '—'}</dd></div>
-          </dl>
-        )}
-        <p className="section-sub">
-          Business and subscription counts are current. Sandbox businesses are excluded
-          {counts.sandbox > 0 ? ` (${formatNumber(counts.sandbox)} excluded)` : ''}.
-        </p>
-      </section>
-      <section className="overview-panel" aria-labelledby="product-access">
-        <SectionHead id="product-access" title="Product access" actions={<Link className="btn btn-ghost btn-sm" to="/platform/businesses">All businesses</Link>} />
-        {loading ? (
-          <div className="skeleton-inline" role="status" aria-label="Loading products"><span className="skeleton skeleton-text" /><span className="skeleton skeleton-text is-short" /></div>
-        ) : !data.entitlements ? (
-          <StateBlock compact variant="error" title="Product access unavailable" body="Subscriptions did not load." actions={<Button variant="outline" className="btn-sm" onClick={reload}>Try again</Button>} />
-        ) : productAccess.length === 0 ? (
-          <StateBlock compact title="No product subscriptions" body="Businesses will appear here after their product access is created." />
-        ) : (
-          <dl className="overview-status-list">
-            {productAccess.map((product) => (
-              <div key={product.key}>
-                <dt><Link to={`/platform/businesses?product=${encodeURIComponent(product.key)}`}>{product.name}</Link></dt>
-                <dd>{formatNumber(product.active)} active · {formatNumber(product.trialing)} trialing</dd>
-              </div>
-            ))}
-          </dl>
-        )}
-      </section>
-        </aside>
-      </div>
-      <section className="hd-home" aria-label="Platform overview">
-        {loading ? (
-          <HomeDashboardSkeleton metricCount={4} panelCount={2} />
-        ) : (
-          <>
-            <div className="hd-metrics">
-              {platformMetrics.map((metric) => (
-                <HomeMetricCard key={metric.label} metric={metric} />
-              ))}
-            </div>
-            <div className="hd-grid">
-              <HomePanel title="Subscriptions by status" subtitle="Active, trialing and past-due product subscriptions.">
-                {subSlices.length > 0 ? (
-                  <HomeDonut slices={subSlices} />
-                ) : (
-                  <p className="hd-panel-note">No product subscriptions recorded yet.</p>
-                )}
-              </HomePanel>
-              <HomePanel
-                title="Businesses by billing status"
-                subtitle={`Live businesses, excluding sandbox${counts.sandbox > 0 ? ` (${formatNumber(counts.sandbox)} excluded)` : ''}. ${formatNumber(counts.new30d)} new in 30 days.`}
-              >
-                {billingBars.length > 0 ? (
-                  <HomeBars total={formatNumber(counts.businesses)} bars={billingBars} />
-                ) : (
-                  <p className="hd-panel-note">No live businesses recorded yet.</p>
-                )}
-              </HomePanel>
-            </div>
-          </>
-        )}
-      </section>
 
-      <div className="overview-panels">
-      <section className="overview-panel" aria-labelledby="needs-attention">
-        <SectionHead
-          id="needs-attention"
-          title="Needs attention"
-          actions={attention.length > 0 ? <span className="badge badge-warning">{attention.length}</span> : undefined}
-        />
-
-        {loading ? (
-          <div className="skeleton-inline" role="status" aria-label="Loading attention items">
-            <span className="skeleton skeleton-text" />
-            <span className="skeleton skeleton-text is-short" />
+        <Card aria-labelledby="needs-attention" data-overview="side">
+          <SectionHead
+            id="needs-attention"
+            title="Needs attention"
+            actions={attention.length > 0 ? <Pill tone="warn">{attention.length}</Pill> : undefined}
+          />
+          {loading ? (
+            <SkeletonLines count={3} label="Loading attention items" />
+          ) : attention.length > 0 ? (
+            <AttentionList items={attention} />
+          ) : !canAssertHealthy ? (
+            <StateBlock compact variant="error" title="Attention status unavailable" body="Some account, subscription, or payment records did not load." actions={<Button variant="outline" className="btn-sm" onClick={reload}>Try again</Button>} />
+          ) : (
+            <HealthyStrip>No failed payments, overdue subscriptions, or access expiring within 30 days.</HealthyStrip>
+          )}
+          <div className="mt-4">
+            <AreaCoverage title="Monitoring coverage" gaps={['Support tickets, integration incidents, and application incidents are not yet connected to the overview.']} />
           </div>
-        ) : attention.length > 0 ? (
-          <AttentionList items={attention} />
-        ) : !canAssertHealthy ? (
-          <StateBlock compact variant="error" title="Attention status unavailable" body="Some account, subscription, or payment records did not load." actions={<Button variant="outline" className="btn-sm" onClick={reload}>Try again</Button>} />
-        ) : (
-          <HealthyStrip>No failed payments, overdue subscriptions, or access expiring within 30 days.</HealthyStrip>
-        )}
-        <AreaCoverage title="Monitoring coverage" gaps={['Support tickets, integration incidents, and application incidents are not yet connected to the overview.']} />
-      </section>
-
-
-      <section className="overview-panel" aria-labelledby="recent-activity">
-        <SectionHead
-          id="recent-activity"
-          title="Recent activity"
-          actions={
-            <Button variant="ghost" className="btn-sm" onClick={() => navigate('/platform/audit')}>
-              All audit logs
-            </Button>
-          }
-        />
-        {loading ? (
-          <div className="skeleton-inline" role="status" aria-label="Loading activity"><span className="skeleton skeleton-text" /><span className="skeleton skeleton-text is-short" /></div>
-        ) : !data.audit && !data.recentErrors ? (
-          <StateBlock compact variant="error" title="Activity unavailable" body="Recent actions could not load." actions={<Button variant="outline" className="btn-sm" onClick={reload}>Try again</Button>} />
-        ) : activity.length > 0 ? (
-          <Timeline items={activity.slice(0, 4)} />
-        ) : (
-          <StateBlock variant="empty" title="Nothing recorded yet" body="Administrative actions appear here." />
-        )}
-      </section>
-
+        </Card>
       </div>
+
+      <div className="grid min-w-0 gap-4 md:grid-cols-2 xl:grid-cols-3 lg:gap-6">
+        <Card aria-labelledby="at-a-glance">
+          <SectionHead
+            id="at-a-glance"
+            title="Subscription state"
+            actions={<Button variant="ghost" className="btn-sm" onClick={() => navigate('/platform/health')}>System health</Button>}
+          />
+          {loading ? <SkeletonLines count={4} label="Loading subscriptions" /> : <DefList rows={subscriptionState} />}
+          <p className="m-0 mt-4 text-xs text-ink-3">
+            Business and subscription counts are current. Sandbox businesses are excluded
+            {counts.sandbox > 0 ? ` (${formatNumber(counts.sandbox)} excluded)` : ''}.
+          </p>
+        </Card>
+
+        <Card aria-labelledby="subs-by-status">
+          <SectionHead id="subs-by-status" title="Subscriptions by status" sub="Active, trialing and past-due product subscriptions." />
+          {loading ? <SkeletonLines count={3} label="Loading subscriptions by status" /> : subSlices.length > 0 ? (
+            <SplitBar slices={subSlices} total={totalSubs} />
+          ) : (
+            <p className="m-0 text-[13px] text-ink-3">No product subscriptions recorded yet.</p>
+          )}
+        </Card>
+
+        <Card aria-labelledby="billing-status" className="md:col-span-2 xl:col-span-1">
+          <SectionHead
+            id="billing-status"
+            title="Businesses by billing status"
+            sub={`Live businesses, excluding sandbox${counts.sandbox > 0 ? ` (${formatNumber(counts.sandbox)} excluded)` : ''}. ${formatNumber(counts.new30d)} new in 30 days.`}
+          />
+          {loading ? <SkeletonLines count={3} label="Loading billing status" /> : billingBars.length > 0 ? (
+            <>
+              <p className="m-0 mb-4 text-[28px] font-semibold leading-9 tabular-nums text-ink">{formatNumber(counts.businesses)}</p>
+              <MeterList items={billingBars} />
+            </>
+          ) : (
+            <p className="m-0 text-[13px] text-ink-3">No live businesses recorded yet.</p>
+          )}
+        </Card>
+      </div>
+
+      <div className="grid min-w-0 items-start gap-4 lg:grid-cols-[minmax(0,1fr)_380px] lg:gap-6">
+        <Card aria-labelledby="recent-activity">
+          <SectionHead
+            id="recent-activity"
+            title="Recent activity"
+            actions={<Button variant="ghost" className="btn-sm" onClick={() => navigate('/platform/audit')}>All audit logs</Button>}
+          />
+          {loading ? (
+            <SkeletonLines count={2} label="Loading activity" />
+          ) : !data.audit && !data.recentErrors ? (
+            <StateBlock compact variant="error" title="Activity unavailable" body="Recent actions could not load." actions={<Button variant="outline" className="btn-sm" onClick={reload}>Try again</Button>} />
+          ) : activity.length > 0 ? (
+            <Timeline items={activity.slice(0, 4)} />
+          ) : (
+            <StateBlock variant="empty" title="Nothing recorded yet" body="Administrative actions appear here." />
+          )}
+        </Card>
+
+        <Card aria-labelledby="product-access">
+          <SectionHead id="product-access" title="Product access" actions={<Link className={btn('ghost', 'sm')} to="/platform/businesses">All businesses</Link>} />
+          {loading ? (
+            <SkeletonLines count={2} label="Loading products" />
+          ) : !data.entitlements ? (
+            <StateBlock compact variant="error" title="Product access unavailable" body="Subscriptions did not load." actions={<Button variant="outline" className="btn-sm" onClick={reload}>Try again</Button>} />
+          ) : productAccess.length === 0 ? (
+            <StateBlock compact title="No product subscriptions" body="Businesses will appear here after their product access is created." />
+          ) : (
+            <ul className="m-0 list-none divide-y divide-line p-0">
+              {productAccess.map((product) => (
+                <li key={product.key} className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5 py-2.5 first:pt-0 last:pb-0">
+                  <Link className={linkClass} to={`/platform/businesses?product=${encodeURIComponent(product.key)}`}>{product.name}</Link>
+                  <span className="text-[13px] tabular-nums text-ink-2">{formatNumber(product.active)} active · {formatNumber(product.trialing)} trialing</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+interface Slice { label: string; value: number; tone: string }
+
+/** One stacked bar for a share-of-whole, with a legend that carries the numbers. */
+function SplitBar({ slices, total }: { slices: Slice[]; total: number }) {
+  const percent = (value: number) => Math.round((value / total) * 100);
+  return (
+    <div>
+      <div className="flex h-3 overflow-hidden rounded-full bg-tray" role="img"
+        aria-label={slices.map((slice) => `${slice.label} ${percent(slice.value)}%`).join(', ')}>
+        {slices.filter((slice) => slice.value > 0).map((slice) => (
+          <span key={slice.label} className={cn('h-full border-r-2 border-surface last:border-r-0', slice.tone)} style={{ width: `${(slice.value / total) * 100}%` }} />
+        ))}
+      </div>
+      <dl className="m-0 mt-4 divide-y divide-line">
+        {slices.map((slice) => (
+          <div key={slice.label} className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0">
+            <dt className="flex items-center gap-2 text-[13px] text-ink-2"><span className={cn('size-2.5 rounded-sm', slice.tone)} aria-hidden="true" />{slice.label}</dt>
+            <dd className="m-0 text-sm font-medium tabular-nums text-ink">{formatNumber(slice.value)} <span className="font-normal text-ink-3">({percent(slice.value)}%)</span></dd>
+          </div>
+        ))}
+      </dl>
     </div>
   );
 }

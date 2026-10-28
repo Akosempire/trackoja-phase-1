@@ -20,8 +20,8 @@ const PAD_BOTTOM = 24;
 const GRID_LINES = 4;
 
 /**
- * Inline-SVG trend chart. Colour comes from WAYA tokens in the stylesheet, so it
- * follows light and dark themes without the component knowing about them.
+ * Inline-SVG trend chart. Colour comes from the theme tokens via utility
+ * classes, so it follows light and dark themes without knowing about them.
  *
  * Deliberately small: it plots one series over time. Categorical comparison is
  * MeterList's job.
@@ -30,7 +30,7 @@ export function TrendChart({ points, kind = 'bar', formatValue, height = 180, ar
   const format = formatValue ?? ((value: number) => value.toLocaleString());
 
   if (points.length === 0) {
-    return <p className="data-table-secondary">No data for this period.</p>;
+    return <p className="m-0 text-[13px] text-ink-3">No data for this period.</p>;
   }
 
   const plotWidth = WIDTH - PAD_LEFT - PAD_RIGHT;
@@ -54,9 +54,9 @@ export function TrendChart({ points, kind = 'bar', formatValue, height = 180, ar
   const total = points.reduce((sum, point) => sum + point.value, 0);
 
   return (
-    <div className="chart">
+    <div className="min-w-0">
       <svg
-        className="chart-svg"
+        className="block h-auto w-full"
         viewBox={`0 0 ${WIDTH} ${height}`}
         role="img"
         aria-label={`${ariaLabel}. ${points.length} points, total ${format(total)}.`}
@@ -66,7 +66,8 @@ export function TrendChart({ points, kind = 'bar', formatValue, height = 180, ar
           return (
             <line
               key={index}
-              className="chart-grid-line"
+              className="stroke-line"
+              strokeWidth={1}
               x1={PAD_LEFT}
               x2={WIDTH - PAD_RIGHT}
               y1={lineY}
@@ -77,8 +78,8 @@ export function TrendChart({ points, kind = 'bar', formatValue, height = 180, ar
 
         {kind === 'line' ? (
           <>
-            <path className="chart-area" d={areaPath} />
-            <path className="chart-line" d={linePath} />
+            <path className="fill-brand/10" d={areaPath} />
+            <path className="fill-none stroke-brand" strokeWidth={2} strokeLinejoin="round" d={linePath} />
           </>
         ) : (
           points.map((point, index) => {
@@ -88,7 +89,7 @@ export function TrendChart({ points, kind = 'bar', formatValue, height = 180, ar
             return (
               <rect
                 key={point.label}
-                className="chart-bar"
+                className="fill-brand"
                 x={cx}
                 y={top}
                 width={barWidth}
@@ -107,18 +108,18 @@ export function TrendChart({ points, kind = 'bar', formatValue, height = 180, ar
           const cx = PAD_LEFT + step * index + step / 2;
           const anchor = index === 0 ? 'start' : index === points.length - 1 ? 'end' : 'middle';
           return (
-            <text key={`label-${point.label}`} className="chart-axis-label" x={cx} y={height - 6} textAnchor={anchor}>
+            <text key={`label-${point.label}`} className="fill-ink-3 text-[11px]" x={cx} y={height - 6} textAnchor={anchor}>
               {point.label}
             </text>
           );
         })}
       </svg>
-      <p className="chart-legend">
-        <span className="chart-legend-item">
-          <span className="chart-legend-swatch" aria-hidden="true" />
+      <p className="m-0 mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink-3">
+        <span className="inline-flex items-center gap-1.5">
+          <span className="size-2 rounded-sm bg-brand" aria-hidden="true" />
           Peak {format(peak)}
         </span>
-        <span className="chart-legend-item">Total {format(total)}</span>
+        <span className="tabular-nums">Total {format(total)}</span>
       </p>
     </div>
   );

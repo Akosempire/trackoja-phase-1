@@ -1,5 +1,7 @@
 import { SearchInput } from '../../../components/ui/SearchInput';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { chipClass, tableBleed } from '../../../components/platform/ui';
+import { btn } from '../../../components/kit';
 import {
   PlatformAdminService,
   type ActivationKeyRow,
@@ -368,17 +370,17 @@ function IssueKeyDialog({
           <Button onClick={onClose}>Done</Button>
         }
       >
-        <div className="callout callout-warning">
+        <div className="flex min-w-0 flex-col gap-0.5 rounded-lg border px-4 py-3 text-[13px] break-words border-warn/30 bg-warn-soft">
           <div>
-            <p className="callout-title">Copy this code now</p>
-            <p className="callout-text">
+            <p className="m-0 text-sm font-semibold text-ink">Copy this code now</p>
+            <p className="m-0 text-[13px] text-ink-2">
               The key list masks every code and nothing returns the rest, so this cannot be recovered afterwards. If it is
               lost, revoke the key and issue another.
             </p>
           </div>
         </div>
 
-        <pre className="code-panel">{issued.keyCode}</pre>
+        <pre className="m-0 max-h-[360px] min-w-0 overflow-auto whitespace-pre-wrap rounded-lg border border-line bg-subtle p-3 font-mono text-xs leading-5 text-ink-2 break-words">{issued.keyCode}</pre>
 
         <DefList
           rows={[
@@ -428,13 +430,13 @@ function IssueKeyDialog({
         </>
       }
     >
-      <div className="form-group">
-        <label className="form-label" htmlFor="issue-product">
+      <div className="mb-4 flex min-w-0 flex-col gap-1.5">
+        <label className="text-[13px] font-medium text-ink-2" htmlFor="issue-product">
           Product
         </label>
         <select
           id="issue-product"
-          className="select-input"
+          className="block h-10 w-full min-w-0 rounded-md border border-line-strong bg-surface px-3 text-sm text-ink placeholder:text-ink-3 focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/15 cursor-pointer pr-8"
           value={form.productKey}
           onChange={(event) => setForm({ ...form, productKey: event.target.value, planKey: '' })}
           disabled={busy}
@@ -447,7 +449,7 @@ function IssueKeyDialog({
           ))}
         </select>
         {products.length === 0 && (
-          <p className="form-hint">
+          <p className="m-0 text-xs text-ink-3">
             {optionsError
               ? `The product list could not be read: ${optionsError}`
               : 'No products were returned, so a key cannot be issued from here.'}
@@ -455,13 +457,13 @@ function IssueKeyDialog({
         )}
       </div>
 
-      <div className="form-group">
-        <label className="form-label" htmlFor="issue-plan">
+      <div className="mb-4 flex min-w-0 flex-col gap-1.5">
+        <label className="text-[13px] font-medium text-ink-2" htmlFor="issue-plan">
           Plan (optional)
         </label>
         <select
           id="issue-plan"
-          className="select-input"
+          className="block h-10 w-full min-w-0 rounded-md border border-line-strong bg-surface px-3 text-sm text-ink placeholder:text-ink-3 focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/15 cursor-pointer pr-8"
           value={form.planKey}
           onChange={(event) => setForm({ ...form, planKey: event.target.value })}
           disabled={busy || !form.productKey}
@@ -473,7 +475,7 @@ function IssueKeyDialog({
             </option>
           ))}
         </select>
-        <p className="form-hint">
+        <p className="m-0 text-xs text-ink-3">
           {productHasNoPlans
             ? 'This product has no plans, so a key for it carries no plan.'
             : form.planKey
@@ -484,13 +486,13 @@ function IssueKeyDialog({
         </p>
       </div>
 
-      <div className="form-group">
-        <label className="form-label" htmlFor="issue-validity">
+      <div className="mb-4 flex min-w-0 flex-col gap-1.5">
+        <label className="text-[13px] font-medium text-ink-2" htmlFor="issue-validity">
           Validity in days
         </label>
         <input
           id="issue-validity"
-          className="form-input"
+          className="block h-10 w-full min-w-0 rounded-md border border-line-strong bg-surface px-3 text-sm text-ink placeholder:text-ink-3 focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/15"
           type="number"
           min={1}
           max={3650}
@@ -498,16 +500,16 @@ function IssueKeyDialog({
           onChange={(event) => setForm({ ...form, validDays: event.target.value })}
           disabled={busy}
         />
-        <p className="form-hint">
+        <p className="m-0 text-xs text-ink-3">
           Between 1 and 3650. The key is valid now and its expiry is copied onto the entitlement at redemption, so this
           is the length of access granted.
         </p>
       </div>
 
-      <div className="callout callout-info">
+      <div className="flex min-w-0 flex-col gap-0.5 rounded-lg border px-4 py-3 text-[13px] break-words border-brand-line bg-brand-soft/60">
         <div>
-          <p className="callout-title">Bound or unbound</p>
-          <p className="callout-text">
+          <p className="m-0 text-sm font-semibold text-ink">Bound or unbound</p>
+          <p className="m-0 text-[13px] text-ink-2">
             A bound key is redeemable only by the business it names. An unbound key is claimed by the first business to
             redeem it, and closes at that moment. Binding needs platform:manage_businesses to search the directory;
             without it, issue unbound.
@@ -515,13 +517,13 @@ function IssueKeyDialog({
         </div>
       </div>
 
-      <div className="form-group">
-        <label className="form-label" htmlFor="issue-business-search">
+      <div className="mb-4 flex min-w-0 flex-col gap-1.5">
+        <label className="text-[13px] font-medium text-ink-2" htmlFor="issue-business-search">
           Bind to a business (optional)
         </label>
-        <div className="toolbar">
-          <div className="toolbar-grow">
-            <SearchInput aria-label="Search businesses"
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="flex min-w-0 flex-1 basis-60 flex-col gap-1.5">
+            <SearchInput className="mb-0" aria-label="Search businesses"
               id="issue-business-search"
 
 
@@ -537,25 +539,25 @@ function IssueKeyDialog({
         </div>
 
         {searchError && (
-          <p className="form-error" role="alert">
+          <p className="m-0 text-xs text-danger" role="alert">
             {searchError}
           </p>
         )}
 
         {businessResults.length > 0 && (
-          <ul className="list">
+          <ul className="m-0 flex list-none flex-col divide-y divide-line p-0">
             {businessResults.map((business) => (
-              <li className="list-item" key={business.orgId}>
+              <li className="flex min-w-0 items-center justify-between gap-3 py-3 first:pt-0 last:pb-0" key={business.orgId}>
                 <div>
-                  <p className="list-item-title">
+                  <p className="m-0 text-sm font-medium text-ink break-words">
                     {business.name} {business.isSandbox && <Badge tone="workspace">sandbox</Badge>}
                   </p>
-                  <p className="list-item-subtitle">
+                  <p className="m-0 mt-0.5 text-xs text-ink-3 break-words">
                     {business.ownerEmail ?? 'No owner email'} · {business.planName ?? 'No plan'} ·{' '}
                     {formatSeatLimit(business.agreedUserLimit)} seats
                   </p>
                 </div>
-                <div className="list-item-meta">
+                <div className="flex shrink-0 flex-col items-end gap-1">
                   <Button
                     variant="ghost"
                     className="btn-sm"
@@ -575,18 +577,18 @@ function IssueKeyDialog({
         )}
 
         {bound ? (
-          <p className="form-hint">
+          <p className="m-0 text-xs text-ink-3">
             Bound to <strong>{bound.name}</strong> ({bound.isSandbox ? 'sandbox' : 'live'}).{' '}
-            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setBound(null)} disabled={busy}>
-              <span className="btn-label">Clear binding</span>
+            <button type="button" className={btn('ghost', 'sm')} onClick={() => setBound(null)} disabled={busy}>
+              Clear binding
             </button>
           </p>
         ) : (
-          <p className="form-hint">Unbound: any business may redeem this key once.</p>
+          <p className="m-0 text-xs text-ink-3">Unbound: any business may redeem this key once.</p>
         )}
 
         {bound && form.isSandbox !== bound.isSandbox && (
-          <p className="form-error" role="alert">
+          <p className="m-0 text-xs text-danger" role="alert">
             A sandbox key can only be bound to a sandbox business, and a live key only to a live business.
           </p>
         )}
@@ -600,12 +602,12 @@ function IssueKeyDialog({
         placeholder="Bank transfer reference, receipt number"
         disabled={busy}
       />
-      <p className="form-hint">
+      <p className="m-0 text-xs text-ink-3">
         Written onto the key row but not returned by list_activation_keys, so it cannot be read back here. Record it
         wherever the money is reconciled as well.
       </p>
 
-      <label className="plat-check" htmlFor="issue-sandbox">
+      <label className="flex items-center gap-2 text-sm text-ink-2" htmlFor="issue-sandbox">
         <input
           id="issue-sandbox"
           type="checkbox"
@@ -616,14 +618,14 @@ function IssueKeyDialog({
         Sandbox key — test only, never counts as revenue
       </label>
       {!developerMode && (
-        <p className="form-hint">
+        <p className="m-0 text-xs text-ink-3">
           Developer mode is not active, so the server refuses sandbox issuance: &ldquo;Developer mode is required to issue
           sandbox activation keys&rdquo;. The control stays visible and disabled.
         </p>
       )}
 
       {formError && (
-        <p className="form-error" role="alert">
+        <p className="m-0 text-xs text-danger" role="alert">
           {formError}
         </p>
       )}
@@ -696,7 +698,7 @@ export default function ActivationArea() {
         key: 'code',
         header: 'Key',
         label: '',
-        render: (key) => <span className="secret-mask">{key.keyCodeMasked}</span>,
+        render: (key) => <span className="inline-flex max-w-full items-center gap-1.5 whitespace-nowrap rounded-md border border-line-strong bg-subtle px-2 py-0.5 font-mono text-[13px] text-ink-2">{key.keyCodeMasked}</span>,
       },
       {
         key: 'product',
@@ -704,8 +706,8 @@ export default function ActivationArea() {
         sortValue: (key) => key.productName,
         render: (key) => (
           <div>
-            <span className="data-table-primary">{key.productName}</span>
-            <p className="data-table-secondary mono">{key.productKey}</p>
+            <span className="font-medium text-ink break-words">{key.productName}</span>
+            <p className="m-0 font-mono text-xs text-ink-3 break-words">{key.productKey}</p>
           </div>
         ),
       },
@@ -715,9 +717,9 @@ export default function ActivationArea() {
         sortValue: (key) => key.planName ?? '',
         render: (key) =>
           key.planName ? (
-            <span className="data-table-primary">{key.planName}</span>
+            <span className="font-medium text-ink break-words">{key.planName}</span>
           ) : (
-            <span className="data-table-secondary">No plan</span>
+            <span className="m-0 block text-xs text-ink-3 break-words">No plan</span>
           ),
       },
       {
@@ -726,9 +728,9 @@ export default function ActivationArea() {
         sortValue: (key) => key.orgName ?? '',
         render: (key) =>
           key.orgName ? (
-            <span className="data-table-primary">{key.orgName}</span>
+            <span className="font-medium text-ink break-words">{key.orgName}</span>
           ) : (
-            <span className="data-table-secondary">Unbound</span>
+            <span className="m-0 block text-xs text-ink-3 break-words">Unbound</span>
           ),
       },
       {
@@ -744,7 +746,7 @@ export default function ActivationArea() {
                 <>
                   {' '}
                   <Badge tone="warning">past its window</Badge>
-                  <p className="data-table-secondary">Nothing sweeps keys; still reads Issued.</p>
+                  <p className="m-0 text-xs text-ink-3 break-words">Nothing sweeps keys; still reads Issued.</p>
                 </>
               )}
             </div>
@@ -759,18 +761,19 @@ export default function ActivationArea() {
           if (!key.validUntil) {
             return (
               <div>
-                <span className="data-table-primary">No expiry</span>
-                <p className="data-table-secondary">From {formatDate(key.validFrom)}</p>
+                <span className="font-medium text-ink break-words">No expiry</span>
+                <p className="m-0 text-xs text-ink-3 break-words">From {formatDate(key.validFrom)}</p>
               </div>
             );
           }
           const days = daysUntil(key.validUntil);
           return (
             <div>
-              <span className="data-table-primary">
-                {formatDate(key.validFrom)} → {formatDate(key.validUntil)}
+              <span className="font-medium text-ink">
+                <span className="whitespace-nowrap">{formatDate(key.validFrom)} →</span>{' '}
+                <span className="whitespace-nowrap">{formatDate(key.validUntil)}</span>
               </span>
-              <p className="data-table-secondary">
+              <p className="m-0 text-xs text-ink-3 break-words">
                 {days !== null && days < 0 ? `Ended ${formatRelative(key.validUntil)}` : `${days} days left`}
               </p>
             </div>
@@ -780,6 +783,7 @@ export default function ActivationArea() {
       {
         key: 'seats',
         header: 'Seats',
+        nowrap: true,
         sortValue: (key) => key.userLimit ?? 0,
         render: (key) => formatSeatLimit(key.userLimit),
       },
@@ -790,11 +794,11 @@ export default function ActivationArea() {
         render: (key) =>
           key.redeemedAt ? (
             <div>
-              <span className="data-table-primary">{formatDate(key.redeemedAt)}</span>
-              <p className="data-table-secondary">{formatRelative(key.redeemedAt)}</p>
+              <span className="font-medium text-ink whitespace-nowrap">{formatDate(key.redeemedAt)}</span>
+              <p className="m-0 text-xs text-ink-3 whitespace-nowrap">{formatRelative(key.redeemedAt)}</p>
             </div>
           ) : (
-            <span className="data-table-secondary">Not redeemed</span>
+            <span className="m-0 block text-xs text-ink-3 break-words">Not redeemed</span>
           ),
       },
       {
@@ -809,8 +813,8 @@ export default function ActivationArea() {
         sortValue: (key) => key.createdAt,
         render: (key) => (
           <div>
-            <span className="data-table-primary">{formatDate(key.createdAt)}</span>
-            <p className="data-table-secondary">{formatRelative(key.createdAt)}</p>
+            <span className="font-medium text-ink whitespace-nowrap">{formatDate(key.createdAt)}</span>
+            <p className="m-0 text-xs text-ink-3 whitespace-nowrap">{formatRelative(key.createdAt)}</p>
           </div>
         ),
       },
@@ -819,9 +823,9 @@ export default function ActivationArea() {
         header: 'Revoke',
         render: (key) =>
           key.status === 'revoked' ? (
-            <span className="is-locked">Already revoked</span>
+            <span className="m-0 break-words text-[13px] text-ink-3">Already revoked</span>
           ) : (
-            <div className="data-table-cell-actions">
+            <div className="data-table-cell-actions flex flex-wrap items-center justify-end gap-2">
               <Button variant="ghost" className="btn-sm" onClick={() => setRevokeTarget(key)}>
                 Revoke
               </Button>
@@ -855,7 +859,7 @@ export default function ActivationArea() {
         actions={
           <>
             <RefreshButton onClick={load} loading={keys.loading} />
-            <Button variant="outline" className="btn-sm" onClick={() => setIssueOpen(true)}>
+            <Button className="btn-sm" onClick={() => setIssueOpen(true)}>
               Issue a key
             </Button>
           </>
@@ -865,98 +869,6 @@ export default function ActivationArea() {
       <AreaCoverage gaps={AREA.gaps} title="What this page cannot do yet" />
 
       {/* ── Keys ──────────────────────────────────────────────────── */}
-      <section className="card" aria-labelledby="activation-keys">
-        <SectionHead
-          id="activation-keys"
-          title="Activation keys"
-          sub="Newest first. Codes are masked by the server."
-          actions={
-            <div className="chip-row">
-              <button
-                type="button"
-                className={`chip${productFilter === '' ? ' active' : ''}`}
-                aria-pressed={productFilter === ''}
-                onClick={() => setProductFilter('')}
-              >
-                All products
-              </button>
-              {productChips.map((product) => (
-                <button
-                  key={product.key}
-                  type="button"
-                  className={`chip${productFilter === product.key ? ' active' : ''}`}
-                  aria-pressed={productFilter === product.key}
-                  onClick={() => setProductFilter(product.key)}
-                >
-                  {product.name}
-                </button>
-              ))}
-            </div>
-          }
-        />
-
-        <div className="callout callout-warning">
-          <div>
-            <p className="callout-title">Two columns are not readable from here</p>
-            <p className="callout-text">
-              payment_reference is written at issue but not returned by list_activation_keys; bound_email and
-              subscription_transaction_id are never written, so they are left out.
-            </p>
-          </div>
-        </div>
-
-        <div className="toolbar">
-          <div className="plat-field">
-            <label className="form-label" htmlFor="activation-status">
-              Status
-            </label>
-            <select
-              id="activation-status"
-              className="select-input"
-              value={statusFilter}
-              onChange={(event) => setStatusFilter(event.target.value)}
-            >
-              <option value="">Any status</option>
-              {KEY_STATUSES.map((value) => (
-                <option key={value} value={value}>
-                  {humaniseToken(value)}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="plat-field">
-            <label className="form-label" htmlFor="activation-limit">
-              Rows
-            </label>
-            <select
-              id="activation-limit"
-              className="select-input"
-              value={String(limit)}
-              onChange={(event) => setLimit(Number(event.target.value))}
-            >
-              {LIMIT_OPTIONS.map((option) => (
-                <option key={option} value={option}>
-                  {formatNumber(option)} newest
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {filtersActive && (
-            <button
-              type="button"
-              className="btn btn-ghost btn-sm"
-              onClick={() => {
-                setProductFilter('');
-                setStatusFilter('');
-              }}
-            >
-              <span className="btn-label">Clear filters</span>
-            </button>
-          )}
-        </div>
-
         <MetricStrip
           metrics={[
             { id: 'shown', label: 'Keys shown', value: formatNumber(keys.rows.length) },
@@ -976,6 +888,90 @@ export default function ActivationArea() {
           ]}
         />
 
+      <section className="min-w-0 rounded-xl border border-line bg-surface p-5 shadow-card [&>*+*]:mt-4 [&>.section-head+*]:mt-0" aria-labelledby="activation-keys">
+        <SectionHead
+          id="activation-keys"
+          title="Activation keys"
+          sub="Newest first. Codes are masked by the server."
+          actions={
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                className={chipClass}
+                aria-pressed={productFilter === ''}
+                onClick={() => setProductFilter('')}
+              >
+                All products
+              </button>
+              {productChips.map((product) => (
+                <button
+                  key={product.key}
+                  type="button"
+                  className={chipClass}
+                  aria-pressed={productFilter === product.key}
+                  onClick={() => setProductFilter(product.key)}
+                >
+                  {product.name}
+                </button>
+              ))}
+            </div>
+          }
+        />
+
+
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="flex min-w-0 flex-col gap-1.5">
+            <label className="text-[13px] font-medium text-ink-2" htmlFor="activation-status">
+              Status
+            </label>
+            <select
+              id="activation-status"
+              className="block h-10 w-full min-w-0 rounded-md border border-line-strong bg-surface px-3 text-sm text-ink placeholder:text-ink-3 focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/15 cursor-pointer pr-8"
+              value={statusFilter}
+              onChange={(event) => setStatusFilter(event.target.value)}
+            >
+              <option value="">Any status</option>
+              {KEY_STATUSES.map((value) => (
+                <option key={value} value={value}>
+                  {humaniseToken(value)}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex min-w-0 flex-col gap-1.5">
+            <label className="text-[13px] font-medium text-ink-2" htmlFor="activation-limit">
+              Rows
+            </label>
+            <select
+              id="activation-limit"
+              className="block h-10 w-full min-w-0 rounded-md border border-line-strong bg-surface px-3 text-sm text-ink placeholder:text-ink-3 focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/15 cursor-pointer pr-8"
+              value={String(limit)}
+              onChange={(event) => setLimit(Number(event.target.value))}
+            >
+              {LIMIT_OPTIONS.map((option) => (
+                <option key={option} value={option}>
+                  {formatNumber(option)} newest
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {filtersActive && (
+            <button
+              type="button"
+              className={btn('ghost')}
+              onClick={() => {
+                setProductFilter('');
+                setStatusFilter('');
+              }}
+            >
+              Clear filters
+            </button>
+          )}
+        </div>
+
+
         {keys.error ? (
           isPermissionDenied(keys.error) ? (
             <StateBlock
@@ -989,87 +985,98 @@ export default function ActivationArea() {
               title="Could not load activation keys"
               body={keys.error}
               actions={
-                <button type="button" className="btn btn-outline btn-sm" onClick={keys.reload}>
-                  <span className="btn-label">Try again</span>
+                <button type="button" className={btn('outline', 'sm')} onClick={keys.reload}>
+                  Try again
                 </button>
               }
             />
           )
         ) : (
-          <DataTable
-            columns={columns}
-            rows={keys.rows}
-            rowKey={(key) => key.id}
-            stacked
-            loading={keys.loading}
-            caption="Activation keys"
-            empty={
-              <StateBlock
-                variant="empty"
-                title={filtersActive ? 'No keys match these filters' : 'No activation keys yet'}
-                body={
-                  filtersActive
-                    ? 'Clear the filters to see every key.'
-                    : 'Keys appear here as they are issued, never automatically.'
-                }
-              />
-            }
-          />
+          <div className={tableBleed}>
+            <DataTable
+              columns={columns}
+              rows={keys.rows}
+              rowKey={(key) => key.id}
+              stacked
+              loading={keys.loading}
+              caption="Activation keys"
+              empty={
+                <StateBlock
+                  variant="empty"
+                  title={filtersActive ? 'No keys match these filters' : 'No activation keys yet'}
+                  body={
+                    filtersActive
+                      ? 'Clear the filters to see every key.'
+                      : 'Keys appear here as they are issued, never automatically.'
+                  }
+                />
+              }
+            />
+          </div>
         )}
 
-        <p className="form-hint">
+        <p className="m-0 text-xs text-ink-3">
           Newest {formatNumber(limit)} rows; no offset and no total, so there is no page count.
         </p>
+        <div className="flex min-w-0 flex-col gap-0.5 rounded-lg border px-4 py-3 text-[13px] break-words border-warn/30 bg-warn-soft">
+          <div>
+            <p className="m-0 text-sm font-semibold text-ink">Two columns are not readable from here</p>
+            <p className="m-0 text-[13px] text-ink-2">
+              payment_reference is written at issue but not returned by list_activation_keys; bound_email and
+              subscription_transaction_id are never written, so they are left out.
+            </p>
+          </div>
+        </div>
       </section>
 
       {/* ── How a key becomes access ──────────────────────────────── */}
-      <Disclosure summary="How activation interacts with subscription status"><section className="card" aria-labelledby="activation-model">
-        <SectionHead id="activation-model" title="How activation interacts with subscription status" />
+      <Disclosure summary="How activation interacts with subscription status"><section className="min-w-0 [&>*+*]:mt-4 [&>.section-head+*]:mt-0" aria-labelledby="activation-model">
+        <h2 id="activation-model" className="sr-only">How activation interacts with subscription status</h2>
         <Disclosure summary="How a key becomes access">
-          <ul className="list">
-            <li className="list-item">
+          <ul className="m-0 flex list-none flex-col divide-y divide-line p-0">
+            <li className="flex min-w-0 items-center justify-between gap-3 py-3 first:pt-0 last:pb-0">
               <div>
-                <p className="list-item-title">The entitlement is the access, not the key</p>
-                <p className="list-item-subtitle">
+                <p className="m-0 text-sm font-medium text-ink break-words">The entitlement is the access, not the key</p>
+                <p className="m-0 mt-0.5 text-xs text-ink-3 break-words">
                   organization_products grants access; the seat-limit trigger reads it.
                 </p>
               </div>
             </li>
-            <li className="list-item">
+            <li className="flex min-w-0 items-center justify-between gap-3 py-3 first:pt-0 last:pb-0">
               <div>
-                <p className="list-item-title">Redemption upserts that row</p>
-                <p className="list-item-subtitle">
+                <p className="m-0 text-sm font-medium text-ink break-words">Redemption upserts that row</p>
+                <p className="m-0 mt-0.5 text-xs text-ink-3 break-words">
                   Status active, prices snapshotted from the plan, seat limit from the key. An existing deal is
                   overwritten, not stacked.
                 </p>
               </div>
             </li>
-            <li className="list-item">
+            <li className="flex min-w-0 items-center justify-between gap-3 py-3 first:pt-0 last:pb-0">
               <div>
-                <p className="list-item-title">The key&rsquo;s expiry becomes the entitlement&rsquo;s expiry</p>
-                <p className="list-item-subtitle">
+                <p className="m-0 text-sm font-medium text-ink break-words">The key&rsquo;s expiry becomes the entitlement&rsquo;s expiry</p>
+                <p className="m-0 mt-0.5 text-xs text-ink-3 break-words">
                   Extending access means an extend_expiry adjustment; the key cannot be edited.
                 </p>
               </div>
             </li>
-            <li className="list-item">
+            <li className="flex min-w-0 items-center justify-between gap-3 py-3 first:pt-0 last:pb-0">
               <div>
-                <p className="list-item-title">The seat limit travels with the key</p>
-                <p className="list-item-subtitle">
+                <p className="m-0 text-sm font-medium text-ink break-words">The seat limit travels with the key</p>
+                <p className="m-0 mt-0.5 text-xs text-ink-3 break-words">
                   Captured at issue; a later plan edit cannot widen it.
                 </p>
               </div>
             </li>
-            <li className="list-item">
+            <li className="flex min-w-0 items-center justify-between gap-3 py-3 first:pt-0 last:pb-0">
               <div>
-                <p className="list-item-title">An unbound key is bound by whoever redeems it</p>
-                <p className="list-item-subtitle">The first business to redeem it wins; the key then closes.</p>
+                <p className="m-0 text-sm font-medium text-ink break-words">An unbound key is bound by whoever redeems it</p>
+                <p className="m-0 mt-0.5 text-xs text-ink-3 break-words">The first business to redeem it wins; the key then closes.</p>
               </div>
             </li>
-            <li className="list-item">
+            <li className="flex min-w-0 items-center justify-between gap-3 py-3 first:pt-0 last:pb-0">
               <div>
-                <p className="list-item-title">Only the owner of a single business can redeem</p>
-                <p className="list-item-subtitle">
+                <p className="m-0 text-sm font-medium text-ink break-words">Only the owner of a single business can redeem</p>
+                <p className="m-0 mt-0.5 text-xs text-ink-3 break-words">
                   They must also agree about sandbox. This screen never redeems.
                 </p>
               </div>
@@ -1080,44 +1087,41 @@ export default function ActivationArea() {
       </Disclosure>
 
       {/* ── Failure states ────────────────────────────────────────── */}
-      <Disclosure summary="When a redemption fails"><section className="card" aria-labelledby="activation-failures">
-        <SectionHead id="activation-failures" title="When a redemption fails" />
+      <Disclosure summary="When a redemption fails"><section className="min-w-0 [&>*+*]:mt-4 [&>.section-head+*]:mt-0" aria-labelledby="activation-failures">
+        <h2 id="activation-failures" className="sr-only">When a redemption fails</h2>
         <Disclosure summary="The exact sentences a customer sees">
-          <ul className="list">
+          <ul className="m-0 flex list-none flex-col divide-y divide-line p-0">
             {REDEMPTION_FAILURES.map((failure) => (
-              <li className="list-item" key={failure.message}>
+              <li className="flex min-w-0 items-center justify-between gap-3 py-3 first:pt-0 last:pb-0" key={failure.message}>
                 <div>
-                  <p className="list-item-title">&ldquo;{failure.message}&rdquo;</p>
-                  <p className="list-item-subtitle">{failure.means}</p>
+                  <p className="m-0 text-sm font-medium text-ink break-words">&ldquo;{failure.message}&rdquo;</p>
+                  <p className="m-0 mt-0.5 text-xs text-ink-3 break-words">{failure.means}</p>
                 </div>
               </li>
             ))}
           </ul>
         </Disclosure>
-        <p className="form-hint">The issue form above refuses the same conditions.</p>
+        <p className="m-0 text-xs text-ink-3">The issue form above refuses the same conditions.</p>
       </section>
       </Disclosure>
 
       {/* ── Not built yet ─────────────────────────────────────────── */}
-      <Disclosure summary="Not built yet"><section className="card" aria-labelledby="activation-not-built">
-        <SectionHead
-          id="activation-not-built"
-          title="Not built yet"
-        />
-        <ul className="list">
+      <Disclosure summary="Not built yet"><section className="min-w-0 [&>*+*]:mt-4 [&>.section-head+*]:mt-0" aria-labelledby="activation-not-built">
+        <h2 id="activation-not-built" className="sr-only">Not built yet</h2>
+        <ul className="m-0 flex list-none flex-col divide-y divide-line p-0">
           {NOT_BUILT.map((item) => (
-            <li className="list-item" key={item.title}>
+            <li className="flex min-w-0 items-center justify-between gap-3 py-3 first:pt-0 last:pb-0" key={item.title}>
               <div>
-                <p className="list-item-title">
+                <p className="m-0 text-sm font-medium text-ink break-words">
                   {item.title} <StatusBadge status="not_configured" />
                 </p>
-                <p className="list-item-subtitle">{item.detail}</p>
+                <p className="m-0 mt-0.5 text-xs text-ink-3 break-words">{item.detail}</p>
               </div>
             </li>
           ))}
         </ul>
-        <p className="form-hint">
-          Gated on <span className="mono">{MANAGE_PERMISSION}</span> in the database, so hiding a control is never the
+        <p className="m-0 text-xs text-ink-3">
+          Gated on <span className="font-mono text-[0.92em]">{MANAGE_PERMISSION}</span> in the database, so hiding a control is never the
           control. The audit trail records only the last four characters.
         </p>
       </section>

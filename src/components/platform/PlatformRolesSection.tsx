@@ -15,7 +15,9 @@ import { FormField } from '../ui/FormField';
 import { SectionHead } from '../ui/SectionHead';
 import { SectionState } from '../ui/StateBlock';
 import { useToast } from '../ui/Toast';
-import { DefList, type DefRow } from '../ui/DefList';
+import { type DefRow } from '../ui/DefList';
+import { tableBleed } from './ui';
+import { APP_NAME } from '../../config/brand';
 import { formatDateTime, formatRelative } from '../../utils/format';
 
 /** Level values the server accepts, taken from the same list the screen explains. */
@@ -145,10 +147,10 @@ export function PlatformRolesSection() {
         label: '',
         render: (row) => (
           <div>
-            <span className="data-table-primary">{row.email}</span>
+            <span className="font-medium text-ink break-words">{row.email}</span>
             {/* A revoked account is kept in the roster on purpose: it is the record of who had access. */}
-            <p className="data-table-secondary">{row.fullName ?? 'No name recorded'}</p>
-            {row.note && <p className="data-table-secondary">{row.note}</p>}
+            <p className="m-0 text-xs text-ink-3 break-words">{row.fullName ?? 'No name recorded'}</p>
+            {row.note && <p className="m-0 text-xs text-ink-3 break-words">{row.note}</p>}
           </div>
         ),
       },
@@ -159,7 +161,7 @@ export function PlatformRolesSection() {
         render: (row) => (
           <div>
             <StatusBadge status={row.level} />
-            <p className="data-table-secondary">
+            <p className="m-0 text-xs text-ink-3 break-words">
               {PLATFORM_LEVELS.find((entry) => entry.level === row.level)?.label ?? row.level}
             </p>
           </div>
@@ -173,10 +175,10 @@ export function PlatformRolesSection() {
         sortValue: (row) => row.permissionCount,
         render: (row) => (
           <div>
-            <span className="data-table-primary">
+            <span className="font-medium text-ink break-words">
               {row.level === 'super_admin' ? 'All' : row.permissionCount}
             </span>
-            <p className="data-table-secondary">
+            <p className="m-0 text-xs text-ink-3 break-words">
               {row.level === 'super_admin' ? 'implicit to the level' : 'granted keys'}
             </p>
           </div>
@@ -186,7 +188,7 @@ export function PlatformRolesSection() {
         key: 'developer',
         header: 'Developer mode',
         render: (row) =>
-          row.developerMode ? <Badge tone="workspace">active</Badge> : <span className="data-table-secondary">Not granted</span>,
+          row.developerMode ? <Badge tone="workspace">active</Badge> : <span className="m-0 block text-xs text-ink-3 break-words">Not granted</span>,
       },
       {
         key: 'granted',
@@ -194,11 +196,11 @@ export function PlatformRolesSection() {
         sortValue: (row) => row.grantedAt,
         render: (row) => (
           <div>
-            <span className="data-table-primary">{formatRelative(row.grantedAt)}</span>
-            <p className="data-table-secondary">
+            <span className="font-medium text-ink whitespace-nowrap">{formatRelative(row.grantedAt)}</span>
+            <p className="m-0 text-xs text-ink-3 break-words">
               {row.grantedByEmail ? `by ${row.grantedByEmail}` : 'no granter recorded'}
             </p>
-            {row.revokedAt && <p className="data-table-secondary">Revoked {formatDateTime(row.revokedAt)}</p>}
+            {row.revokedAt && <p className="m-0 text-xs text-ink-3 break-words">Revoked {formatDateTime(row.revokedAt)}</p>}
           </div>
         ),
       },
@@ -207,7 +209,7 @@ export function PlatformRolesSection() {
         header: 'Actions',
         label: '',
         render: (row) => (
-          <div className="data-table-cell-actions">
+          <div className="data-table-cell-actions flex flex-wrap items-center justify-end gap-2">
             {row.status === 'active' ? (
               <>
                 <Button
@@ -226,7 +228,7 @@ export function PlatformRolesSection() {
                 </Button>
               </>
             ) : (
-              <span className="data-table-secondary">No access</span>
+              <span className="m-0 block text-xs text-ink-3 break-words">No access</span>
             )}
           </div>
         ),
@@ -241,11 +243,11 @@ export function PlatformRolesSection() {
   }));
 
   return (
-    <section className="card" aria-labelledby="platform-roles">
+    <section className="min-w-0 rounded-xl border border-line bg-surface p-5 shadow-card [&>*+*]:mt-4 [&>.section-head+*]:mt-0" aria-labelledby="platform-roles">
       <SectionHead
         id="platform-roles"
         title="Platform users and roles"
-        sub="Who can operate TrackOja across all customer businesses, and what each of them can do."
+        sub={`Who can operate ${APP_NAME} across all customer businesses, and what each of them can do.`}
         actions={
           <Button variant="outline" className="btn-sm" onClick={() => { setAppointOpen(true); setAppointError(null); }}>
             Appoint an admin
@@ -253,10 +255,10 @@ export function PlatformRolesSection() {
         }
       />
 
-      <div className="callout callout-info">
+      <div className="mb-4 flex min-w-0 flex-col gap-0.5 rounded-lg border px-4 py-3 text-[13px] break-words border-brand-line bg-brand-soft/60">
         <div>
-          <p className="callout-title">A level is a starting point; the granted keys are the capability</p>
-          <p className="callout-text">
+          <p className="m-0 text-sm font-semibold text-ink">A level is a starting point; the granted keys are the capability</p>
+          <p className="m-0 text-[13px] text-ink-2">
             For every level except platform owner, this account can do exactly what its permission keys allow and
             nothing more — so a platform admin, a support agent and a developer differ only by which keys they hold.
             Platform owner is the exception: it holds every permission implicitly and is the only level that can
@@ -273,17 +275,26 @@ export function PlatformRolesSection() {
         emptyBody="Nobody holds platform access, which should not be possible — the platform owner always does."
         onRetry={load}
       >
-        <DataTable
-          columns={columns}
-          rows={accounts}
-          rowKey={(row) => row.userId}
-          stacked
-          caption="Platform admin accounts"
-        />
+        <div className={tableBleed}>
+          <DataTable
+            columns={columns}
+            rows={accounts}
+            rowKey={(row) => row.userId}
+            stacked
+            caption="Platform admin accounts"
+          />
+        </div>
       </SectionState>
 
-      <SectionHead title="What each level starts with" />
-      <DefList rows={explainerRows} />
+      <h3 className="m-0 mb-3 mt-6 text-sm font-semibold text-ink">What each level starts with</h3>
+      <dl className="m-0 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        {explainerRows.map((row) => (
+          <div key={row.term} className="min-w-0 rounded-lg bg-subtle p-3.5">
+            <dt className="text-[13px] font-semibold text-ink">{row.term}</dt>
+            <dd className="m-0 mt-1 text-[13px] text-ink-2">{row.value}</dd>
+          </div>
+        ))}
+      </dl>
 
       {/* ── Appoint ─────────────────────────────────────────────── */}
       <Dialog
@@ -302,11 +313,11 @@ export function PlatformRolesSection() {
           </>
         }
       >
-        <div className="form-group">
-          <label className="form-label" htmlFor="appoint-user">Account</label>
+        <div className="mb-4 flex min-w-0 flex-col gap-1.5">
+          <label className="text-[13px] font-medium text-ink-2" htmlFor="appoint-user">Account</label>
           <select
             id="appoint-user"
-            className="select-input"
+            className="block h-10 w-full min-w-0 rounded-md border border-line-strong bg-surface px-3 text-sm text-ink placeholder:text-ink-3 focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/15 cursor-pointer pr-8"
             value={appointUser}
             onChange={(event) => setAppointUser(event.target.value)}
             disabled={appointBusy}
@@ -320,18 +331,18 @@ export function PlatformRolesSection() {
             ))}
           </select>
           {appointable.length === 0 && (
-            <p className="form-hint">
+            <p className="m-0 text-xs text-ink-3">
               No appointable accounts were returned. The list needs the same permission as this screen, so if it is
               empty either every user already holds platform access or the user list could not be read.
             </p>
           )}
         </div>
 
-        <div className="form-group">
-          <label className="form-label" htmlFor="appoint-level">Level</label>
+        <div className="mb-4 flex min-w-0 flex-col gap-1.5">
+          <label className="text-[13px] font-medium text-ink-2" htmlFor="appoint-level">Level</label>
           <select
             id="appoint-level"
-            className="select-input"
+            className="block h-10 w-full min-w-0 rounded-md border border-line-strong bg-surface px-3 text-sm text-ink placeholder:text-ink-3 focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/15 cursor-pointer pr-8"
             value={appointLevel}
             onChange={(event) => setAppointLevel(event.target.value)}
             disabled={appointBusy}
@@ -342,7 +353,7 @@ export function PlatformRolesSection() {
               </option>
             ))}
           </select>
-          <p className="form-hint">
+          <p className="m-0 text-xs text-ink-3">
             {PLATFORM_LEVELS.find((entry) => entry.level === appointLevel)?.summary}
           </p>
         </div>
@@ -376,11 +387,11 @@ export function PlatformRolesSection() {
           </>
         }
       >
-        <div className="form-group">
-          <label className="form-label" htmlFor="level-value">New level</label>
+        <div className="mb-4 flex min-w-0 flex-col gap-1.5">
+          <label className="text-[13px] font-medium text-ink-2" htmlFor="level-value">New level</label>
           <select
             id="level-value"
-            className="select-input"
+            className="block h-10 w-full min-w-0 rounded-md border border-line-strong bg-surface px-3 text-sm text-ink placeholder:text-ink-3 focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/15 cursor-pointer pr-8"
             value={levelValue}
             onChange={(event) => setLevelValue(event.target.value)}
             disabled={levelBusy}
@@ -391,14 +402,14 @@ export function PlatformRolesSection() {
               </option>
             ))}
           </select>
-          <p className="form-hint">{PLATFORM_LEVELS.find((entry) => entry.level === levelValue)?.summary}</p>
+          <p className="m-0 text-xs text-ink-3">{PLATFORM_LEVELS.find((entry) => entry.level === levelValue)?.summary}</p>
         </div>
 
         {levelError && (
-          <div className="callout callout-danger" role="alert">
+          <div className="flex min-w-0 flex-col gap-0.5 rounded-lg border px-4 py-3 text-[13px] break-words border-danger/30 bg-danger-soft" role="alert">
             <div>
-              <p className="callout-title">The server refused this change</p>
-              <p className="callout-text">{levelError}</p>
+              <p className="m-0 text-sm font-semibold text-ink">The server refused this change</p>
+              <p className="m-0 text-[13px] text-ink-2">{levelError}</p>
             </div>
           </div>
         )}
@@ -435,7 +446,7 @@ export function PlatformRolesSection() {
         }
       />
 
-      <p className="section-sub">
+      <p className="m-0 mt-4 text-xs text-ink-3">
         Every appointment, level change and revocation is written to the audit trail with the reason given. The
         platform refuses to demote or revoke its last owner, and refuses self-revocation, so the console cannot be
         locked out of its own administration.
