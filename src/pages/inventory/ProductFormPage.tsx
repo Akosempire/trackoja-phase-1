@@ -10,6 +10,9 @@ import { Button } from '../../components/ui/Button';
 import { FormField } from '../../components/ui/FormField';
 import { PageLoader } from '../../components/ui/PageLoader';
 import { BarcodeScanner } from '../../components/BarcodeScanner';
+import { Card, Page, PageHeader, cn, inputClass } from '../../components/kit';
+import { ScanIcon } from '../../components/icons';
+import { formatMoney } from '../../utils/format';
 import type { ProductCategory } from '../../types';
 
 export default function ProductFormPage() {
@@ -170,180 +173,183 @@ export default function ProductFormPage() {
   if (loading) return <PageLoader />;
 
   const readOnly = !isNew && !canUpdate;
+  const cost = Number(costPrice) || 0;
+  const price = Number(sellingPrice) || 0;
+  const profit = price - cost;
+  const marginPct = price > 0 && cost > 0 ? Math.round((profit / price) * 100) : null;
+  const label = 'mb-1.5 block text-[13px] font-medium text-ink-2';
+  const hint = 'mt-1 block text-xs text-ink-3';
+  const section = (id: string, title: string, sub?: string) => (
+    <div className="mb-4">
+      <h2 className="m-0 text-[15px] font-semibold text-ink" id={id}>{title}</h2>
+      {sub && <p className="m-0 mt-0.5 text-[13px] text-ink-3">{sub}</p>}
+    </div>
+  );
+  const money = (id: string, value: string, set: (v: string) => void, required?: boolean) => (
+    <div className="relative">
+      <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-ink-3">₦</span>
+      <input id={id} className={cn(inputClass, 'pl-7 tabular-nums')} type="number" inputMode="decimal" min={0} step="any" value={value} onChange={(e) => set(e.target.value)} required={required} placeholder="0" disabled={readOnly} />
+    </div>
+  );
 
   return (
-    <div className="page page-form product-form-page">
-      <div className="page-header">
-        <div>
-          <h1 className="page-title">{isNew ? 'Add product' : 'Edit product'}</h1>
-          <p className="page-subtitle">
-            {isNew
-              ? 'Create a new product and configure its pricing, category and stock details.'
-              : 'Update this product\u2019s details, pricing and stock.'}
-          </p>
-        </div>
-        {!readOnly && (
-          <div className="btn-row">
-            <Button type="button" variant="outline" className="btn-sm" onClick={() => navigate('/inventory/products')}>
-              Cancel
-            </Button>
-            <Button type="submit" form="product-form" loading={saving}>
-              {isNew ? 'Add product' : 'Save changes'}
-            </Button>
-          </div>
-        )}
-      </div>
+    <Page width="wide" className="product-form-page max-w-[1040px]">
+      <PageHeader
+        title={isNew ? 'Add product' : name || 'Edit product'}
+        subtitle={isNew ? 'Name, price and stock are all you need to start selling it.' : 'Update this product’s details, pricing and stock.'}
+        actions={!readOnly && <span className="hidden gap-2 lg:flex">
+          <Button type="button" variant="outline" onClick={() => navigate('/inventory/products')}>Cancel</Button>
+          <Button type="submit" form="product-form" loading={saving}>{isNew ? 'Add product' : 'Save changes'}</Button>
+        </span>}
+      />
 
-      {error && <div className="alert alert-error">{error}</div>}
+      {error && <div className="mb-4 rounded-lg bg-danger-soft px-4 py-3 text-sm text-danger" role="alert">{error}</div>}
 
-      <form id="product-form" className="product-form" onSubmit={handleSubmit}>
-        <section className="product-form-section" aria-labelledby="media-title">
-          <h2 className="product-form-section-title" id="media-title">Product media</h2>
-          <p className="product-form-section-sub">A clear photo helps you recognise the product at a glance.</p>
-          <div className="product-image-row">
-            {imageUrl ? (
-              <img src={imageUrl} alt="" className="product-image-preview" />
-            ) : (
-              <div className="product-image-placeholder">{(name || '?').charAt(0).toUpperCase()}</div>
-            )}
-            {!readOnly && (
-              <div className="btn-row">
-                <Button type="button" variant="outline" className="btn-sm" loading={uploadingImage} onClick={() => imageInputRef.current?.click()}>
-                  {imageUrl ? 'Replace photo' : 'Upload photo'}
-                </Button>
-                {imageUrl && (
-                  <Button type="button" variant="ghost" className="btn-sm" onClick={() => setImageUrl('')}>Remove</Button>
-                )}
+      <form id="product-form" className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px] lg:gap-6" onSubmit={handleSubmit}>
+        <fieldset disabled={readOnly} className="m-0 flex min-w-0 flex-col gap-4 border-0 p-0 lg:gap-6">
+          <Card aria-labelledby="basic-title">
+            {section('basic-title', 'Basics')}
+            <FormField id="product-name" label="Product name" value={name} onChange={setName} required placeholder="e.g. Indomie Chicken 70g" />
+            <div className="grid gap-x-4 sm:grid-cols-2">
+              <div className="mb-4">
+                <label className={label} htmlFor="product-category">Category</label>
+                <select id="product-category" className={inputClass} value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
+                  <option value="">Uncategorised</option>
+                  {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
               </div>
-            )}
-            <input ref={imageInputRef} type="file" accept={PRODUCT_IMAGE_ACCEPT} onChange={handleImageChange} style={{ display: 'none' }} />
-          </div>
-          <p className="form-hint">PNG or JPG, up to 5 MB.</p>
-        </section>
+              <FormField id="product-description" label="Description (optional)" value={description} onChange={setDescription} placeholder="Shown on receipts and reports" />
+            </div>
+          </Card>
 
-        <section className="product-form-section" aria-labelledby="basic-title">
-          <h2 className="product-form-section-title" id="basic-title">Basic information</h2>
-          <FormField id="product-name" label="Product name" value={name} onChange={setName} required placeholder="e.g. Indomie Chicken 70g" />
-          <FormField id="product-description" label="Description (optional)" value={description} onChange={setDescription} placeholder="Short description shown on receipts and reports" />
-          <div className="form-group">
-            <label className="form-label" htmlFor="product-category">Category</label>
-            <select id="product-category" className="select-input" value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
-              <option value="">Uncategorised</option>
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
-          </div>
-        </section>
-
-        <section className="product-form-section" aria-labelledby="identifiers-title">
-          <h2 className="product-form-section-title" id="identifiers-title">Product identifiers</h2>
-          <div className="auth-form-row">
-            <FormField id="product-sku" label="SKU" value={sku} onChange={setSku} hint="A short internal code, e.g. IND-070" />
-            <div className="form-group">
-              <label className="form-label" htmlFor="product-barcode">Barcode (optional)</label>
-              <div className="barcode-row">
-                <input id="product-barcode" className="form-input" type="text" value={barcode} onChange={(e) => setBarcode(e.target.value)} placeholder="Scan or type" />
-                {!readOnly && <Button type="button" variant="outline" className="btn-sm" onClick={() => setScanning(true)}>Scan</Button>}
+          <Card aria-labelledby="pricing-title">
+            {section('pricing-title', 'Pricing', 'Cost price lets us show your real profit on every sale.')}
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label className={label} htmlFor="product-cost-price">Cost price</label>
+                {money('product-cost-price', costPrice, setCostPrice)}
+                <span className={hint}>What you paid for one</span>
+              </div>
+              <div>
+                <label className={label} htmlFor="product-selling-price">Selling price <span className="text-danger">*</span></label>
+                {money('product-selling-price', sellingPrice, setSellingPrice, true)}
+                <span className={hint}>What customers pay</span>
               </div>
             </div>
-          </div>
-          {scanning && (
-            <BarcodeScanner onDetect={(value) => { setBarcode(value); setScanning(false); }} onClose={() => setScanning(false)} />
-          )}
-        </section>
-
-        <section className="product-form-section" aria-labelledby="pricing-title">
-          <h2 className="product-form-section-title" id="pricing-title">Pricing</h2>
-          <div className="auth-form-row">
-            <div className="form-group">
-              <label className="form-label" htmlFor="product-cost-price">Cost price</label>
-              <div className="currency-input"><span>₦</span><input id="product-cost-price" className="form-input" type="number" min={0} step="any" value={costPrice} onChange={(e) => setCostPrice(e.target.value)} placeholder="0.00" /></div>
-              <span className="form-hint">How much you paid for it</span>
+            {price > 0 && (
+              <div className={cn('mt-4 flex flex-wrap items-center justify-between gap-2 rounded-lg px-3 py-2.5 text-sm', profit >= 0 ? 'bg-success-soft text-success-ink' : 'bg-danger-soft text-danger')} role="status">
+                <span>{profit >= 0 ? 'You make' : 'You lose'} <strong className="tabular-nums">{formatMoney(Math.abs(profit))}</strong> on each one</span>
+                {marginPct !== null && <span className="font-semibold tabular-nums">{marginPct}% margin</span>}
+              </div>
+            )}
+            <div className="mt-4 max-w-48">
+              <FormField id="product-tax-rate" label="Tax rate (%)" type="number" max={100} min={0} step="any" value={taxRate} onChange={setTaxRate} hint="Leave at 0 if no tax applies" />
             </div>
-            <div className="form-group">
-              <label className="form-label" htmlFor="product-selling-price">Selling price <span className="required-mark">*</span></label>
-              <div className="currency-input"><span>₦</span><input id="product-selling-price" className="form-input" type="number" min={0} step="any" value={sellingPrice} onChange={(e) => setSellingPrice(e.target.value)} required placeholder="0.00" /></div>
-              <span className="form-hint">Price customers pay</span>
-            </div>
-          </div>
-          <FormField id="product-tax-rate" label="Tax rate (%)" type="number" max={100} min={0} step="any" value={taxRate} onChange={setTaxRate} hint="Leave at 0 if no tax applies" />
-        </section>
+          </Card>
 
-        <section className="product-form-section" aria-labelledby="inventory-title">
-          <h2 className="product-form-section-title" id="inventory-title">Inventory</h2>
-          <label className="toggle-row">
-            <input type="checkbox" checked={trackInventory} onChange={(e) => setTrackInventory(e.target.checked)} />
-            <span>Track inventory for this product</span>
-          </label>
-          {trackInventory && (
-            <>
-              <div className="auth-form-row">
-                <div className="form-group">
-                  <label className="form-label" htmlFor="product-unit">Unit</label>
-                  <select id="product-unit" className="select-input" value={unit} onChange={(e) => setUnit(e.target.value)}>
+          <Card aria-labelledby="inventory-title">
+            <div className="flex items-start justify-between gap-4">
+              {section('inventory-title', 'Stock', 'We count it down with every sale and warn you before it runs out.')}
+              <label className="flex shrink-0 cursor-pointer items-center gap-2 text-[13px] font-medium text-ink-2">
+                <input type="checkbox" className="size-4 accent-[var(--color-accent)]" checked={trackInventory} onChange={(e) => setTrackInventory(e.target.checked)} />
+                Track stock
+              </label>
+            </div>
+            {trackInventory ? (
+              <div className="grid gap-x-4 sm:grid-cols-2">
+                <div className="mb-4">
+                  <label className={label} htmlFor="product-unit">Sold by</label>
+                  <select id="product-unit" className={inputClass} value={unit} onChange={(e) => setUnit(e.target.value)}>
                     {config.unitOptions.map((u) => <option key={u} value={u}>{u}</option>)}
                     {!config.unitOptions.includes(unit) && unit && <option value={unit}>{unit}</option>}
                   </select>
                 </div>
-                <FormField id="product-pieces" label="Product pcs/no" type="number" min={1} step="1" value={piecesPerUnit} onChange={setPiecesPerUnit} hint="Pieces or packs per unit" />
+                <FormField id="product-pieces" label="Pieces per unit (optional)" type="number" min={1} step="1" value={piecesPerUnit} onChange={setPiecesPerUnit} hint="e.g. 40 sachets in a carton" />
+                {isNew && <FormField id="product-stock-qty" label="How many you have now" type="number" min={0} step="any" value={stockQty} onChange={setStockQty} />}
+                <FormField id="product-reorder-level" label="Warn me when it drops to" type="number" min={0} step="any" value={reorderLevel} onChange={setReorderLevel} />
               </div>
-              <div className="auth-form-row">
-                {isNew && <FormField id="product-stock-qty" label="Initial stock" type="number" min={0} step="any" value={stockQty} onChange={setStockQty} hint="How many you have on hand" />}
-                <FormField id="product-reorder-level" label="Reorder level" type="number" min={0} step="any" value={reorderLevel} onChange={setReorderLevel} hint="Alert when stock falls to this level" />
+            ) : (
+              <p className="m-0 text-[13px] text-ink-3">Stock isn't tracked for this product (good for services or made-to-order items).</p>
+            )}
+          </Card>
+
+          {config.attributeFields.length > 0 && (
+            <Card aria-labelledby="attributes-title">
+              {section('attributes-title', 'More details')}
+              <div className="grid gap-x-4 sm:grid-cols-2">
+                {config.attributeFields.map((field) => {
+                  const val = attributes[field.key] ?? '';
+                  const onChange = (v: string) => setAttributes((prev) => ({ ...prev, [field.key]: v }));
+                  if (field.type === 'select') {
+                    return (
+                      <div className="mb-4" key={field.key}>
+                        <label className={label} htmlFor={`attr-${field.key}`}>{field.label}</label>
+                        <select id={`attr-${field.key}`} className={inputClass} value={val} onChange={(e) => onChange(e.target.value)}>
+                          <option value="">Select…</option>
+                          {field.options?.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
+                        </select>
+                      </div>
+                    );
+                  }
+                  return <FormField key={field.key} id={`attr-${field.key}`} label={field.label} type={field.type === 'date' ? 'date' : 'text'} value={val} onChange={onChange} placeholder={field.placeholder} />;
+                })}
               </div>
-            </>
+            </Card>
           )}
-        </section>
+        </fieldset>
 
-        {config.attributeFields.length > 0 && (
-          <section className="product-form-section" aria-labelledby="attributes-title">
-            <h2 className="product-form-section-title" id="attributes-title">Additional details</h2>
-            {config.attributeFields.map((field) => {
-              const val = attributes[field.key] ?? '';
-              const onChange = (v: string) => setAttributes((prev) => ({ ...prev, [field.key]: v }));
-              if (field.type === 'select') {
-                return (
-                  <div className="form-group" key={field.key}>
-                    <label className="form-label" htmlFor={`attr-${field.key}`}>{field.label}</label>
-                    <select id={`attr-${field.key}`} className="select-input" value={val} onChange={(e) => onChange(e.target.value)}>
-                      <option value="">Select…</option>
-                      {field.options?.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
-                    </select>
-                  </div>
-                );
-              }
-              return (
-                <FormField key={field.key} id={`attr-${field.key}`} label={field.label} type={field.type === 'date' ? 'date' : 'text'} value={val} onChange={onChange} placeholder={field.placeholder} />
-              );
-            })}
-          </section>
-        )}
+        <fieldset disabled={readOnly} className="m-0 flex min-w-0 flex-col gap-4 border-0 p-0 lg:gap-6">
+          <Card aria-labelledby="media-title">
+            {section('media-title', 'Photo', 'Helps cashiers find it fast.')}
+            <div className="flex items-center gap-4 lg:flex-col lg:items-stretch">
+              {imageUrl
+                ? <img src={imageUrl} alt="" className="size-24 shrink-0 rounded-xl object-cover lg:aspect-square lg:size-auto lg:w-full" />
+                : <span className="inline-flex size-24 shrink-0 items-center justify-center rounded-xl bg-tray text-3xl font-semibold text-ink-3 lg:aspect-square lg:size-auto lg:w-full" aria-hidden="true">{(name || '?').charAt(0).toUpperCase()}</span>}
+              {!readOnly && (
+                <div className="flex flex-wrap gap-2">
+                  <Button type="button" variant="outline" className="btn-sm" loading={uploadingImage} onClick={() => imageInputRef.current?.click()}>{imageUrl ? 'Replace photo' : 'Upload photo'}</Button>
+                  {imageUrl && <Button type="button" variant="ghost" className="btn-sm" onClick={() => setImageUrl('')}>Remove</Button>}
+                </div>
+              )}
+            </div>
+            <input ref={imageInputRef} type="file" accept={PRODUCT_IMAGE_ACCEPT} onChange={handleImageChange} className="hidden" />
+            <p className="m-0 mt-2 text-xs text-ink-3">PNG or JPG, up to 5 MB.</p>
+          </Card>
 
-        {!isNew && (
-          <section className="product-form-section" aria-labelledby="status-title">
-            <h2 className="product-form-section-title" id="status-title">Status</h2>
-            <div className="form-group">
-              <label className="form-label" htmlFor="product-status">Status</label>
-              <select id="product-status" className="select-input" value={status} onChange={(e) => setStatus(e.target.value as 'active' | 'inactive' | 'archived')}>
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
+          <Card aria-labelledby="identifiers-title">
+            {section('identifiers-title', 'Codes')}
+            <FormField id="product-sku" label="SKU" value={sku} onChange={setSku} hint="Short internal code, e.g. IND-070" />
+            <label className={label} htmlFor="product-barcode">Barcode (optional)</label>
+            <div className="flex gap-2">
+              <input id="product-barcode" className={inputClass} type="text" inputMode="numeric" value={barcode} onChange={(e) => setBarcode(e.target.value)} placeholder="Scan or type" />
+              {!readOnly && <Button type="button" variant="outline" onClick={() => setScanning(true)} aria-label="Scan barcode"><ScanIcon width={17} height={17} /></Button>}
+            </div>
+            {scanning && <BarcodeScanner onDetect={(value) => { setBarcode(value); setScanning(false); }} onClose={() => setScanning(false)} />}
+          </Card>
+
+          {!isNew && (
+            <Card aria-labelledby="status-title">
+              {section('status-title', 'Status')}
+              <label className="sr-only" htmlFor="product-status">Status</label>
+              <select id="product-status" className={inputClass} value={status} onChange={(e) => setStatus(e.target.value as 'active' | 'inactive' | 'archived')}>
+                <option value="active">Active: shows at checkout</option>
+                <option value="inactive">Inactive: hidden from checkout</option>
                 <option value="archived">Archived</option>
               </select>
-            </div>
-          </section>
-        )}
+              {canDelete && !readOnly && (
+                <button type="button" className="mt-4 text-[13px] font-semibold text-danger" onClick={handleDelete}>Delete product</button>
+              )}
+            </Card>
+          )}
+        </fieldset>
 
         {!readOnly && (
-          <div className="form-actions">
-            <Button type="button" variant="outline" className="btn-sm" onClick={() => navigate('/inventory/products')}>Cancel</Button>
-            {!isNew && canDelete && (
-              <Button type="button" variant="danger" className="btn-sm" onClick={handleDelete}>Delete</Button>
-            )}
-            <Button type="submit" loading={saving}>{isNew ? 'Add product' : 'Save changes'}</Button>
+          <div className="sticky bottom-[calc(72px+env(safe-area-inset-bottom))] z-20 -mx-4 flex gap-2 border-t border-line bg-surface/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6 lg:hidden">
+            <Button type="button" variant="outline" className="flex-1" onClick={() => navigate('/inventory/products')}>Cancel</Button>
+            <Button type="submit" className="flex-[2]" loading={saving}>{isNew ? 'Add product' : 'Save changes'}</Button>
           </div>
         )}
       </form>
-    </div>
+    </Page>
   );
 }

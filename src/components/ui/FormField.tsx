@@ -1,6 +1,7 @@
 import { useRef, useState, type InputHTMLAttributes } from 'react';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { ViewIcon, ViewOffSlashIcon } from '@hugeicons/core-free-icons';
+import { inputClass } from '../kit';
 
 interface FormFieldProps extends Pick<InputHTMLAttributes<HTMLInputElement>, 'min' | 'max' | 'step' | 'minLength' | 'maxLength' | 'inputMode' | 'pattern'> {
   id: string;
@@ -48,18 +49,18 @@ export function FormField({
   };
 
   return (
-    <div className="form-group">
-      <label className="form-label" htmlFor={id}>
+    <div className="form-group mb-4 flex min-w-0 flex-col gap-1.5">
+      <label className="form-label text-[13px] font-medium text-ink-2" htmlFor={id}>
         {label}
       </label>
 
-      <div className={isPassword ? 'form-input-wrap' : undefined}>
+      <div className={isPassword ? 'form-input-wrap relative' : undefined}>
         <input
           {...constraints}
           ref={inputRef}
           id={id}
           name={id}
-          className={`form-input${error ? ' has-error' : ''}`}
+          className={`form-input ${inputClass}${isPassword ? ' pr-11' : ''}${error ? ' has-error border-danger focus:border-danger focus:ring-danger/15' : ''}`}
           type={inputType}
           value={value}
           onChange={(e) => onChange(e.target.value)}
@@ -74,7 +75,7 @@ export function FormField({
         {isPassword && (
           <button
             type="button"
-            className="form-input-reveal"
+            className="form-input-reveal absolute right-1 top-1/2 inline-flex size-9 -translate-y-1/2 items-center justify-center rounded-md text-ink-3 hover:text-ink"
             onClick={toggleReveal}
             disabled={disabled}
             aria-label={revealed ? 'Hide password' : 'Show password'}
@@ -89,8 +90,8 @@ export function FormField({
         )}
       </div>
 
-      {error && <span className="form-error" id={`${id}-error`} role="alert">{error}</span>}
-      {!error && hint && <span className="form-hint" id={`${id}-hint`}>{hint}</span>}
+      {error && <span className="form-error text-xs text-danger" id={`${id}-error`} role="alert">{error}</span>}
+      {!error && hint && <span className="form-hint text-xs text-ink-3" id={`${id}-hint`}>{hint}</span>}
     </div>
   );
 }

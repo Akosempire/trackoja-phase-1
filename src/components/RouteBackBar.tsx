@@ -48,11 +48,12 @@ export function RouteBackBar() {
   if (!back) return null;
   const wide = pathname === '/sales/checkout';
   // Form-width screens (receipt, product and customer forms) align the link to their narrower column.
-  const narrow = /^\/sales\/(?!history$|checkout$)[^/]+$/.test(pathname) || /^\/inventory\/products\/(new|[^/]+)$/.test(pathname) && pathname !== '/inventory/products/bulk-import'
+  const productForm = /^\/inventory\/products\/[^/]+$/.test(pathname) && pathname !== '/inventory/products/bulk-import';
+  const narrow = /^\/sales\/(?!history$|checkout$)[^/]+$/.test(pathname)
     || pathname === '/customers/new' || /^\/customers\/[^/]+\/edit$/.test(pathname);
 
   return (
-    <nav className={`tl-back mx-auto w-full px-4 pt-4 sm:px-6 lg:px-8 lg:pt-6 ${wide ? 'max-w-[1440px]' : narrow ? 'max-w-[760px]' : 'max-w-[1120px]'}`} aria-label="Back navigation">
+    <nav className={`tl-back mx-auto w-full px-4 pt-4 sm:px-6 lg:px-8 lg:pt-6 ${wide ? 'max-w-[1440px]' : productForm ? 'max-w-[1040px]' : narrow ? 'max-w-[760px]' : 'max-w-[1120px]'}`} aria-label="Back navigation">
       <Link className="tl-back-link inline-flex items-center gap-1.5 text-[13px] font-medium text-ink-2 no-underline hover:text-ink" to={back.to}>
         <ArrowLeftIcon width={16} height={16} />
         <span>{back.label}</span>
