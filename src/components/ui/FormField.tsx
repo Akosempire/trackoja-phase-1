@@ -75,7 +75,7 @@ export function FormField({
         {isPassword && (
           <button
             type="button"
-            className="form-input-reveal absolute right-1 top-1/2 inline-flex size-9 -translate-y-1/2 items-center justify-center rounded-md text-ink-3 hover:text-ink"
+            className="form-input-reveal absolute right-1 top-1/2 inline-flex size-9 items-center justify-center rounded-md text-ink-3 hover:text-ink"
             onClick={toggleReveal}
             disabled={disabled}
             aria-label={revealed ? 'Hide password' : 'Show password'}

@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { usePermissions } from '../../hooks/usePermissions';
 import { CustomerService } from '../../services/customer.service';
 import { Button } from '../../components/ui/Button';
 import { FormField } from '../../components/ui/FormField';
 import { PageLoader } from '../../components/ui/PageLoader';
+import { Card, Page, PageHeader, btn, cn, inputClass } from '../../components/kit';
 
 export default function CustomerFormPage() {
   const { customerId } = useParams<{ customerId: string }>();
@@ -95,46 +96,71 @@ export default function CustomerFormPage() {
   if (loading) return <PageLoader />;
 
   const readOnly = !isNew && !canUpdate;
+  const label = 'mb-1.5 block text-[13px] font-medium text-ink-2';
+  const backTo = isNew ? '/customers' : `/customers/${customerId}`;
 
   return (
-    <div className="page page-form">
-      <div className="page-header">
-        <div>
-          <h1 className="page-title">{isNew ? 'Add customer' : 'Edit customer'}</h1>
-        </div>
-      </div>
+    <Page width="form">
+      <PageHeader
+        title={isNew ? 'Add customer' : 'Edit customer'}
+        subtitle={isNew ? 'Only a name is required. Add a phone number to find them quickly at checkout.' : readOnly ? 'You can view these details but not change them.' : 'Update contact details and credit settings.'}
+      />
 
-      {error && <div className="alert alert-error">{error}</div>}
+      {error && <div className="mb-4 rounded-lg bg-danger-soft px-4 py-3 text-sm text-danger" role="alert">{error}</div>}
 
-      <form className="card" onSubmit={handleSubmit}>
-        <FormField id="customer-name" label="Name" value={name} onChange={setName} required />
-        <div className="auth-form-row">
-          <FormField id="customer-phone" label="Phone" value={phone} onChange={setPhone} placeholder="Optional" />
-          <FormField id="customer-email" label="Email" type="email" value={email} onChange={setEmail} placeholder="Optional" />
-        </div>
-        <FormField id="customer-address" label="Address" value={address} onChange={setAddress} placeholder="Optional" />
-        <FormField id="customer-notes" label="Notes" value={notes} onChange={setNotes} placeholder="Optional" />
-        <FormField
-          id="customer-credit-limit"
-          label="Credit limit (₦)"
-          type="number"
-          value={creditLimit}
-          onChange={setCreditLimit}
-        />
+      <form className="flex flex-col gap-4 lg:gap-6" onSubmit={handleSubmit}>
+        <fieldset disabled={readOnly} className="m-0 flex min-w-0 flex-col gap-4 border-0 p-0 lg:gap-6">
+          <Card aria-labelledby="customer-contact-title">
+            <div className="mb-4">
+              <h2 id="customer-contact-title" className="m-0 text-[15px] font-semibold text-ink">Contact</h2>
+            </div>
+            <FormField id="customer-name" label="Name" value={name} onChange={setName} required placeholder="e.g. Mrs Bisi Adeyemi" autoComplete="off" />
+            <div className="grid gap-x-4 sm:grid-cols-2">
+              <FormField id="customer-phone" label="Phone" type="tel" inputMode="tel" value={phone} onChange={setPhone} placeholder="Optional" autoComplete="off" />
+              <FormField id="customer-email" label="Email" type="email" value={email} onChange={setEmail} placeholder="Optional" autoComplete="off" />
+            </div>
+            <div className="[&>.form-group]:mb-0">
+              <FormField id="customer-address" label="Address" value={address} onChange={setAddress} placeholder="Optional" />
+            </div>
+          </Card>
+
+          <Card aria-labelledby="customer-credit-title">
+            <div className="mb-4">
+              <h2 id="customer-credit-title" className="m-0 text-[15px] font-semibold text-ink">Credit and notes</h2>
+              <p className="m-0 mt-0.5 text-[13px] text-ink-3">How much this customer can buy on credit. Leave at 0 to turn credit off.</p>
+            </div>
+            <div className="mb-4 max-w-60">
+              <label className={label} htmlFor="customer-credit-limit">Credit limit (₦)</label>
+              <div className="relative">
+                <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-ink-3" aria-hidden="true">₦</span>
+                <input id="customer-credit-limit" name="customer-credit-limit" className={cn(inputClass, 'pl-7 tabular-nums')} type="number" inputMode="decimal" min={0} step="any"
+                  value={creditLimit} onChange={(e) => setCreditLimit(e.target.value)} />
+              </div>
+            </div>
+            <label className={label} htmlFor="customer-notes">Notes</label>
+            <textarea id="customer-notes" name="customer-notes" rows={3} className={cn(inputClass, 'h-auto min-h-20 py-2.5')}
+              value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Optional" />
+          </Card>
+        </fieldset>
 
         {!readOnly && (
-          <div className="btn-row">
-            <Button type="submit" loading={saving} className="btn-sm">
-              {isNew ? 'Add customer' : 'Save changes'}
-            </Button>
-            {!isNew && canDelete && (
-              <Button type="button" variant="ghost" className="btn-sm" onClick={handleDelete}>
-                Delete
+          <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              {!isNew && canDelete && (
+                <Button type="button" variant="danger" onClick={handleDelete}>
+                  Delete
+                </Button>
+              )}
+            </div>
+            <div className="flex gap-2 [&>*]:flex-1 sm:[&>*]:flex-none">
+              <Link className={btn('outline')} to={backTo}>Cancel</Link>
+              <Button type="submit" loading={saving}>
+                {isNew ? 'Add customer' : 'Save changes'}
               </Button>
-            )}
+            </div>
           </div>
         )}
       </form>
-    </div>
+    </Page>
   );
 }

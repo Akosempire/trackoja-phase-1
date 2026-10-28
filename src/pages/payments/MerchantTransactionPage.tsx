@@ -12,6 +12,7 @@ import { StateBlock } from '../../components/ui/StateBlock';
 import { StatusBadge } from '../../components/ui/StatusBadge';
 import { useToast } from '../../components/ui/Toast';
 import { formatDateTime, formatMoney } from '../../utils/format';
+import { Card, CardHead, Page, PageHeader, btn } from '../../components/kit';
 
 export default function MerchantTransactionPage() {
   const { attemptId } = useParams<{ attemptId: string }>();
@@ -58,48 +59,77 @@ export default function MerchantTransactionPage() {
   };
 
   if (loading) return <PageLoader />;
-  if (error || !attempt) return <StateBlock variant="error" title="Transaction unavailable"
-    body={error ?? 'This transaction could not be found.'}
-    actions={<Button variant="outline" onClick={load}>Try again</Button>} />;
-  return <div className="page">
-    <div className="page-header"><div>
-      <h1 className="page-title">POS transaction</h1>
-      <p className="page-subtitle">{attempt.merchantReference}</p>
-    </div></div>
-    <div className="card" style={{ maxWidth: 800 }}>
-      <div className="section-head"><div className="section-head-text">
-        <h2 className="section-title">{formatMoney(attempt.expectedAmount)}</h2>
-        <p className="section-sub">Customer payment to this business</p>
-      </div><StatusBadge status={attempt.status} /></div>
-      {['sending', 'pending', 'unresolved', 'reconciliation_required'].includes(attempt.status) &&
-        <div className="alert alert-warning" role="status">Do not collect another payment until this request has been verified.</div>}
-      {attempt.failureCode && <p className="page-subtitle">{describeAttempt(attempt)}</p>}
-      <DefList rows={[
-        { term: 'TrackOja reference', value: attempt.merchantReference },
-        { term: 'Provider reference', value: attempt.providerReference ?? 'Not returned yet', muted: !attempt.providerReference },
-        { term: 'Provider status', value: attempt.providerStatus ?? 'Not available', muted: !attempt.providerStatus },
-        { term: 'Expected amount', value: formatMoney(attempt.expectedAmount) },
-        { term: 'Verified amount', value: attempt.actualAmount == null ? 'Not verified' : formatMoney(attempt.actualAmount), muted: attempt.actualAmount == null },
-        { term: 'Payment method', value: attempt.actualPaymentMethod === 'card' ? 'Card' :
-          attempt.actualPaymentMethod === 'transfer' ? 'POS transfer' : 'Not verified yet', muted: !attempt.actualPaymentMethod },
-        { term: 'Provider', value: 'Moniepoint POS' },
-        { term: 'Sale', value: saleNumber ? `#${saleNumber}` : attempt.saleId },
-        { term: 'Customer', value: customerName ?? 'Walk-in customer', muted: !customerName },
-        { term: 'Branch', value: branchName ?? 'Branch unavailable', muted: !branchName },
-        { term: 'Terminal', value: `${terminalName ?? 'Terminal'} · ••••${attempt.terminalLastFour}` },
-        { term: 'Initiated by', value: attempt.initiatedBy === user?.id ? 'You' : 'Another authorised staff member' },
-        { term: 'Created', value: formatDateTime(attempt.initiatedAt) },
-        { term: 'Completed', value: attempt.completedAt ? formatDateTime(attempt.completedAt) : 'Not completed', muted: !attempt.completedAt },
-        { term: 'Environment', value: attempt.environment === 'sandbox' ? 'Sandbox test' : 'Live' },
-      ]} />
-      <div className="btn-row">
-        {['sending', 'pending', 'unresolved', 'reconciliation_required'].includes(attempt.status) &&
-          <Button variant="outline" loading={checking} onClick={check}>Check status</Button>}
-        <Link className="btn btn-ghost" to={`/sales/${attempt.saleId}`}>
-          {attempt.status === 'successful' ? 'View receipt' : 'View pending sale'}
-        </Link>
-        <Link className="btn btn-ghost" to="/payments">Back to payments</Link>
-      </div>
+  if (error || !attempt) return (
+    <Page width="form">
+      <Card>
+        <StateBlock variant="error" title="Transaction unavailable"
+          body={error ?? 'This transaction could not be found.'}
+          actions={<>
+            <Button variant="outline" className="btn-sm" onClick={load}>Try again</Button>
+            <Link className={btn('ghost', 'sm')} to="/payments">Back to payments</Link>
+          </>} />
+      </Card>
+    </Page>
+  );
+
+  const isOpen = ['sending', 'pending', 'unresolved', 'reconciliation_required'].includes(attempt.status);
+  const mono = (value: string) => <span className="break-all font-mono text-[13px]">{value}</span>;
+
+  return <Page width="form">
+    <PageHeader eyebrow="Payments" title="POS transaction" subtitle={<span className="break-all font-mono text-[13px]">{attempt.merchantReference}</span>} />
+
+    <div className="flex flex-col gap-4 lg:gap-6">
+      <Card>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="m-0 text-[13px] font-medium text-ink-2">Customer payment to this business</p>
+            <h2 className="m-0 mt-1 text-[28px] font-semibold leading-9 tracking-tight tabular-nums text-ink">{formatMoney(attempt.expectedAmount)}</h2>
+            <p className="m-0 mt-1 text-[13px] text-ink-3">
+              {formatDateTime(attempt.initiatedAt)}{attempt.environment === 'sandbox' ? ' · Sandbox test' : ''}
+            </p>
+          </div>
+          <StatusBadge status={attempt.status} dot />
+        </div>
+        {isOpen &&
+          <div className="mt-4 rounded-lg bg-warn-soft px-4 py-3 text-[13px] font-medium text-warn-ink" role="status">Do not collect another payment until this request has been verified.</div>}
+        {attempt.failureCode && <p className="m-0 mt-4 rounded-lg bg-tray px-4 py-3 text-[13px] text-ink-2">{describeAttempt(attempt)}</p>}
+        <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+          {isOpen &&
+            <Button variant="primary" loading={checking} onClick={check}>Check status</Button>}
+          <Link className={btn(isOpen ? 'outline' : 'primary')} to={`/sales/${attempt.saleId}`}>
+            {attempt.status === 'successful' ? 'View receipt' : 'View pending sale'}
+          </Link>
+          <Link className={btn('ghost')} to="/payments">Back to payments</Link>
+        </div>
+      </Card>
+
+      <Card aria-labelledby="transaction-references-title">
+        <CardHead title={<span id="transaction-references-title">References</span>} hint="Quote these when you contact Moniepoint or support." />
+        <DefList rows={[
+          { term: 'TrackOja reference', value: mono(attempt.merchantReference) },
+          { term: 'Provider reference', value: attempt.providerReference ? mono(attempt.providerReference) : 'Not returned yet', muted: !attempt.providerReference },
+          { term: 'Provider status', value: attempt.providerStatus ?? 'Not available', muted: !attempt.providerStatus },
+          { term: 'Provider', value: 'Moniepoint POS' },
+          { term: 'Environment', value: attempt.environment === 'sandbox' ? 'Sandbox test' : 'Live' },
+        ]} />
+      </Card>
+
+      <Card aria-labelledby="transaction-details-title">
+        <CardHead title={<span id="transaction-details-title">Payment details</span>} />
+        <DefList rows={[
+          { term: 'Expected amount', value: formatMoney(attempt.expectedAmount) },
+          { term: 'Verified amount', value: attempt.actualAmount == null ? 'Not verified' : formatMoney(attempt.actualAmount), muted: attempt.actualAmount == null },
+          { term: 'Payment method', value: attempt.actualPaymentMethod === 'card' ? 'Card' :
+            attempt.actualPaymentMethod === 'transfer' ? 'POS transfer' : 'Not verified yet', muted: !attempt.actualPaymentMethod },
+          { term: 'Sale', value: saleNumber ? `#${saleNumber}` : mono(attempt.saleId) },
+          { term: 'Customer', value: customerName ?? 'Walk-in customer', muted: !customerName },
+          { term: 'Branch', value: branchName ?? 'Branch unavailable', muted: !branchName },
+          { term: 'Terminal', value: `${terminalName ?? 'Terminal'} · ••••${attempt.terminalLastFour}` },
+          { term: 'Initiated by', value: attempt.initiatedBy === user?.id ? 'You' : 'Another authorised staff member' },
+          { term: 'Created', value: formatDateTime(attempt.initiatedAt) },
+          { term: 'Completed', value: attempt.completedAt ? formatDateTime(attempt.completedAt) : 'Not completed', muted: !attempt.completedAt },
+        ]} />
+      </Card>
     </div>
-  </div>;
+  </Page>;
 }

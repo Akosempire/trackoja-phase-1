@@ -8,6 +8,7 @@ import { activityTypes, businessActivity } from '../utils/business-activity';
 import { PageLoader } from '../components/ui/PageLoader';
 import { StateBlock } from '../components/ui/StateBlock';
 import { Button } from '../components/ui/Button';
+import { Card, Page, PageHeader } from '../components/kit';
 import type { AuditLog } from '../types';
 export default function BusinessActivityPage() {
   const { profile } = useAuth();
@@ -25,7 +26,19 @@ export default function BusinessActivityPage() {
       .catch(() => { if (active) setResult({ key, logs: null }); });
     return () => { active = false; };
   }, [key, profile?.currentStoreId, types, loading]);
-  return <div className="page business-activity-page"><div className="page-header"><div><h1 className="page-title">Business activity</h1><p className="page-subtitle">Latest 100 business events in the selected branch.</p></div></div>
-    {loading || result?.key !== key ? <PageLoader /> : result.logs === null ? <StateBlock variant="error" title="Activity could not be loaded" actions={<Button onClick={() => setRevision(value => value + 1)}>Try again</Button>} /> : <div className="card"><BusinessActivity logs={result.logs} actorId={profile?.id} actorName={profile?.firstName} /></div>}
-  </div>;
+  return (
+    <Page width="form">
+      <PageHeader title="Business activity" subtitle="Latest 100 business events in the selected branch." />
+      {loading || result?.key !== key ? <PageLoader /> : result.logs === null ? (
+        <Card>
+          <StateBlock variant="error" title="Activity could not be loaded"
+            actions={<Button variant="outline" className="btn-sm" onClick={() => setRevision(value => value + 1)}>Try again</Button>} />
+        </Card>
+      ) : (
+        <Card>
+          <BusinessActivity logs={result.logs} actorId={profile?.id} actorName={profile?.firstName} />
+        </Card>
+      )}
+    </Page>
+  );
 }
