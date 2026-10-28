@@ -8,14 +8,14 @@ import { FormField } from '../../src/components/ui/FormField';
 import { Button } from '../../src/components/ui/Button';
 import '../../src/styles/theme.css';
 import '../../src/styles/app.css';
-import '@fontsource-variable/inter';
-import '@fontsource/forum/latin-400.css';
+import '@fontsource-variable/figtree';
 import '../../src/styles/tokens.css';
 import '../../src/styles/waya.css';
 import '../../src/styles/waya-components.css';
 import '../../src/styles/bottom-nav.css';
 import '../../src/styles/form-controls.css';
 import '../../src/styles/mobile.css';
+import '../../src/styles/tally.css';
 initializeInstallApp();
 function Compatibility() {
   const [scan, setScan] = useState(false);

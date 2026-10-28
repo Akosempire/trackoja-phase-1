@@ -1,0 +1,43 @@
+/* Usetally POS design kit.
+   Tailwind utilities (no preflight: the legacy stylesheets still own the base
+   reset while screens move over), with theme names bound to the semantic tokens
+   in tokens.css so light and dark follow the same switch. */
+@layer theme, base, components, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+@source "../";
+
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+@theme inline {
+  --font-sans: var(--font-body);
+  --color-canvas: var(--color-page);
+  --color-surface: var(--color-surface);
+  --color-subtle: var(--color-subtle);
+  --color-tray: var(--color-tray);
+  --color-hover: var(--color-hover);
+  --color-line: var(--color-border);
+  --color-line-strong: var(--color-border-control);
+  --color-ink: var(--color-text-strong);
+  --color-ink-2: var(--color-text-secondary);
+  --color-ink-3: var(--color-text-muted);
+  --color-brand: var(--color-accent);
+  --color-brand-hover: var(--color-accent-hover);
+  --color-brand-soft: var(--color-accent-soft);
+  --color-brand-line: var(--color-accent-line);
+  --color-brand-ink: var(--color-accent-ink);
+  --color-success: var(--color-success);
+  --color-success-soft: var(--color-success-soft);
+  --color-success-ink: var(--color-success-text);
+  --color-warn: var(--color-warning);
+  --color-warn-soft: var(--color-warning-soft);
+  --color-warn-ink: var(--color-warning-text);
+  --color-danger: var(--color-danger);
+  --color-danger-soft: var(--color-danger-soft);
+  --color-contrast: var(--color-contrast);
+  --radius-xs: 6px; --radius-sm: 8px; --radius-md: 10px; --radius-lg: 12px;
+  --radius-xl: 16px; --radius-2xl: 20px; --radius-3xl: 24px;
+  --shadow-card: var(--shadow-card);
+  --shadow-pop: var(--shadow-popover);
+  --shadow-dialog: var(--shadow-dialog);
+}

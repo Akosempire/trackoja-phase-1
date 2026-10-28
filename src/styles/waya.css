@@ -56,7 +56,7 @@ input[type='checkbox'], input[type='radio'] { accent-color: var(--color-accent);
 .payment-filter-bar .search-input { max-width: none; margin-bottom: 0; }
 .payment-advanced-filters { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-12); }
 .payment-export-actions { margin-block: var(--space-16); }
-.page-title, .auth-title, .onboarding-title { font-family: var(--font-display); font-size: var(--text-display-mobile); font-weight: 400; line-height: var(--leading-tight); letter-spacing: -.04em; color: var(--color-text-strong); overflow-wrap: anywhere; }
+.page-title, .auth-title, .onboarding-title { font-family: var(--font-display); font-size: var(--text-display-mobile); font-weight: 600; line-height: 1.25; letter-spacing: -.01em; color: var(--color-text-strong); overflow-wrap: anywhere; }
 .page-subtitle { font-size: var(--text-body-sm); margin-top: var(--space-12); color: var(--t2); }
 .card, .stat-card, .product-card, .kitchen-card { border-radius: var(--radius-card); box-shadow: none; }
 .card { padding: var(--space-20); margin-bottom: var(--space-24); background: var(--color-panel); border-color: var(--color-border-control); }
