@@ -32,7 +32,8 @@ for (const category of Object.keys(CATEGORY_CONFIGS)) for (const allowed of [tru
     await act(async () => root.render(createElement(MemoryRouter, {}, createElement(DashboardPage))));
     expect(host.textContent).toContain('Ada store'); expect(host.querySelector('.hd-metrics')).toBeTruthy();
     expect(host.querySelectorAll('.dashboard-revenue').length).toBe(allowed ? 1 : 0);
-    expect(state.methods).toHaveBeenCalledTimes(allowed ? 2 : 0);
+    // Today's payment split now lives only in the revenue panel, so it is fetched once.
+    expect(state.methods).toHaveBeenCalledTimes(allowed ? 1 : 0);
     expect(state.summary).toHaveBeenCalledTimes(allowed ? 2 : 0);
     if (allowed) expect(host.textContent).toContain('No revenue in this period');
     else expect(host.textContent).not.toMatch(/Record sale|New order|Add client|New job|Add product/);

@@ -30,8 +30,9 @@ describe('ZIP design-system component adoption', () => {
   });
 
   it('uses the shared metric component on merchant summary screens', () => {
+    // Rebuilt screens use the Usetally kit's <Stat>; the rest still use KpiCard.
+    expect(source('src/pages/DashboardPage.tsx')).toMatch(/<Stat[\s>]/);
     for (const path of [
-      'src/pages/DashboardPage.tsx',
       'src/pages/jobs/JobsPage.tsx',
       'src/pages/reports/ReportsPage.tsx',
     ]) {

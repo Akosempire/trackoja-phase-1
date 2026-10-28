@@ -1,4 +1,5 @@
 import type { ButtonHTMLAttributes } from 'react';
+import { btn } from '../kit';
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   loading?: boolean;
@@ -6,7 +7,9 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 export function Button({ loading, variant = 'primary', children, disabled, className, onClick, ...props }: ButtonProps) {
-  const classes = ['btn', `btn-${variant}`, className].filter(Boolean).join(' ');
+  const size = className?.split(/\s+/).includes('btn-sm') ? 'sm' : className?.split(/\s+/).includes('btn-lg') ? 'lg' : 'md';
+  const look = btn(variant === 'neutral' ? 'primary' : variant, size);
+  const classes = ['btn', `btn-${variant}`, 'relative', look, className].filter(Boolean).join(' ');
 
   return (
     <button

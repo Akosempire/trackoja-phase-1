@@ -14,10 +14,9 @@
 @import "./command-search.css" layer(legacy);
 @import "./form-controls.css" layer(legacy);
 @import "./mobile.css" layer(legacy);
-@import "./dashboard.css" layer(legacy);
-@import "./home-dashboard.css" layer(legacy);
 @import "./landing.css" layer(legacy);
 @import "./owner-dashboard.css" layer(legacy);
+@import "./home-dashboard.css" layer(legacy);
 @import "./platform-overview.css" layer(legacy);
 @import "./reports.css" layer(legacy);
 @import "./tally.css";

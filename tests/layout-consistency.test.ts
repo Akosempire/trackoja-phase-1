@@ -49,9 +49,9 @@ describe('shared application layout', () => {
   });
 
   it('keeps dashboard cards visibly bordered in both themes', () => {
-    const dashboard = source('src/styles/dashboard.css');
-    expect(dashboard).toContain('.dash .kpi-card');
-    expect(dashboard).toContain('.dash > .card');
-    expect(dashboard).toContain('border: 1px solid var(--color-border-control)');
+    const kit = source('src/components/kit.tsx');
+    // Cards and stat tiles carry a hairline border token that both themes redefine.
+    expect(kit).toMatch(/function Card[\s\S]*?border border-line/);
+    expect(kit).toMatch(/function Stat[\s\S]*?border border-line/);
   });
 });

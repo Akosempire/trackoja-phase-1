@@ -35,7 +35,7 @@ export function SegmentedControl<T extends string>({
   };
 
   return (
-    <div className="segmented-control" role="radiogroup" aria-label={label}>
+    <div className="segmented-control flex w-full max-w-full gap-0.5 overflow-x-auto rounded-lg border-0 bg-tray p-1 sm:inline-flex sm:w-auto" role="radiogroup" aria-label={label}>
       {options.map((option, index) => {
         const active = option.value === value;
         return (
@@ -43,7 +43,7 @@ export function SegmentedControl<T extends string>({
             key={option.value}
             ref={(node) => { refs.current[index] = node; }}
             type="button"
-            className={active ? 'is-active' : undefined}
+            className={`h-8 flex-1 whitespace-nowrap rounded-md border-0 px-2 text-xs font-medium sm:flex-none sm:px-3 sm:text-[13px] transition-colors ${active ? 'is-active bg-surface text-ink shadow-card' : 'text-ink-2 hover:text-ink'}`}
             role="radio"
             aria-checked={active}
             tabIndex={active ? 0 : -1}

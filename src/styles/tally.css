@@ -9,7 +9,7 @@
 
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
-@theme inline {
+@theme inline reference {
   --font-sans: var(--font-body);
   --color-canvas: var(--color-page);
   --color-surface: var(--color-surface);

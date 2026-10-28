@@ -40,7 +40,7 @@ export function Page({ children, width = 'page', className }: { children: ReactN
 
 export function PageHeader({ title, subtitle, eyebrow, actions }: { title: ReactNode; subtitle?: ReactNode; eyebrow?: ReactNode; actions?: ReactNode }) {
   return (
-    <div className="mb-6 flex flex-wrap items-end justify-between gap-4 lg:mb-8">
+    <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between lg:mb-8">
       <div className="min-w-0 flex-1">
         {eyebrow && <p className="mb-1 text-[13px] font-medium text-ink-3">{eyebrow}</p>}
         <h1 className="m-0 text-2xl font-semibold leading-8 tracking-tight text-ink lg:text-[28px] lg:leading-9">{title}</h1>

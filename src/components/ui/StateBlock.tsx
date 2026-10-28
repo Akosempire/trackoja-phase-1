@@ -20,17 +20,18 @@ interface StateBlockProps {
  * a healthy measurement.
  */
 export function StateBlock({ variant = 'empty', title, body, actions, centred, compact }: StateBlockProps) {
-  const classes = ['state-block', `state-${variant}`, centred ? 'is-centred' : '', compact ? 'is-compact' : ''].filter(Boolean).join(' ');
+  const classes = ['state-block', `state-${variant}`, centred ? 'is-centred' : '', compact ? 'is-compact' : '',
+    'flex flex-col items-start gap-1', compact ? 'py-2' : 'py-6', centred && 'items-center text-center'].filter(Boolean).join(' ');
   return (
     <div className={classes} role={variant === 'error' ? 'alert' : undefined}>
       {(variant === 'error' || variant === 'denied' || variant === 'unavailable') && (
-        <span className="state-icon" aria-hidden="true">
+        <span className={`state-icon mb-2 inline-flex size-9 items-center justify-center rounded-full ${variant === 'error' ? 'bg-danger-soft text-danger' : 'bg-tray text-ink-2'}`} aria-hidden="true">
           <AlertIcon width={18} height={18} />
         </span>
       )}
-      <p className="state-title">{title}</p>
-      {body && <p className="state-body">{body}</p>}
-      {actions && <div className="state-actions">{actions}</div>}
+      <p className="state-title m-0 text-sm font-semibold text-ink">{title}</p>
+      {body && <p className="state-body m-0 max-w-md text-[13px] text-ink-2">{body}</p>}
+      {actions && <div className="state-actions mt-3 flex flex-wrap gap-2">{actions}</div>}
     </div>
   );
 }

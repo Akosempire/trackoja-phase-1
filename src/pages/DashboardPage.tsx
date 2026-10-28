@@ -17,22 +17,17 @@ import { AuditService } from '../services/audit.service';
 import { SaleService } from '../services/sale.service';
 import { CustomerService } from '../services/customer.service';
 import { Button } from '../components/ui/Button';
-import { KpiCard, KpiGrid } from '../components/ui/KpiCard';
 import { PageLoader } from '../components/ui/PageLoader';
 import { StateBlock } from '../components/ui/StateBlock';
 import { getBusinessExperience, type DashboardMetric } from '../config/businessExperience';
 import { isResolvableMetric } from '../config/dashboardMetrics';
-import type { AuditLog, PaymentMethod, PaymentMethodBreakdown, Product, Sale, SalesSummary, Store, TopProduct } from '../types';
+import type { AuditLog, Product, Sale, SalesSummary, Store, TopProduct } from '../types';
 import { formatMoney, formatNumber } from '../utils/format';
-import {
-  HomeBars,
-  HomeDonut,
-  HomeMetricCard,
-  HomePanel,
-  type HomeBar,
-  type HomeMetric,
-  type HomeSlice,
-} from '../components/home/HomeDashboard';
+import { Card, CardHead, Page, PageHeader, Pill, Stat, btn } from '../components/kit';
+import { ChevronRightIcon, RefreshIcon } from '../components/icons';
+
+interface HomeMetric { label: string; value: string }
+interface HomeBar { label: string; amount: string; percent: string; width: number }
 
 function greetingForNow(name?: string) {
   const hour = new Date().getHours();
@@ -164,7 +159,6 @@ export default function DashboardPage() {
   const [kitchenOrders, setKitchenOrders] = useState<Sale[] | null>(null);
   const [refundCount, setRefundCount] = useState<number | null>(null);
   const [customerCount, setCustomerCount] = useState<number | null>(null);
-  const [paymentMethods, setPaymentMethods] = useState<PaymentMethodBreakdown[] | null>(null);
   const [topProducts, setTopProducts] = useState<TopProduct[] | null>(null);
   const [activity, setActivity] = useState<AuditLog[] | null>(null);
   const [loading, setLoading] = useState(true);
@@ -194,7 +188,6 @@ export default function DashboardPage() {
     setKitchenOrders(null);
     setRefundCount(null);
     setCustomerCount(null);
-    setPaymentMethods(null);
     setTopProducts(null);
     setActivity(null);
     setPartialFailures(0);
@@ -214,7 +207,7 @@ export default function DashboardPage() {
               ? canReadCustomers
               : canReadJobs
       ));
-      const [storeRow, sales, allProducts, low, logs, orders, refundRows, customers, jobSummary, methods, top] = await Promise.all([
+      const [storeRow, sales, allProducts, low, logs, orders, refundRows, customers, jobSummary, top] = await Promise.all([
         StoreService.getStore(storeId),
         canReadReports ? optional(ReportService.getSalesSummary(storeId, todayStart.toISOString(), now.toISOString())) : Promise.resolve(null),
         canReadInventory ? optional(ProductService.getProducts(storeId)) : Promise.resolve(null),
@@ -224,7 +217,6 @@ export default function DashboardPage() {
         canReadSales ? optional(SaleService.getRefundCount(storeId, todayStart.toISOString(), now.toISOString())) : Promise.resolve(null),
         canReadCustomers ? optional(CustomerService.getCustomers(storeId)) : Promise.resolve(null),
         canReadJobs ? optional(JobService.summary(storeId)) : Promise.resolve(null),
-        canReadReports ? optional(ReportService.getSalesByPaymentMethod(storeId, todayStart.toISOString(), now.toISOString())) : Promise.resolve(null),
         canReadReports ? optional(ReportService.getTopProducts(storeId, todayStart.toISOString(), now.toISOString(), 5)) : Promise.resolve(null),
       ]);
       if (request !== dashboardRequest.current) return;
@@ -237,7 +229,6 @@ export default function DashboardPage() {
       setKitchenOrders(orders);
       setRefundCount(refundRows);
       setCustomerCount(customers?.length ?? null);
-      setPaymentMethods(methods);
       setTopProducts(top);
       setPartialFailures(failed);
     } catch (err) {
@@ -294,22 +285,7 @@ export default function DashboardPage() {
     canReadInventory && lowStock ? { label: `${experience.terminology.stock} alerts`, value: formatNumber(lowStock.length) } : null,
   ].filter((item): item is HomeMetric => item !== null);
 
-  const methodTone: Record<PaymentMethod, HomeSlice['tone']> = {
-    cash: 'success',
-    card: 'orders',
-    transfer: 'users',
-    credit: 'pending',
-    other: 'failed',
-  };
   const totalRevenue = summary?.totalRevenue ?? 0;
-  const donutSlices: HomeSlice[] = (paymentMethods ?? [])
-    .filter((row) => row.amount > 0)
-    .map((row) => ({
-      label: row.method.replace(/_/g, ' '),
-      value: formatMoney(row.amount),
-      percent: totalRevenue > 0 ? Math.round((row.amount / totalRevenue) * 1000) / 10 : 0,
-      tone: methodTone[row.method],
-    }));
   const topBars: HomeBar[] = (topProducts ?? []).map((p) => ({
     label: p.productName,
     amount: formatMoney(p.revenue),
@@ -336,166 +312,158 @@ export default function DashboardPage() {
 
   if (loading || permissionsLoading) return <PageLoader />;
 
+  const primary = experience.primaryAction.implemented && canUseAction(experience.primaryAction.route)
+    ? { label: experience.primaryAction.label, go: () => navigate(experience.primaryAction.route === '/jobs' ? '/jobs?new=1' : experience.primaryAction.route) }
+    : null;
+
   return (
-    <div className="page dash">
+    <Page className="dash">
       <TrialStatus />
-      <div className="page-header waya-home-header">
-        <div className="waya-home-heading">
-          <p className="waya-home-context">{store?.name ? `${store.name} workspace` : experience.displayName}</p>
-          <h1 className="waya-home-title">Home</h1>
-          <p className="waya-home-sub">{greetingForNow(profile?.firstName)}. {experience.primaryQuestion}</p>
-        </div>
-        <div className="waya-home-actions">
+      <PageHeader
+        eyebrow={store?.name ?? experience.displayName}
+        title={greetingForNow(profile?.firstName)}
+        subtitle={experience.primaryQuestion}
+        actions={<>
           {experience.secondaryActions.filter(action => action.implemented && canUseAction(action.route)).map(action => (
-            <Link key={action.route} className="btn btn-ghost btn-sm" to={action.route}>{action.label}</Link>
+            <Link key={action.route} className={btn('outline')} to={action.route}>{action.label}</Link>
           ))}
-          <Button variant="outline" className="btn-sm" onClick={loadDashboard}>Refresh</Button>
-          {experience.primaryAction.implemented && canUseAction(experience.primaryAction.route) && (
-            <Button onClick={() => navigate(experience.primaryAction.route === '/jobs' ? '/jobs?new=1' : experience.primaryAction.route)}>
-              {experience.primaryAction.label}
-            </Button>
-          )}
-        </div>
-      </div>
+          <button type="button" className={btn('ghost')} onClick={loadDashboard} aria-label="Refresh"><RefreshIcon width={17} height={17} /></button>
+          {primary && <Button onClick={primary.go}>{primary.label}</Button>}
+        </>}
+      />
 
       {partialFailures > 0 && !error && (
-        <div className="alert alert-warning" role="status">
-          <span className="alert-text">{partialFailures} dashboard source{partialFailures === 1 ? '' : 's'} could not load. Unavailable figures are hidden.</span>
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-lg bg-warn-soft px-4 py-2.5 text-[13px] text-warn-ink" role="status">
+          <span>{partialFailures} dashboard source{partialFailures === 1 ? '' : 's'} could not load. Unavailable figures are hidden.</span>
           <Button variant="ghost" className="btn-sm" onClick={loadDashboard}>Try again</Button>
         </div>
       )}
 
       {error ? (
-        <div className="card">
-          <StateBlock
-            variant="error"
-            title="Could not load the dashboard"
-            body={error}
-            actions={<Button variant="outline" className="btn-sm" onClick={loadDashboard}>Try again</Button>}
-          />
-        </div>
+        <Card>
+          <StateBlock variant="error" title="Could not load the dashboard" body={error}
+            actions={<Button variant="outline" className="btn-sm" onClick={loadDashboard}>Try again</Button>} />
+        </Card>
       ) : !hasAvailableData ? (
-        <div className="card">
-          <StateBlock
-            variant="unavailable"
-            title="Dashboard data unavailable"
+        <Card>
+          <StateBlock variant="unavailable" title="Dashboard data unavailable"
             body="Your role has no accessible dashboard data, or the available sources did not answer."
-            actions={partialFailures > 0 && <Button variant="outline" className="btn-sm" onClick={loadDashboard}>Try again</Button>}
-          />
-        </div>
+            actions={partialFailures > 0 && <Button variant="outline" className="btn-sm" onClick={loadDashboard}>Try again</Button>} />
+        </Card>
       ) : (
-        <>
+        <div className="flex flex-col gap-4 lg:gap-6">
           {homeMetrics.length > 0 && (
-            <section className="hd-metrics" aria-label="Key business metrics">
+            <section className="hd-metrics grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4" aria-label="Key business metrics">
               {homeMetrics.map((metric) => (
-                <HomeMetricCard key={metric.label} metric={metric} />
+                <Stat key={metric.label} label={metric.label} value={metric.value}
+                  tone={metric.label.endsWith('alerts') && metric.value !== '0' ? 'warn' : undefined} />
               ))}
             </section>
           )}
 
-          <div className="hd-grid">
+          <div className="grid gap-4 lg:grid-cols-3 lg:gap-6">
             {canReadReports && (
-              <DashboardRevenuePanel
-                load={loadRevenue}
-                title="Sales performance"
-                breakdownTitle="Sales by payment method"
-                note="Completed sales only. Revenue is after discounts and includes tax; credit sales are not necessarily cash received."
-                emptyDescription={experience.emptyStates.dashboard}
-                emptyAction={experience.primaryAction.implemented && canUseAction(experience.primaryAction.route)
-                  ? <Button className="btn-sm" onClick={() => navigate(experience.primaryAction.route === '/jobs' ? '/jobs?new=1' : experience.primaryAction.route)}>{experience.primaryAction.label}</Button>
-                  : undefined}
-              />
-            )}
-            <HomePanel title="Sales by payment method" subtitle="Completed sales today, by how customers paid.">
-              <div className="hd-viz">
-                {donutSlices.length > 0 ? (
-                  <HomeDonut slices={donutSlices} />
-                ) : (
-                  <div className="hd-viz-empty" role="status">
-                    <p className="hd-viz-empty-title">No payment data yet</p>
-                    <p className="hd-viz-empty-body">Payment breakdown will appear after completed sales.</p>
-                  </div>
-                )}
+              <div className="min-w-0 lg:col-span-2">
+                <DashboardRevenuePanel
+                  load={loadRevenue}
+                  title="Sales performance"
+                  breakdownTitle="By payment method"
+                  note="Completed sales only. Revenue is after discounts and includes tax; credit sales are not necessarily cash received."
+                  emptyDescription={experience.emptyStates.dashboard}
+                  emptyAction={primary ? <Button className="btn-sm" onClick={primary.go}>{primary.label}</Button> : undefined}
+                />
               </div>
-            </HomePanel>
-          </div>
-
-          <div className="hd-grid">
-            <HomePanel title="Top products" subtitle="Best sellers today, as a share of today's revenue.">
-              {topBars.length > 0 ? (
-                <HomeBars total={formatMoney(totalRevenue)} bars={topBars} />
-              ) : (
-                <p className="hd-panel-note">No completed sales to rank yet.</p>
-              )}
-            </HomePanel>
-            <HomePanel title="Recent activity" subtitle="The latest changes in this workspace.">
-              {activity === null ? (
-                <p className="hd-panel-note">Activity is unavailable.</p>
-              ) : (
-                <BusinessActivity logs={activity.slice(0, 4)} actorId={profile?.id} actorName={profile?.firstName} />
-              )}
-            </HomePanel>
-          </div>
-
-          <div className="hd-grid">
-            <HomePanel title={`${experience.terminology.stock} attention`} subtitle="Items at or below their reorder level.">
+            )}
+            <Card className={canReadReports ? '' : 'lg:col-span-3'}>
+              <CardHead title={`${experience.terminology.stock} running low`} hint="At or below reorder level"
+                action={canReadInventory ? <Link className="text-[13px] font-semibold text-brand no-underline" to="/inventory/products">View all</Link> : undefined} />
               {lowStock === null ? (
-                <p className="hd-panel-note">Stock status is unavailable.</p>
+                <p className="m-0 text-sm text-ink-3">Stock status is unavailable.</p>
               ) : lowStock.length === 0 ? (
-                <p className="hd-panel-note">No low-stock {experience.terminology.lineItem.toLowerCase()} need attention.</p>
+                <p className="m-0 text-sm text-ink-3">Nothing is running low. Nice.</p>
               ) : (
-                <div className="list">
-                  {lowStock.slice(0, 4).map((product) => (
-                    <Link className="list-item" key={product.id} to={`/inventory/products/${product.id}`}>
-                      <div>
-                        <p className="list-item-title">{product.name}</p>
-                        <p className="list-item-subtitle">Available: {stockQuantity(product.stockQty, product.unit)}</p>
+                <ul className="m-0 list-none divide-y divide-line p-0">
+                  {lowStock.slice(0, 5).map((product) => (
+                    <li key={product.id}>
+                      <Link className="flex items-center justify-between gap-3 py-2.5 text-inherit no-underline" to={`/inventory/products/${product.id}`}>
+                        <span className="min-w-0">
+                          <span className="block truncate text-sm font-medium text-ink">{product.name}</span>
+                          <span className="block text-xs text-ink-3">{stockQuantity(product.stockQty, product.unit)} left</span>
+                        </span>
+                        <Pill tone={product.stockQty <= 0 ? 'danger' : 'warn'}>{stockState(product)}</Pill>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Card>
+          </div>
+
+          <div className="grid gap-4 lg:grid-cols-3 lg:gap-6">
+            <Card>
+              <CardHead title="Top sellers today" hint={topBars.length ? `Share of ${formatMoney(totalRevenue)}` : undefined} />
+              {topBars.length > 0 ? (
+                <ol className="m-0 list-none space-y-3 p-0">
+                  {topBars.map((bar, index) => (
+                    <li key={bar.label}>
+                      <div className="flex items-baseline justify-between gap-3 text-sm">
+                        <span className="min-w-0 truncate text-ink"><span className="mr-2 text-ink-3 tabular-nums">{index + 1}</span>{bar.label}</span>
+                        <span className="shrink-0 font-semibold tabular-nums text-ink">{bar.amount}</span>
                       </div>
-                      <span className={`badge ${product.stockQty <= 0 ? 'badge-danger' : 'badge-warning'}`}>{stockState(product)}</span>
-                    </Link>
+                      <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-tray" aria-hidden="true"><span className="block h-full rounded-full bg-brand" style={{ width: `${Math.max(2, bar.width)}%` }} /></div>
+                    </li>
                   ))}
-                </div>
-              )}
-            </HomePanel>
-            <HomePanel title="Needs attention" subtitle="Actionable issues across this workspace.">
-              {attentionItems.length === 0 ? (
-                <p className="hd-panel-note">No urgent issues need attention right now.</p>
+                </ol>
               ) : (
-                <div className="hd-attention">
-                  {attentionItems.slice(0, 4).map((item) => (
-                    <Link className="hd-attention-item" key={item.title} to={item.to}>
-                      <strong>{item.title}</strong>
-                      <span>{item.body}</span>
-                    </Link>
-                  ))}
-                </div>
+                <p className="m-0 text-sm text-ink-3">No completed sales to rank yet.</p>
               )}
-            </HomePanel>
+            </Card>
+            <Card>
+              <CardHead title="Recent activity" action={<Link className="text-[13px] font-semibold text-brand no-underline" to="/activity">View all</Link>} />
+              {activity === null ? (
+                <p className="m-0 text-sm text-ink-3">Activity is unavailable.</p>
+              ) : (
+                <BusinessActivity logs={activity.slice(0, 5)} actorId={profile?.id} actorName={profile?.firstName} />
+              )}
+            </Card>
+            <Card>
+              <CardHead title="To do" hint="Quick fixes that make the shop run smoother" />
+              {attentionItems.length === 0 ? (
+                <p className="m-0 text-sm text-ink-3">You're all caught up.</p>
+              ) : (
+                <ul className="m-0 list-none space-y-2 p-0">
+                  {attentionItems.slice(0, 4).map((item) => (
+                    <li key={item.title}>
+                      <Link className="flex items-center gap-3 rounded-lg border border-line px-3 py-2.5 text-inherit no-underline hover:bg-subtle" to={item.to}>
+                        <span className="min-w-0 flex-1">
+                          <span className="block text-sm font-medium text-ink">{item.title}</span>
+                          <span className="block text-xs text-ink-3">{item.body}</span>
+                        </span>
+                        <ChevronRightIcon width={16} height={16} />
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Card>
           </div>
 
           {operationalMetrics.length > 0 && (
-            <section className="hd-operational" aria-label={`${experience.displayName} metrics`}>
-              <h2 className="hd-operational-title">Operational focus</h2>
-              <KpiGrid>
+            <section aria-label={`${experience.displayName} metrics`}>
+              <h2 className="m-0 mb-3 text-[15px] font-semibold text-ink">Operational focus</h2>
+              <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
                 {operationalMetrics.map(({ metric, value, sub }) => {
-                  const tone = metric.tone === 'warn' ? 'warning' : metric.tone === 'danger' ? 'danger' : 'default';
-                  return (
-                    <KpiCard
-                      key={metric.key}
-                      label={metric.label}
-                      value={value}
-                      foot={sub}
-                      tone={tone}
-                      onClick={metric.linkTo && (metric.linkTo.startsWith('/jobs') ? canReadJobs : canUseAction(metric.linkTo)) ? () => navigate(metric.linkTo!) : undefined}
-                      ariaLabel={metric.linkTo ? `${metric.label}: ${value}. Open details` : undefined}
-                    />
-                  );
+                  const link = metric.linkTo && (metric.linkTo.startsWith('/jobs') ? canReadJobs : canUseAction(metric.linkTo)) ? metric.linkTo : null;
+                  const tile = <Stat label={metric.label} value={value} hint={sub} tone={metric.tone === 'warn' ? 'warn' : metric.tone === 'danger' ? 'danger' : undefined} />;
+                  return link
+                    ? <Link key={metric.key} to={link} className="text-inherit no-underline" aria-label={`${metric.label}: ${value}. Open details`}>{tile}</Link>
+                    : <div key={metric.key}>{tile}</div>;
                 })}
-              </KpiGrid>
+              </div>
             </section>
           )}
-        </>
+        </div>
       )}
-    </div>
+    </Page>
   );
 }
