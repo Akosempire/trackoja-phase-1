@@ -66,10 +66,10 @@ export function SectionState({
 }: SectionStateProps) {
   if (loading) {
     return (
-      <div className="skeleton-inline" role="status" aria-label="Loading">
-        <span className="skeleton skeleton-text" />
-        <span className="skeleton skeleton-text" />
-        <span className="skeleton skeleton-text is-short" />
+      <div className="skeleton-inline space-y-3 py-2" role="status" aria-label="Loading">
+        <span className="skeleton block h-12 animate-pulse rounded-lg bg-tray" />
+        <span className="skeleton block h-12 animate-pulse rounded-lg bg-tray" />
+        <span className="skeleton block h-12 w-2/3 animate-pulse rounded-lg bg-tray" />
       </div>
     );
   }
@@ -82,7 +82,7 @@ export function SectionState({
         body={error}
         actions={
           onRetry && (
-            <button type="button" className="btn btn-outline btn-sm" onClick={onRetry}>
+            <button type="button" className="btn btn-outline btn-sm inline-flex h-8 items-center rounded-md border border-line-strong bg-surface px-3 text-[13px] font-semibold text-ink" onClick={onRetry}>
               <span className="btn-label">Try again</span>
             </button>
           )
