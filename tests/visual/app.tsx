@@ -47,6 +47,7 @@ mock('RbacService', 'getUserPermissions', []);
 
 const params = new URLSearchParams(location.search);
 document.documentElement.dataset.theme = params.get('theme') ?? 'light';
+try { localStorage.setItem('trackoja-theme', params.get('theme') ?? 'light'); } catch { /* preview only */ }
 createRoot(document.getElementById('root')!).render(
   <MemoryRouter initialEntries={[params.get('path') ?? '/dashboard']}><ToastProvider><App /></ToastProvider></MemoryRouter>
 );
