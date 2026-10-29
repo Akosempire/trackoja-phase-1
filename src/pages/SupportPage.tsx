@@ -1,5 +1,5 @@
-import { Card, Page, PageHeader, btn } from '../components/kit';
-import { SupportIcon } from '../components/icons';
+import { Card, Page, PageHeader } from '../components/kit';
+import { SupportMessages } from '../components/SupportMessages';
 
 const FAQS = [
   {
@@ -27,18 +27,9 @@ const FAQS = [
 export default function SupportPage() {
   return (
     <Page width="form">
-      <PageHeader title="Support" subtitle="Help and frequently asked questions" />
+      <PageHeader title="Support" subtitle="Message the team, or find a quick answer below" />
 
-      <Card className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-center lg:mb-6">
-        <span aria-hidden="true" className="inline-flex size-11 shrink-0 items-center justify-center rounded-xl bg-brand-soft text-brand-ink">
-          <SupportIcon width={22} height={22} />
-        </span>
-        <div className="min-w-0 flex-1">
-          <h2 className="m-0 text-[15px] font-semibold text-ink">Need help?</h2>
-          <p className="m-0 mt-0.5 text-sm text-ink-2">Reach our support team and we'll get back to you as soon as possible.</p>
-        </div>
-        <a className={btn('primary')} href="mailto:mercuriusmerchandise@gmail.com">Email support</a>
-      </Card>
+      <SupportMessages fallbackEmail="mercuriusmerchandise@gmail.com" />
 
       <Card padded={false} className="overflow-hidden">
         <h2 className="m-0 px-4 pb-3 pt-4 text-[15px] font-semibold text-ink sm:px-5">Frequently asked questions</h2>

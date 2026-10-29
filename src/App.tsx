@@ -56,6 +56,7 @@ const BillingDocumentPage = lazyPage('./pages/billing/BillingDocumentPage');
 const MorePage = lazyPage('./pages/MorePage');
 const SettingsPage = lazyPage('./pages/SettingsPage');
 const UsetallyCallbackPage = lazyPage('./pages/UsetallyCallbackPage');
+const SupportThreadPage = lazyPage('./pages/support/SupportThreadPage');
 const SupportPage = lazyPage('./pages/SupportPage');
 const KitchenPage = lazyPage('./pages/restaurant/KitchenPage');
 const ExpiryAlertsPage = lazyPage('./pages/pharmacy/ExpiryAlertsPage');
@@ -172,6 +173,7 @@ export default function App() {
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/settings/usetally/callback" element={<UsetallyCallbackPage />} />
           <Route path="/support" element={<SupportPage />} />
+          <Route path="/support/messages/:threadId" element={<SupportThreadPage />} />
           <Route path="/kitchen" element={<KitchenPage />} />
           <Route path="/pharmacy/expiry" element={<ExpiryAlertsPage />} />
         </Route>
