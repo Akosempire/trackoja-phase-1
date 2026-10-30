@@ -1,6 +1,6 @@
 import { useWorkspaceState } from '../../hooks/useWorkspaceState';
 import { useEffect, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { ProductService } from '../../services/product.service';
 import { InventoryService } from '../../services/inventory.service';
@@ -147,7 +147,8 @@ export default function StockAdjustmentPage() {
     <Page>
       <PageHeader
         title="Adjust stock"
-        subtitle="Record replenishments, transfers, and stock corrections."
+        subtitle="Quick one-off corrections. For deliveries, counts and branch transfers use Restock."
+        actions={<Link className="text-[13px] font-semibold text-brand no-underline" to="/inventory/restock">Open Restock</Link>}
       />
 
       {error && <div className="mb-4 rounded-lg bg-danger-soft px-4 py-3 text-sm text-danger" role="alert">{error}</div>}

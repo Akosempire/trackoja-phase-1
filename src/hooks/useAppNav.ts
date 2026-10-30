@@ -86,6 +86,8 @@ export function useAppNav() {
     allItems.push(payments);
   }
   const extras = [
+    // deliveries, suppliers, stock counts, branch transfers and low stock
+    ...(enabled.includes('inventory') ? [{ to: '/inventory/restock', label: 'Restock', icon: ProductsIcon, permission: 'inventory:view' }] : []),
     { to: '/staff', label: 'Staff', icon: StaffIcon, permission: 'member:manage' },
     { to: '/devices', label: 'Devices', icon: DevicesIcon, permission: 'devices:view' },
     { to: '/settings', label: 'Settings', icon: SettingsIcon, permission: 'store:update' },

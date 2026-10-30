@@ -19,6 +19,16 @@ function destination(pathname: string): BackDestination | null {
     return { to: '/inventory/products', label: 'Back to inventory' };
   }
 
+  if (['/inventory/receive', '/inventory/suppliers', '/inventory/count', '/inventory/transfers', '/inventory/low-stock'].includes(pathname)) {
+    return { to: '/inventory/restock', label: 'Back to restock' };
+  }
+  if (pathname === '/inventory/restock') return { to: '/more', label: 'Back to more' };
+  const restockChild = pathname.match(/^\/inventory\/(suppliers|transfers|purchases)\/[^/]+$/);
+  if (restockChild) {
+    const parent = restockChild[1] === 'purchases' ? '/inventory/suppliers?tab=deliveries' : `/inventory/${restockChild[1]}`;
+    return { to: parent, label: restockChild[1] === 'transfers' ? 'Back to transfers' : restockChild[1] === 'suppliers' ? 'Back to suppliers' : 'Back to deliveries' };
+  }
+
   if (pathname === '/sales/history' || pathname === '/sales/checkout') {
     return { to: '/sales', label: 'Back to sales' };
   }
