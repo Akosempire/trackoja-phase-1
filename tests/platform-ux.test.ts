@@ -8,7 +8,7 @@ const state = vi.hoisted(() => ({ allowed: true, list: vi.fn(), notes: vi.fn() }
 vi.mock('../src/components/platform/PlatformContext', () => ({ usePlatform: () => ({ can: () => state.allowed }) }));
 vi.mock('../src/services/platformAdmin.service', () => ({ PlatformAdminService: { listBusinesses: state.list, listSupportNotes: state.notes } }));
 vi.mock('../src/components/ui/Toast', () => ({ useToast: () => ({ success: vi.fn() }) }));
-vi.mock('../src/components/icons', () => Object.fromEntries(['LockIcon', 'SearchIcon', 'CloseIcon', 'CheckIcon', 'AlertIcon', 'InfoIcon', 'BuildingIcon', 'CodeIcon', 'HomeIcon', 'KeyIcon', 'PlugIcon', 'PulseIcon', 'SettingsIcon', 'ShieldIcon', 'SubscriptionIcon', 'TicketIcon'].map((name) => [name, () => null])));
+vi.mock('../src/components/icons', () => Object.fromEntries(['LockIcon', 'SearchIcon', 'CloseIcon', 'CheckIcon', 'AlertIcon', 'InfoIcon', 'BuildingIcon', 'CodeIcon', 'HomeIcon', 'KeyIcon', 'PlugIcon', 'PulseIcon', 'SettingsIcon', 'ShieldIcon', 'SubscriptionIcon', 'TicketIcon', 'ReportsIcon'].map((name) => [name, () => null])));
 let root: Root; let host: HTMLDivElement;
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 beforeEach(() => { state.allowed = true; state.list.mockReset().mockResolvedValue([]); state.notes.mockReset().mockResolvedValue([]); host = document.createElement('div'); document.body.append(host); root = createRoot(host); });

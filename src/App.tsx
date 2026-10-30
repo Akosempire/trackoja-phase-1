@@ -3,13 +3,13 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import { AuthEntryRedirect, ProtectedRoute, GuestRoute, OnboardingRoute, PlatformAdminRoute, WorkspaceRoute } from './routes/ProtectedRoute';
 import { AppLayout } from './components/AppLayout';
 import { PageLoader } from './components/ui/PageLoader';
-import LegalPlaceholderPage from './pages/landing/LegalPlaceholderPage';
 import { PlatformProvider } from './components/platform/PlatformContext';
 import { PlatformLayout } from './components/platform/PlatformLayout';
 import { withTimeout } from './utils/session-continuity';
 
 const pageModules = import.meta.glob<{ default: ComponentType }>([
   './pages/**/*.tsx',
+  '!./pages/legal/LegalLayout.tsx',
   '!./pages/landing/LandingIcons.tsx',
   '!./pages/landing/LegalPlaceholderPage.tsx',
 ]);
@@ -68,6 +68,8 @@ const TransfersPage = lazyPage('./pages/inventory/restock/TransfersPage');
 const TransferDetailPage = lazyPage('./pages/inventory/restock/TransferDetailPage');
 const LowStockPage = lazyPage('./pages/inventory/restock/LowStockPage');
 const UsetallyCallbackPage = lazyPage('./pages/UsetallyCallbackPage');
+const PrivacyPage = lazyPage('./pages/legal/PrivacyPage');
+const TermsPage = lazyPage('./pages/legal/TermsPage');
 const SupportThreadPage = lazyPage('./pages/support/SupportThreadPage');
 const LabelsPage = lazyPage('./pages/inventory/LabelsPage');
 const WhoOwesPage = lazyPage('./pages/customers/WhoOwesPage');
@@ -87,6 +89,7 @@ const HealthArea = lazyPage('./pages/platform/areas/HealthArea');
 const DeveloperArea = lazyPage('./pages/platform/areas/DeveloperArea');
 const AuditArea = lazyPage('./pages/platform/areas/AuditArea');
 const SettingsArea = lazyPage('./pages/platform/areas/SettingsArea');
+const UsageArea = lazyPage('./pages/platform/areas/UsageArea');
 
 /**
  * Public front door. The landing page replaced the old "/" -> /welcome redirect;
@@ -121,24 +124,8 @@ export default function App() {
       <Route path="/auth/continue" element={<AuthEntryRedirect />} />
 
       {/* Public legal pages linked from the landing page footer */}
-      <Route
-        path="/privacy"
-        element={
-          <LegalPlaceholderPage
-            title="Privacy notice"
-            summary="How TrackOja handles business and customer information."
-          />
-        }
-      />
-      <Route
-        path="/terms"
-        element={
-          <LegalPlaceholderPage
-            title="Terms of service"
-            summary="The terms that apply when you use TrackOja."
-          />
-        }
-      />
+      <Route path="/privacy" element={<PrivacyPage />} />
+      <Route path="/terms" element={<TermsPage />} />
 
       <Route element={<OnboardingRoute />}>
         <Route path="/onboarding" element={<OnboardingPage />} />
@@ -231,6 +218,7 @@ export default function App() {
             <Route path="health" element={<HealthArea />} />
             <Route path="developer" element={<DeveloperArea />} />
             <Route path="audit" element={<AuditArea />} />
+            <Route path="usage" element={<UsageArea />} />
             <Route path="settings" element={<SettingsArea />} />
           </Route>
         </Route>

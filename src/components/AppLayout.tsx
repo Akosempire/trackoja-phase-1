@@ -16,6 +16,7 @@ import { RouteBackBar } from './RouteBackBar';
 import { useToast } from './ui/Toast';
 import { APP_MARK, APP_NAME } from '../config/brand';
 import { btn } from './kit';
+import { useUsageBeat } from '../hooks/useUsageBeat';
 
 /**
  * The merchant workspace shell.
@@ -31,6 +32,8 @@ export function AppLayout() {
   const toast = useToast();
   const [menuOpen, setMenuOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
+  // time in the app by screen (Platform → Usage); platform staff aren't counted
+  useUsageBeat(profile?.currentStoreId, Boolean(profile?.currentStoreId) && !profile?.isPlatformAdmin);
 
   const handleLogout = async () => {
     if (loggingOut) return;
