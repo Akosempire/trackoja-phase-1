@@ -11,6 +11,8 @@ import { PlatformService } from '../../src/services/platform.service';
 import BillingArea from '../../src/pages/platform/areas/BillingArea';
 import SupportArea from '../../src/pages/platform/areas/SupportArea';
 import DeveloperArea from '../../src/pages/platform/areas/DeveloperArea';
+import UsageArea from '../../src/pages/platform/areas/UsageArea';
+import { AccountService } from '../../src/services/account.service';
 import '../../src/styles/theme.css';
 import '../../src/styles/app.css';
 import '@fontsource-variable/figtree';
@@ -47,6 +49,18 @@ if (params.get('data') === 'populated') {
   }] });
 }
 
+// Platform → Usage sample: 30 days, three stores
+Object.defineProperty(AccountService, 'platformUsage', { configurable: true, value: async (days: number) => {
+  const AREAS: [string, number][] = [['/sales/checkout', 900], ['/dashboard', 300], ['/inventory/products', 420], ['/inventory/products/:id', 260], ['/sales/history', 180], ['/customers', 120], ['/reports', 90], ['/settings', 40]];
+  const STORES = [['s1', 'Ikeja branch', 'Ada Supermarket'], ['s2', 'Yaba branch', 'Ada Supermarket'], ['s3', 'Main shop', 'Kemi Pharmacy']];
+  const rows = [];
+  for (let k = 0; k < days; k++) for (const [n, [sid, store, business]] of STORES.entries()) for (let u = 0; u < 2; u++) {
+    if ((k + n + u) % 5 === 4) continue;
+    for (const [area, base] of AREAS) rows.push({ user_id: `${sid}-u${u}`, store_id: sid, store, business, day: new Date(Date.now() - k * 86400000).toISOString().slice(0, 10), area, seconds: Math.round(base * (0.4 + ((k * 3 + n * 7 + u + area.length) % 9) / 8)) });
+  }
+  return rows;
+} });
+
 document.documentElement.dataset.theme = params.get('theme') ?? 'light';
 function PageFrame({ children }: { children: ReactNode }) { const { pathname } = useLocation(); return <main className={`page plat-page${platformUsesWideLayout(pathname) ? ' is-wide' : ''}`}>{children}</main>; }
 createRoot(document.getElementById('root')!).render(<MemoryRouter initialEntries={[params.get('route') ?? '/platform/billing']}><ToastProvider><PlatformProvider>
@@ -56,6 +70,7 @@ createRoot(document.getElementById('root')!).render(<MemoryRouter initialEntries
     <Route path="/platform/audit" element={params.get('data') === 'paged' ? <AuditArea /> : <h1>Audit destination</h1>} />
     <Route path="/platform/support" element={<SupportArea />} />
     <Route path="/platform/developer" element={<DeveloperArea />} />
+    <Route path="/platform/usage" element={<UsageArea />} />
     <Route path="/platform/activation" element={<h1>Activation destination</h1>} />
     <Route path="/platform/settings" element={<h1>Settings destination</h1>} />
   </Routes></PageFrame>

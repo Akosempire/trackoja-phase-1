@@ -2,6 +2,7 @@ import type { ComponentType, SVGProps } from 'react';
 import {
   BuildingIcon,
   CodeIcon,
+  ReportsIcon,
   HomeIcon,
   KeyIcon,
   PlugIcon,
@@ -22,6 +23,7 @@ export type PlatformAreaId =
   | 'support'
   | 'integrations'
   | 'health'
+  | 'usage'
   | 'developer'
   | 'audit'
   | 'settings';
@@ -182,6 +184,17 @@ export const PLATFORM_AREAS: PlatformArea[] = [
       'No incident table, acknowledgement or resolution workflow.',
       'Nothing schedules the one expiry sweep that does exist.',
     ],
+  },
+  {
+    id: 'usage',
+    path: 'usage',
+    label: 'Usage',
+    short: 'Usage',
+    description: 'How long people spend in TrackOja, on which screens, per business and day.',
+    icon: ReportsIcon,
+    permissions: ['platform:view'],
+    group: 'operations',
+    capability: 'live',
   },
   {
     id: 'developer',

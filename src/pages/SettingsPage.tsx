@@ -13,6 +13,7 @@ import { BUSINESS_CATEGORIES, type BusinessCategory } from '../config/businessMo
 import type { Store } from '../types';
 import { ThemeSelect } from '../components/ThemeSelect';
 import { UsetallyConnection } from '../components/UsetallyConnection';
+import { DailyEmailCard, PrivacyDataCard } from '../components/PrivacyData';
 import { useToast } from '../components/ui/Toast';
 import { Card, CardHead, Page, PageHeader, btn, cn } from '../components/kit';
 
@@ -212,6 +213,10 @@ export default function SettingsPage() {
         </Card>
 
         {canUpdate && store && storeId && <UsetallyConnection storeId={storeId} storeName={store.name} />}
+
+        {store && storeId && <DailyEmailCard storeId={storeId} canUpdate={canUpdate} />}
+
+        {store && storeId && <PrivacyDataCard storeId={storeId} storeName={store.name} orgId={orgId} canExport={canUpdate} />}
 
         <Card aria-label="Appearance" className="[&_.tl-theme]:text-[15px] [&_.tl-theme]:font-semibold [&_.tl-theme]:text-ink [&_select]:h-9 [&_select]:font-normal">
           <ThemeSelect />

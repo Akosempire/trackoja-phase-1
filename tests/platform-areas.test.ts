@@ -27,7 +27,7 @@ const appSource = readFileSync(join(process.cwd(), 'src', 'App.tsx'), 'utf8');
 const ROUTE_PATHS = new Set(Array.from(appSource.matchAll(/path="([^"]+)"/g)).map((match) => match[1]));
 const HAS_INDEX_ROUTE = /<Route\s+index\s/.test(appSource);
 
-/** The ten areas the console must cover, as required by the brief. */
+/** The areas the console must cover: the brief's ten, plus Usage. */
 const REQUIRED_AREA_IDS = [
   'overview',
   'businesses',
@@ -36,15 +36,16 @@ const REQUIRED_AREA_IDS = [
   'support',
   'integrations',
   'health',
+  'usage',
   'developer',
   'audit',
   'settings',
 ];
 
 describe('Platform console structure', () => {
-  it('covers exactly the ten required areas', () => {
+  it('covers exactly the required areas', () => {
     expect(PLATFORM_AREAS.map((area) => area.id).sort()).toEqual([...REQUIRED_AREA_IDS].sort());
-    expect(PLATFORM_AREAS).toHaveLength(10);
+    expect(PLATFORM_AREAS).toHaveLength(11);
   });
 
   it('gives every area a unique id and a unique route', () => {

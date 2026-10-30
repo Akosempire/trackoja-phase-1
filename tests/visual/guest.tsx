@@ -18,7 +18,8 @@ import AuthCallbackPage from '../../src/pages/auth/AuthCallbackPage';
 import WelcomePage from '../../src/pages/WelcomePage';
 import OnboardingPage from '../../src/pages/onboarding/OnboardingPage';
 import LandingPage from '../../src/pages/landing/LandingPage';
-import LegalPlaceholderPage from '../../src/pages/landing/LegalPlaceholderPage';
+import PrivacyPage from '../../src/pages/legal/PrivacyPage';
+import TermsPage from '../../src/pages/legal/TermsPage';
 import { StartupScreen } from '../../src/components/StartupScreen';
 import { guestFixtures as fixtures } from './fixtures/auth-onboarding';
 import '@fontsource-variable/figtree';
@@ -54,7 +55,8 @@ const pages: Record<string, [string, ReactElement]> = {
   welcome: ['/welcome', <WelcomePage />],
   onboarding: ['/onboarding', <OnboardingPage />],
   landing: ['/', <LandingPage />],
-  privacy: ['/privacy', <LegalPlaceholderPage title="Privacy notice" summary="How TrackOja handles business and customer information." />],
+  privacy: ['/privacy', <PrivacyPage />],
+  terms: ['/terms', <TermsPage />],
   startup: ['/startup', <StartupScreen />],
 };
 const [path, element] = pages[params.get('page') ?? 'login'] ?? pages.login;

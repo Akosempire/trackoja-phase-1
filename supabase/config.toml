@@ -416,6 +416,10 @@ verify_jwt = false
 [functions.usetally-stock]
 verify_jwt = false
 
+# daily-digest is called by pg_cron with DIGEST_TOKEN, not a user JWT
+[functions.daily-digest]
+verify_jwt = false
+
 [analytics]
 enabled = true
 port = 54327
