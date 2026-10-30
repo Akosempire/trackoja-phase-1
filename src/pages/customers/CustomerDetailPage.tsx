@@ -8,6 +8,7 @@ import { FormField } from '../../components/ui/FormField';
 import { PageLoader } from '../../components/ui/PageLoader';
 import { StateBlock } from '../../components/ui/StateBlock';
 import { Avatar, Card, CardHead, Page, Stat, btn, cn, inputClass } from '../../components/kit';
+import { RemindButton, useStoreName } from '../../components/RemindButton';
 import type { Customer, CustomerCreditTransaction, CustomerLoyaltyTransaction } from '../../types';
 
 const CREDIT_LABELS: Record<string, string> = {
@@ -28,6 +29,7 @@ export default function CustomerDetailPage() {
   const { customerId } = useParams<{ customerId: string }>();
   const { hasPermission } = usePermissions();
 
+  const storeName = useStoreName();
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [creditTxns, setCreditTxns] = useState<CustomerCreditTransaction[]>([]);
   const [loyaltyTxns, setLoyaltyTxns] = useState<CustomerLoyaltyTransaction[]>([]);
@@ -141,6 +143,7 @@ export default function CustomerDetailPage() {
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          {customer.phone && <RemindButton customer={customer} storeName={storeName} />}
           {customer.phone && <a className={btn('outline')} href={`tel:${customer.phone.replace(/\s+/g, '')}`}>Call</a>}
           {canUpdate && <Link className={btn('outline')} to={`/customers/${customer.id}/edit`}>Edit</Link>}
         </div>

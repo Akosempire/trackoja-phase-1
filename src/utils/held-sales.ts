@@ -4,6 +4,8 @@
  * here touches stock or money until the sale is resumed and completed.
  */
 export interface HeldLine {
+  /** productId, or productId:variantId for a size/colour (older held sales have no key) */
+  key?: string; variantId?: string;
   productId: string; name: string; sku: string; unit: string;
   unitPrice: number; taxRate: number; quantity: number; trackInventory: boolean; stockQty: number;
 }

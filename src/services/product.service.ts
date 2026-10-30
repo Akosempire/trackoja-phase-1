@@ -212,6 +212,7 @@ export class ProductService {
       reorderLevel: Number(data.reorder_level),
       imageUrl: data.image_url,
       attributes: data.attributes ?? {},
+      variantOptions: Array.isArray(data.variant_options) ? data.variant_options : [],
       status: data.status,
       createdBy: data.created_by,
       createdAt: data.created_at,

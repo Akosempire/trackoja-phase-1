@@ -6,10 +6,11 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { usePermissions } from '../../hooks/usePermissions';
 import { SaleService } from '../../services/sale.service';
 import { StoreService } from '../../services/store.service';
+import { receiptMessage, whatsappLink } from '../../utils/whatsapp';
 import { CustomerService } from '../../services/customer.service';
 import { MerchantPaymentService } from '../../services/merchantPayment.service';
 import { Button } from '../../components/ui/Button';
-import { Card, CardHead, Page, cn, inputClass } from '../../components/kit';
+import { Card, CardHead, Page, btn, cn, inputClass } from '../../components/kit';
 import { APP_NAME } from '../../config/brand';
 import { PageLoader } from '../../components/ui/PageLoader';
 import type { Customer, PaymentMethod, Sale, Store } from '../../types';
@@ -174,6 +175,15 @@ export default function ReceiptPage() {
     } catch { /* The person closed the share sheet. */ }
   };
 
+  // Send on WhatsApp: to the customer's number when there is one; credit stays as balance to pay
+  const onCredit = (sale.payments ?? []).filter((p) => p.method === 'credit').reduce((t, p) => t + p.amount, 0);
+  const paidNow = Math.min(sale.total, Math.max(0, sale.amountPaid - onCredit));
+  const whatsappHref = whatsappLink(customer?.phone ?? sale.customerPhone ?? null, receiptMessage({
+    storeName: store?.name ?? 'Receipt', receiptNumber: `#${sale.saleNumber}`, date: when,
+    items: (sale.items ?? []).map((i) => ({ name: i.productName, quantity: i.quantity, lineTotal: i.lineTotal })),
+    total: sale.total, paid: paidNow, balance: Math.max(0, sale.total - paidNow),
+  }));
+
   return (
     <Page width="form" className="rp-page">
       {error && <div className="no-print mb-4 rounded-lg bg-danger-soft px-4 py-3 text-sm text-danger" role="alert">{error}</div>}
@@ -199,6 +209,7 @@ export default function ReceiptPage() {
           <option value="58mm">58 mm roll</option>
           <option value="a4">A4</option>
         </select>
+        {!isPending && !isVoided && <a className={btn('outline')} href={whatsappHref} target="_blank" rel="noopener noreferrer">Send on WhatsApp</a>}
         <Button variant="outline" disabled={isPending} onClick={share}>{copied ? 'Copied' : 'Share'}</Button>
         {(canRefund || refundWithPin) && !isVoided && !isPending && remainingBalance > 0 && (
           <Button variant="outline" onClick={() => setShowRefund((v) => !v)}>{showRefund ? 'Cancel refund' : 'Refund'}</Button>

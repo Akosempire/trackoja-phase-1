@@ -58,7 +58,10 @@ export default function CustomersListPage() {
       <PageHeader
         title={title}
         subtitle={loading ? `Loading ${customersLabel}…` : error ? `${title} unavailable` : `${customers.length} ${customerLabel}${customers.length === 1 ? '' : 's'}`}
-        actions={canCreate && <Link className={btn('primary')} to="/customers/new">Add {customerLabel}</Link>}
+        actions={<>
+          <Link className={btn('outline')} to="/customers/owing">Who owes you</Link>
+          {canCreate && <Link className={btn('primary')} to="/customers/new">Add {customerLabel}</Link>}
+        </>}
       />
 
       {!loading && !error && customers.length > 0 && !search && (
