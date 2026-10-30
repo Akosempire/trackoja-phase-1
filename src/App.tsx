@@ -58,6 +58,15 @@ const SettingsPage = lazyPage('./pages/SettingsPage');
 const TillPage = lazyPage('./pages/till/TillPage');
 const TillHistoryPage = lazyPage('./pages/till/TillHistoryPage');
 const TillReportPage = lazyPage('./pages/till/TillReportPage');
+const RestockHubPage = lazyPage('./pages/inventory/restock/RestockHubPage');
+const ReceiveStockPage = lazyPage('./pages/inventory/restock/ReceiveStockPage');
+const SuppliersPage = lazyPage('./pages/inventory/restock/SuppliersPage');
+const SupplierDetailPage = lazyPage('./pages/inventory/restock/SupplierDetailPage');
+const PurchaseDetailPage = lazyPage('./pages/inventory/restock/PurchaseDetailPage');
+const StockCountPage = lazyPage('./pages/inventory/restock/StockCountPage');
+const TransfersPage = lazyPage('./pages/inventory/restock/TransfersPage');
+const TransferDetailPage = lazyPage('./pages/inventory/restock/TransferDetailPage');
+const LowStockPage = lazyPage('./pages/inventory/restock/LowStockPage');
 const UsetallyCallbackPage = lazyPage('./pages/UsetallyCallbackPage');
 const SupportThreadPage = lazyPage('./pages/support/SupportThreadPage');
 const SupportPage = lazyPage('./pages/SupportPage');
@@ -147,6 +156,15 @@ export default function App() {
           <Route path="/inventory/categories" element={<CategoriesPage />} />
           <Route path="/inventory/stock" element={<StockAdjustmentPage />} />
           <Route path="/inventory/lots" element={<StockLotsPage />} />
+          <Route path="/inventory/restock" element={<RestockHubPage />} />
+          <Route path="/inventory/receive" element={<ReceiveStockPage />} />
+          <Route path="/inventory/suppliers" element={<SuppliersPage />} />
+          <Route path="/inventory/suppliers/:supplierId" element={<SupplierDetailPage />} />
+          <Route path="/inventory/purchases/:purchaseId" element={<PurchaseDetailPage />} />
+          <Route path="/inventory/count" element={<StockCountPage />} />
+          <Route path="/inventory/transfers" element={<TransfersPage />} />
+          <Route path="/inventory/transfers/:transferId" element={<TransferDetailPage />} />
+          <Route path="/inventory/low-stock" element={<LowStockPage />} />
           <Route path="/sales" element={<SalesHubPage />} />
           <Route path="/sales/history" element={<SalesHistoryPage />} />
           <Route path="/sales/checkout" element={<CheckoutPage />} />

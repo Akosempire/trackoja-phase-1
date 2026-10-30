@@ -376,7 +376,7 @@ export default function DashboardPage() {
             )}
             <Card className={canReadReports ? '' : 'lg:col-span-3'}>
               <CardHead title={`${experience.terminology.stock} running low`} hint="At or below reorder level"
-                action={canReadInventory ? <Link className="text-[13px] font-semibold text-brand no-underline" to="/inventory/products">View all</Link> : undefined} />
+                action={canReadInventory ? <Link className="text-[13px] font-semibold text-brand no-underline" to="/inventory/low-stock">View all & reorder</Link> : undefined} />
               {lowStock === null ? (
                 <p className="m-0 text-sm text-ink-3">Stock status is unavailable.</p>
               ) : lowStock.length === 0 ? (

@@ -103,6 +103,7 @@ export default function ProductsPage() {
         title={title}
         subtitle={loading ? 'Loading inventory…' : `${products.length} ${products.length === 1 ? 'item' : 'items'}`}
         actions={<>
+          {canAdjust && <Link className={btn('outline')} to="/inventory/restock">Restock</Link>}
           {canAdjust && <Link className={btn('outline')} to="/inventory/stock">Adjust stock</Link>}
           {canCreate && <Link className={btn('outline')} to="/inventory/products/bulk-import">Import</Link>}
           {canCreate && <Link className={btn('primary')} to="/inventory/products/new">Add {experience.terminology.lineItem.toLowerCase()}</Link>}
