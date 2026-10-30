@@ -57,6 +57,8 @@ const MorePage = lazyPage('./pages/MorePage');
 const SettingsPage = lazyPage('./pages/SettingsPage');
 const UsetallyCallbackPage = lazyPage('./pages/UsetallyCallbackPage');
 const SupportThreadPage = lazyPage('./pages/support/SupportThreadPage');
+const LabelsPage = lazyPage('./pages/inventory/LabelsPage');
+const WhoOwesPage = lazyPage('./pages/customers/WhoOwesPage');
 const SupportPage = lazyPage('./pages/SupportPage');
 const KitchenPage = lazyPage('./pages/restaurant/KitchenPage');
 const ExpiryAlertsPage = lazyPage('./pages/pharmacy/ExpiryAlertsPage');
@@ -144,12 +146,14 @@ export default function App() {
           <Route path="/inventory/categories" element={<CategoriesPage />} />
           <Route path="/inventory/stock" element={<StockAdjustmentPage />} />
           <Route path="/inventory/lots" element={<StockLotsPage />} />
+          <Route path="/inventory/labels" element={<LabelsPage />} />
           <Route path="/sales" element={<SalesHubPage />} />
           <Route path="/sales/history" element={<SalesHistoryPage />} />
           <Route path="/sales/checkout" element={<CheckoutPage />} />
           <Route path="/sales/:saleId" element={<ReceiptPage />} />
           <Route path="/customers" element={<CustomersListPage />} />
           <Route path="/customers/new" element={<CustomerFormPage />} />
+          <Route path="/customers/owing" element={<WhoOwesPage />} />
           <Route path="/customers/:customerId" element={<CustomerDetailPage />} />
           <Route path="/customers/:customerId/edit" element={<CustomerFormPage />} />
           <Route path="/payments" element={<PaymentsPage />} />

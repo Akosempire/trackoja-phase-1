@@ -250,6 +250,8 @@ export interface Product {
   reorderLevel: number;
   imageUrl?: string;
   attributes?: Record<string, string>;
+  /** Sizes/colours (up to two options); empty when the product has no variants. */
+  variantOptions?: { name: string; values: string[] }[];
   status: 'active' | 'inactive' | 'archived';
   createdBy: string;
   createdAt: string;
@@ -415,6 +417,8 @@ export interface CreateSaleItemRequest {
   productId: string;
   quantity: number;
   discountAmount?: number;
+  /** A size/colour of the product (product_variants.id) */
+  variantId?: string;
 }
 
 export interface CreateSalePaymentRequest {
@@ -422,6 +426,18 @@ export interface CreateSalePaymentRequest {
   amount: number;
   reference?: string;
   pending?: boolean;
+}
+
+export interface ProductVariant {
+  id: string;
+  productId: string;
+  size: string | null;
+  colour: string | null;
+  sku: string | null;
+  barcode: string | null;
+  /** null = the product's price */
+  sellingPrice: number | null;
+  stockQty: number;
 }
 
 export interface CreateSaleRequest {

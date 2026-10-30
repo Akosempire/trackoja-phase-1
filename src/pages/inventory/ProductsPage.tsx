@@ -1,6 +1,6 @@
 import { useWorkspaceState } from '../../hooks/useWorkspaceState';
 import { useCallback, useEffect, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { usePermissions } from '../../hooks/usePermissions';
 import { useBusinessContext } from '../../contexts/BusinessContext';
@@ -36,6 +36,11 @@ export default function ProductsPage() {
   const [lowStockOnly, setLowStockOnly] = useWorkspaceState('products-low-stock', false);
   const [scanning, setScanning] = useState(false);
   const [stockFilter, setStockFilter] = useState<'all' | 'out'>('all');
+  // "Print labels": pick products, then print their barcode labels
+  const [picking, setPicking] = useState(false);
+  const [picked, setPicked] = useState<string[]>([]);
+  const navigate = useNavigate();
+  const togglePick = (id: string) => setPicked((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
 
   const canCreate = hasPermission('product:create');
   const canAdjust = hasPermission('inventory:adjust');
@@ -103,6 +108,7 @@ export default function ProductsPage() {
         title={title}
         subtitle={loading ? 'Loading inventory…' : `${products.length} ${products.length === 1 ? 'item' : 'items'}`}
         actions={<>
+          <button type="button" className={btn(picking ? 'soft' : 'outline')} aria-pressed={picking} onClick={() => { setPicking(!picking); setPicked([]); }}>{picking ? 'Cancel labels' : 'Print labels'}</button>
           {canAdjust && <Link className={btn('outline')} to="/inventory/stock">Adjust stock</Link>}
           {canCreate && <Link className={btn('outline')} to="/inventory/products/bulk-import">Import</Link>}
           {canCreate && <Link className={btn('primary')} to="/inventory/products/new">Add {experience.terminology.lineItem.toLowerCase()}</Link>}
@@ -172,9 +178,14 @@ export default function ProductsPage() {
             {shown.map((product) => {
               const m = margin(product);
               return (
-                <li key={product.id}>
-                  <Link to={`/inventory/products/${product.id}`}
-                    className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-1 px-4 py-3 text-inherit no-underline transition-colors hover:bg-subtle sm:px-5 md:grid-cols-[minmax(0,2.4fr)_minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,0.8fr)_minmax(0,1.1fr)]">
+                <li key={product.id} className="flex items-center">
+                  {picking && (
+                    <label className="flex h-full shrink-0 cursor-pointer items-center pl-4 sm:pl-5">
+                      <input type="checkbox" className="size-5 accent-brand" checked={picked.includes(product.id)} onChange={() => togglePick(product.id)} aria-label={`Pick ${product.name} for labels`} />
+                    </label>
+                  )}
+                  <Link to={`/inventory/products/${product.id}`} onClick={(e) => { if (picking) { e.preventDefault(); togglePick(product.id); } }}
+                    className="grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-1 px-4 py-3 text-inherit no-underline transition-colors hover:bg-subtle sm:px-5 md:grid-cols-[minmax(0,2.4fr)_minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,0.8fr)_minmax(0,1.1fr)]">
                     <span className="flex min-w-0 items-center gap-3">
                       {product.imageUrl
                         ? <img src={product.imageUrl} alt="" className="size-10 shrink-0 rounded-lg object-cover" />
@@ -195,6 +206,13 @@ export default function ProductsPage() {
           </ul>
         </Card>
       </SectionState>
+
+      {picking && (
+        <div className="sticky bottom-[calc(76px+env(safe-area-inset-bottom))] z-20 mt-4 flex items-center justify-between gap-3 rounded-xl border border-line bg-surface p-3 shadow-card lg:bottom-4">
+          <span className="text-sm text-ink-2">{picked.length ? `${picked.length} picked` : 'Tick the products to label'}</span>
+          <button type="button" className={btn('primary')} disabled={!picked.length} onClick={() => navigate(`/inventory/labels?ids=${picked.join(',')}`)}>Print labels</button>
+        </div>
+      )}
 
       <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-[13px]">
         <Link className="font-semibold text-brand no-underline" to="/inventory/categories">Manage categories</Link>

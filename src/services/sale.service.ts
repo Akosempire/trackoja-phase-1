@@ -34,6 +34,7 @@ export class SaleService {
         p_store_id: storeId,
         p_items: request.items.map((item) => ({
           productId: item.productId,
+          ...(item.variantId ? { variantId: item.variantId } : {}),
           quantity: item.quantity,
           discountAmount: item.discountAmount ?? 0,
         })),

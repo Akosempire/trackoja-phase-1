@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { usePermissions } from '../../hooks/usePermissions';
 import { useBusinessContext } from '../../contexts/BusinessContext';
@@ -10,7 +10,8 @@ import { Button } from '../../components/ui/Button';
 import { FormField } from '../../components/ui/FormField';
 import { PageLoader } from '../../components/ui/PageLoader';
 import { BarcodeScanner } from '../../components/BarcodeScanner';
-import { Card, Page, PageHeader, cn, inputClass } from '../../components/kit';
+import { VariantsEditor } from '../../components/VariantsEditor';
+import { Card, Page, PageHeader, btn, cn, inputClass } from '../../components/kit';
 import { ScanIcon } from '../../components/icons';
 import { formatMoney } from '../../utils/format';
 import type { ProductCategory } from '../../types';
@@ -49,6 +50,7 @@ export default function ProductFormPage() {
 
   const { config } = useBusinessContext();
   const [attributes, setAttributes] = useState<Record<string, string>>({});
+  const [variantOptions, setVariantOptions] = useState<{ name: string; values: string[] }[] | null>(null);
 
   const canUpdate = hasPermission('product:update');
   const canDelete = hasPermission('product:delete');
@@ -78,6 +80,7 @@ export default function ProductFormPage() {
         setStatus(product.status);
         setImageUrl(product.imageUrl ?? '');
         setAttributes(product.attributes ?? {});
+        setVariantOptions(product.variantOptions ?? []);
         setPiecesPerUnit(product.attributes?.pieces_per_unit ?? '');
       })
       .catch((err) => setError(err.message ?? 'Failed to load product'))
@@ -296,6 +299,11 @@ export default function ProductFormPage() {
               </div>
             </Card>
           )}
+
+          {!isNew && productId && variantOptions && (
+            <VariantsEditor productId={productId} baseSku={sku} basePrice={Number(sellingPrice) || 0} initialOptions={variantOptions}
+              trackInventory={trackInventory} readOnly={readOnly} onSaved={(total) => setStockQty(String(total))} />
+          )}
         </fieldset>
 
         <fieldset disabled={readOnly} className="m-0 flex min-w-0 flex-col gap-4 border-0 p-0 lg:gap-6">
@@ -325,6 +333,7 @@ export default function ProductFormPage() {
               {!readOnly && <Button type="button" variant="outline" onClick={() => setScanning(true)} aria-label="Scan barcode"><ScanIcon width={17} height={17} /></Button>}
             </div>
             {scanning && <BarcodeScanner onDetect={(value) => { setBarcode(value); setScanning(false); }} onClose={() => setScanning(false)} />}
+            {!isNew && productId && <Link className={cn(btn('outline', 'sm'), 'mt-4 w-full')} to={`/inventory/labels?ids=${productId}`}>Print labels</Link>}
           </Card>
 
           {!isNew && (

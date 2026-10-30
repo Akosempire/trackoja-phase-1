@@ -19,10 +19,16 @@ import { useToast } from '../../components/ui/Toast';
 import { Card, Empty, Page, btn, cn, inputClass } from '../../components/kit';
 import { ArrowLeftIcon, ChevronRightIcon, ScanIcon, SearchIcon } from '../../components/icons';
 import { MerchantPaymentService, describeAttempt, type MerchantAttempt, type MoniepointConnection, type MoniepointTerminal } from '../../services/merchantPayment.service';
-import type { Customer, CreateSaleRequest, PaymentMethod, Product, ProductCategory, StoreSettings, OrderType } from '../../types';
+import type { Customer, CreateSaleRequest, PaymentMethod, Product, ProductCategory, ProductVariant, StoreSettings, OrderType } from '../../types';
+import { VariantService } from '../../services/variant.service';
+import { VariantPicker } from '../../components/VariantPicker';
+import { variantLabel } from '../../utils/variants';
 
 interface CartLine {
+  /** productId, or productId:variantId for a size/colour */
+  key: string;
   productId: string;
+  variantId?: string;
   name: string;
   sku: string;
   unit: string;
@@ -85,6 +91,9 @@ export default function CheckoutPage() {
   const [search, setSearch] = useState('');
   const [categoryId, setCategoryId] = useState('');
   const [cart, setCart] = useState<CartLine[]>([]);
+  // sizes/colours: every active variant in the store, and the product being picked
+  const [variants, setVariants] = useState<ProductVariant[]>([]);
+  const [pickFor, setPickFor] = useState<Product | null>(null);
   const [scanning, setScanning] = useState(false);
   const [scanError, setScanError] = useState<string | null>(null);
 
@@ -234,13 +243,21 @@ export default function CheckoutPage() {
       .slice(0, 8);
   }, [customers, customerSearch]);
 
-  const addToCart = (product: Product) => {
+  useEffect(() => {
+    if (!storeId) return;
+    VariantService.forStore(storeId).then(setVariants).catch(() => setVariants([]));
+  }, [storeId]);
+  const variantsOf = (productId: string) => variants.filter((v) => v.productId === productId);
+
+  const addToCart = (product: Product, variant?: ProductVariant) => {
     if (posSaleLocked) return;
+    if (!variant && variantsOf(product.id).length > 0) { setPickFor(product); return; }
+    const key = variant ? `${product.id}:${variant.id}` : product.id;
     setCart((prev) => {
-      const existing = prev.find((line) => line.productId === product.id);
+      const existing = prev.find((line) => line.key === key);
       if (existing) {
         return prev.map((line) =>
-          line.productId === product.id
+          line.key === key
             ? { ...line, quantity: line.trackInventory ? Math.min(line.quantity + 1, line.stockQty) : line.quantity + 1 }
             : line
         );
@@ -248,15 +265,17 @@ export default function CheckoutPage() {
       return [
         ...prev,
         {
+          key,
           productId: product.id,
-          name: product.name,
-          sku: product.sku,
+          variantId: variant?.id,
+          name: variant ? `${product.name} – ${variantLabel(variant.size, variant.colour)}` : product.name,
+          sku: variant?.sku ?? product.sku,
           unit: product.unit,
-          unitPrice: product.sellingPrice,
+          unitPrice: variant?.sellingPrice ?? product.sellingPrice,
           taxRate: product.taxRate,
           quantity: 1,
           trackInventory: product.trackInventory,
-          stockQty: product.stockQty,
+          stockQty: variant ? variant.stockQty : product.stockQty,
         },
       ];
     });
@@ -264,6 +283,13 @@ export default function CheckoutPage() {
 
   const handleScan = (value: string) => {
     setScanning(false);
+    const variant = variants.find((v) => v.barcode === value || v.sku === value);
+    const owner = variant && products.find((p) => p.id === variant.productId);
+    if (variant && owner) {
+      addToCart(owner, variant);
+      setScanError(null);
+      return;
+    }
     const match = products.find((p) => p.barcode === value || p.sku === value);
     if (match) {
       addToCart(match);
@@ -274,20 +300,20 @@ export default function CheckoutPage() {
     }
   };
 
-  const updateQuantity = (productId: string, delta: number) => {
+  const updateQuantity = (key: string, delta: number) => {
     if (posSaleLocked) return;
     setCart((prev) =>
       prev
-        .map((line) => (line.productId === productId
+        .map((line) => (line.key === key
           ? { ...line, quantity: line.trackInventory ? Math.min(line.quantity + delta, line.stockQty) : line.quantity + delta }
           : line))
         .filter((line) => line.quantity > 0)
     );
   };
 
-  const removeLine = (productId: string) => {
+  const removeLine = (key: string) => {
     if (posSaleLocked) return;
-    setCart((prev) => prev.filter((line) => line.productId !== productId));
+    setCart((prev) => prev.filter((line) => line.key !== key));
   };
 
   const subtotal = useMemo(() => round2(cart.reduce((sum, line) => sum + line.quantity * line.unitPrice, 0)), [cart]);
@@ -334,6 +360,7 @@ export default function CheckoutPage() {
     if (paymentMethod === 'moniepoint_pos') {
       if (!navigator.onLine) { setError('Connect to the internet before sending a POS payment request.'); return; }
       if (!posTerminalId) { setError('Choose an active Moniepoint terminal in this branch.'); return; }
+      if (cart.some((line) => line.variantId)) { setError('Moniepoint terminal payments don\'t support sizes and colours yet. Choose POS / card instead.'); return; }
       setSaving(true);
       setError(null);
       try {
@@ -358,7 +385,7 @@ export default function CheckoutPage() {
     }
 
     const request: CreateSaleRequest = {
-      items: cart.map((line) => ({ productId: line.productId, quantity: line.quantity })),
+      items: cart.map((line) => ({ productId: line.productId, quantity: line.quantity, ...(line.variantId ? { variantId: line.variantId } : {}) })),
       payments: [
         {
           method: paymentMethod as PaymentMethod,
@@ -509,6 +536,7 @@ export default function CheckoutPage() {
           </div>
 
           {scanning && <BarcodeScanner onDetect={handleScan} onClose={() => setScanning(false)} />}
+          {pickFor && <VariantPicker product={pickFor} variants={variantsOf(pickFor.id)} onPick={(v) => { addToCart(pickFor, v); setPickFor(null); }} onClose={() => setPickFor(null)} />}
 
           {displayedProducts.length === 0 ? (
             <Empty
@@ -521,7 +549,7 @@ export default function CheckoutPage() {
               {displayedProducts.map((product) => {
                 const outOfStock = product.trackInventory && product.stockQty <= 0;
                 const low = product.trackInventory && !outOfStock && product.stockQty <= product.reorderLevel;
-                const inCart = cart.find((line) => line.productId === product.id)?.quantity ?? 0;
+                const inCart = cart.filter((line) => line.productId === product.id).reduce((n, line) => n + line.quantity, 0);
                 return (
                   <button
                     key={product.id}
@@ -579,7 +607,7 @@ export default function CheckoutPage() {
               <div className="flex-1 overflow-y-auto">
                 <ul className="m-0 list-none divide-y divide-line p-0" aria-label="Items in this sale">
                   {cart.map((line) => (
-                    <li key={line.productId} className="px-4 py-3 lg:px-5">
+                    <li key={line.key} className="px-4 py-3 lg:px-5">
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <p className="m-0 truncate text-sm font-medium text-ink">{line.name}</p>
@@ -589,11 +617,11 @@ export default function CheckoutPage() {
                       </div>
                       <div className="mt-2 flex items-center justify-between">
                         <div className="inline-flex items-center rounded-lg border border-line-strong">
-                          <button type="button" className="inline-flex size-9 items-center justify-center text-lg text-ink-2 hover:text-ink" onClick={() => updateQuantity(line.productId, -1)} aria-label={`Decrease ${line.name} quantity`}>−</button>
+                          <button type="button" className="inline-flex size-9 items-center justify-center text-lg text-ink-2 hover:text-ink" onClick={() => updateQuantity(line.key, -1)} aria-label={`Decrease ${line.name} quantity`}>−</button>
                           <span className="min-w-8 text-center text-sm font-semibold tabular-nums" aria-live="polite" aria-label={`${line.quantity} ${line.unit}`}>{line.quantity}</span>
-                          <button type="button" className="inline-flex size-9 items-center justify-center text-lg text-ink-2 hover:text-ink disabled:opacity-40" onClick={() => updateQuantity(line.productId, 1)} disabled={line.trackInventory && line.quantity >= line.stockQty} aria-label={`Increase ${line.name} quantity`}>+</button>
+                          <button type="button" className="inline-flex size-9 items-center justify-center text-lg text-ink-2 hover:text-ink disabled:opacity-40" onClick={() => updateQuantity(line.key, 1)} disabled={line.trackInventory && line.quantity >= line.stockQty} aria-label={`Increase ${line.name} quantity`}>+</button>
                         </div>
-                        <button type="button" className="text-[13px] font-medium text-ink-3 hover:text-danger" onClick={() => removeLine(line.productId)} aria-label={`Remove ${line.name}`}>Remove</button>
+                        <button type="button" className="text-[13px] font-medium text-ink-3 hover:text-danger" onClick={() => removeLine(line.key)} aria-label={`Remove ${line.name}`}>Remove</button>
                       </div>
                     </li>
                   ))}
