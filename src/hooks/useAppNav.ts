@@ -85,6 +85,10 @@ export function useAppNav() {
     navByKey.set('payments', payments);
     allItems.push(payments);
   }
+  // The till (open, cash in/out, close and end-of-day report) for anyone who sells
+  if (allowed('sales:create') && enabled.includes('sales') && !allItems.some((i) => i.to === '/till')) {
+    allItems.push({ to: '/till', label: 'Till', icon: PaymentsIcon, group: 'Payments and connections' });
+  }
   const extras = [
     { to: '/staff', label: 'Staff', icon: StaffIcon, permission: 'member:manage' },
     { to: '/devices', label: 'Devices', icon: DevicesIcon, permission: 'devices:view' },

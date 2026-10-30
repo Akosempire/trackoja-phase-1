@@ -9,6 +9,8 @@ import { PageLoader } from '../../components/ui/PageLoader';
 import { StateBlock } from '../../components/ui/StateBlock';
 import { Avatar, Card, CardHead, Page, PageHeader, Pill, cn, inputClass } from '../../components/kit';
 import type { Role, StoreMemberWithDetails } from '../../types';
+import { StaffPinButton } from '../../components/till/StaffPinButton';
+import { CashierService } from '../../services/cashier.service';
 
 const STATUS_TONES: Record<string, 'success' | 'warn' | 'danger' | 'neutral'> = {
   active: 'success',
@@ -35,6 +37,10 @@ export default function StaffPage() {
   const canInvite = hasPermission('member:invite');
   const canManage = hasPermission('member:manage');
   const canRemove = hasPermission('member:remove');
+  // till PINs (owners and managers): who has one, never the PIN itself
+  const canSetPins = hasPermission('store:update');
+  const [pins, setPins] = useState<Set<string>>(new Set());
+  useEffect(() => { if (storeId && canSetPins) CashierService.pinStatus(storeId).then(setPins); }, [storeId, canSetPins]);
 
   const load = () => {
     if (!storeId) return;
@@ -201,6 +207,10 @@ export default function StaffPage() {
                       </select>
                     ) : (
                       <Pill tone={isOwnerRow ? 'brand' : 'neutral'}><span className="capitalize">{roleLabel(member.roleName)}</span></Pill>
+                    )}
+                    {canSetPins && storeId && member.status === 'active' && member.userId && (
+                      <StaffPinButton storeId={storeId} userId={member.userId} name={display.split(/[\s@]/)[0] || 'this person'} hasPin={pins.has(member.userId)}
+                        onChange={(has) => setPins((prev) => { const next = new Set(prev); if (has) next.add(member.userId); else next.delete(member.userId); return next; })} />
                     )}
                     {canRemove && (canEditRow || member.status === 'invited') && (
                       <Button variant="ghost" className="btn-sm" onClick={() => handleRemove(member)}>

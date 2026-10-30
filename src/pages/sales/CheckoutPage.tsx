@@ -19,6 +19,11 @@ import { useToast } from '../../components/ui/Toast';
 import { Card, Empty, Page, btn, cn, inputClass } from '../../components/kit';
 import { ArrowLeftIcon, ChevronRightIcon, ScanIcon, SearchIcon } from '../../components/icons';
 import { MerchantPaymentService, describeAttempt, type MerchantAttempt, type MoniepointConnection, type MoniepointTerminal } from '../../services/merchantPayment.service';
+import { CashierSwitch } from '../../components/till/CashierSwitch';
+import { HeldSales } from '../../components/till/HeldSales';
+import { TillService } from '../../services/till.service';
+import { defaultHeldLabel, holdSale, readHeld, type HeldSale } from '../../utils/held-sales';
+import { Link } from 'react-router-dom';
 import type { Customer, CreateSaleRequest, PaymentMethod, Product, ProductCategory, StoreSettings, OrderType } from '../../types';
 
 interface CartLine {
@@ -108,6 +113,33 @@ export default function CheckoutPage() {
   const [orderType, setOrderType] = useState<OrderType>('dine_in');
   const [tableNumber, setTableNumber] = useState('');
   const posSaleLocked = posAttempt !== null && posAttempt.status !== 'successful';
+  // Till: when the store requires an open till, say so before the cashier builds a cart
+  const [tillBlocked, setTillBlocked] = useState(false);
+  useEffect(() => {
+    if (!storeId) return;
+    let active = true;
+    Promise.all([TillService.isRequired(storeId), TillService.current(storeId).catch(() => null)])
+      .then(([required, open]) => { if (active) setTillBlocked(required && !open); })
+      .catch(() => undefined);
+    return () => { active = false; };
+  }, [storeId]);
+
+  const holdCurrent = (label: string) => {
+    if (!storeId || cart.length === 0) return;
+    holdSale(storeId, { label, lines: cart, customerId: selectedCustomer?.id ?? null, customerName: selectedCustomer?.name ?? null, discount: discountTotal, total });
+    setCart([]); setSelectedCustomer(null); setDiscountTotal('0'); setShowDiscount(false); setAmountTendered(''); setReference('');
+    toast.success('Sale on hold', { description: 'Find it under Held when the customer is ready.' });
+  };
+  const resumeHeld = (held: HeldSale) => {
+    if (cart.length > 0 && storeId) {
+      holdSale(storeId, { label: defaultHeldLabel(readHeld(storeId).length, selectedCustomer?.name), lines: cart, customerId: selectedCustomer?.id ?? null, customerName: selectedCustomer?.name ?? null, discount: discountTotal, total });
+    }
+    setCart(held.lines);
+    setSelectedCustomer(customers.find((c) => c.id === held.customerId) ?? null);
+    setDiscountTotal(held.discount || '0');
+    setShowDiscount(Number(held.discount) > 0);
+    setCartOpen(true);
+  };
 
   // Publish the cart size so the bottom navigation can badge Checkout while the
   // cashier is elsewhere in the app. Only the count travels, never the lines.
@@ -471,7 +503,15 @@ export default function CheckoutPage() {
               <h1 className="m-0 text-2xl font-semibold text-ink">{config.saleLabel}</h1>
               <p className="m-0 mt-0.5 text-sm text-ink-3">{products.length} {config.productLabel.toLowerCase()} · tap to add</p>
             </div>
+            {storeId && <CashierSwitch storeId={storeId} accountName={profile?.firstName || undefined} />}
           </div>
+
+          {tillBlocked && (
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-lg bg-warn-soft px-4 py-2.5 text-[13px] text-warn-ink" role="status">
+              <span>The till is closed. This shop needs an open till to sell.</span>
+              <Link to="/till" className={cn(btn('outline', 'sm'))}>Open till</Link>
+            </div>
+          )}
 
           {error && <div className="mb-3 rounded-lg bg-danger-soft px-4 py-2.5 text-[13px] text-danger" role="alert">{error}</div>}
           {scanError && <div className="mb-3 rounded-lg bg-danger-soft px-4 py-2.5 text-[13px] text-danger" role="alert">{scanError}</div>}
@@ -565,7 +605,11 @@ export default function CheckoutPage() {
               </button>
               <h2 className="m-0 text-[15px] font-semibold text-ink">Current sale</h2>
             </div>
-            {cart.length > 0 && <span className="text-[13px] text-ink-3">{itemCount} item{itemCount === 1 ? '' : 's'}</span>}
+            <div className="flex items-center gap-2">
+              {cart.length > 0 && <span className="hidden text-[13px] text-ink-3 sm:inline">{itemCount} item{itemCount === 1 ? '' : 's'}</span>}
+              {storeId && <HeldSales storeId={storeId} canHold={cart.length > 0 && !posSaleLocked} onHold={holdCurrent} onResume={resumeHeld}
+                defaultLabel={defaultHeldLabel(readHeld(storeId).length, selectedCustomer?.name)} />}
+            </div>
           </header>
 
           {cart.length === 0 ? (

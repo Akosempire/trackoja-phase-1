@@ -55,6 +55,9 @@ const BillingPage = lazyPage('./pages/billing/BillingPage');
 const BillingDocumentPage = lazyPage('./pages/billing/BillingDocumentPage');
 const MorePage = lazyPage('./pages/MorePage');
 const SettingsPage = lazyPage('./pages/SettingsPage');
+const TillPage = lazyPage('./pages/till/TillPage');
+const TillHistoryPage = lazyPage('./pages/till/TillHistoryPage');
+const TillReportPage = lazyPage('./pages/till/TillReportPage');
 const UsetallyCallbackPage = lazyPage('./pages/UsetallyCallbackPage');
 const SupportThreadPage = lazyPage('./pages/support/SupportThreadPage');
 const SupportPage = lazyPage('./pages/SupportPage');
@@ -171,6 +174,9 @@ export default function App() {
           <Route path="/billing/documents/:number" element={<BillingDocumentPage />} />
           <Route path="/more" element={<MorePage />} />
           <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/till" element={<TillPage />} />
+          <Route path="/till/history" element={<TillHistoryPage />} />
+          <Route path="/till/:sessionId" element={<TillReportPage />} />
           <Route path="/settings/usetally/callback" element={<UsetallyCallbackPage />} />
           <Route path="/support" element={<SupportPage />} />
           <Route path="/support/messages/:threadId" element={<SupportThreadPage />} />

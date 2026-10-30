@@ -13,6 +13,8 @@ import { Card, CardHead, Page, cn, inputClass } from '../../components/kit';
 import { APP_NAME } from '../../config/brand';
 import { PageLoader } from '../../components/ui/PageLoader';
 import type { Customer, PaymentMethod, Sale, Store } from '../../types';
+import { CashierService } from '../../services/cashier.service';
+import { VoidSaleAction } from '../../components/till/VoidSaleAction';
 
 type Paper = '80mm' | '58mm' | 'a4';
 
@@ -58,6 +60,9 @@ export default function ReceiptPage() {
 
   const isMoniepointSale = sale?.payments?.some((payment) => payment.provider === 'moniepoint') ?? false;
   const canRefund = hasPermission('sales:refund') && !isMoniepointSale;
+  // Someone who sells but can't refund can still refund with a manager's PIN
+  const refundWithPin = !canRefund && !isMoniepointSale && hasPermission('sales:create');
+  const [managerPin, setManagerPin] = useState('');
 
   const load = () => {
     if (!saleId) return;
@@ -120,7 +125,13 @@ export default function ReceiptPage() {
     setRefunding(true);
     setError(null);
     try {
-      await SaleService.processRefund(sale.id, { amount, reason: refundReason.trim(), method: refundMethod, items: items.length > 0 ? items : undefined });
+      if (refundWithPin) {
+        const r = await CashierService.refundWithPin(sale.id, { amount, reason: refundReason.trim(), method: refundMethod, items }, managerPin);
+        setManagerPin('');
+        if (!r.ok) throw new Error(r.error);
+      } else {
+        await SaleService.processRefund(sale.id, { amount, reason: refundReason.trim(), method: refundMethod, items: items.length > 0 ? items : undefined });
+      }
       setRefundItems({});
       setRefundAmount('');
       setRefundReason('');
@@ -189,8 +200,11 @@ export default function ReceiptPage() {
           <option value="a4">A4</option>
         </select>
         <Button variant="outline" disabled={isPending} onClick={share}>{copied ? 'Copied' : 'Share'}</Button>
-        {canRefund && !isVoided && !isPending && remainingBalance > 0 && (
+        {(canRefund || refundWithPin) && !isVoided && !isPending && remainingBalance > 0 && (
           <Button variant="outline" onClick={() => setShowRefund((v) => !v)}>{showRefund ? 'Cancel refund' : 'Refund'}</Button>
+        )}
+        {!isVoided && !isPending && !isMoniepointSale && sale.refundedAmount === 0 && hasPermission('sales:create') && (
+          <VoidSaleAction saleId={sale.id} saleNumber={sale.saleNumber} canVoid={hasPermission('sales:void')} onVoided={load} />
         )}
       </div>
       {isPending && <div className="no-print mb-4 rounded-lg bg-warn-soft px-4 py-3 text-[13px] text-warn-ink" role="status">
@@ -294,7 +308,7 @@ export default function ReceiptPage() {
       )}
 
       {/* Refund */}
-      {showRefund && canRefund && !isVoided && !isPending && remainingBalance > 0 && (
+      {showRefund && (canRefund || refundWithPin) && !isVoided && !isPending && remainingBalance > 0 && (
         <Card className="no-print mt-6">
           <CardHead title="Refund" hint={`${formatMoney(remainingBalance)} can still be refunded`} />
           {refundableItems.length > 0 && (
@@ -324,8 +338,13 @@ export default function ReceiptPage() {
           </div>
           <label className="mt-3 block"><span className="mb-1 block text-[13px] font-medium text-ink-2">Reason</span>
             <input id="refund-reason" className={inputClass} value={refundReason} onChange={(e) => setRefundReason(e.target.value)} placeholder="Why is this refund being issued?" /></label>
+          {refundWithPin && (
+            <label className="mt-3 block"><span className="mb-1 block text-[13px] font-medium text-ink-2">Manager's PIN</span>
+              <input className={cn(inputClass, 'tracking-[.4em]')} type="password" inputMode="numeric" autoComplete="off" maxLength={6}
+                value={managerPin} onChange={(e) => setManagerPin(e.target.value.replace(/\D/g, ''))} placeholder="Ask a manager to enter it" /></label>
+          )}
           <div className="mt-4 flex gap-2">
-            <Button variant="danger" loading={refunding} onClick={handleRefund}>Process refund</Button>
+            <Button variant="danger" loading={refunding} disabled={refundWithPin && managerPin.length < 4} onClick={handleRefund}>Process refund</Button>
             <Button variant="ghost" onClick={() => setShowRefund(false)}>Cancel</Button>
           </div>
         </Card>
