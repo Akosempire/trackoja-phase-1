@@ -15,3 +15,6 @@ export const useBusinessContext = () => {
 export const usePermissions = () => ({ loading: false, permissions: [], roleName: 'owner', hasPermission: () => params.get('restricted') !== 'true', hasAnyPermission: () => true });
 export const TrialStatus = () => null;
 export const BusinessProvider = ({ children }: { children: ReactNode }) => children;
+
+// the real usePermissions module also exports this (used on logout)
+export function clearPermissionsCache(): void {}

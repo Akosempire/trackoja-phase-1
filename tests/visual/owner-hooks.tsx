@@ -7,3 +7,6 @@ export const usePermissions = () => ({ loading: false, hasPermission: () => para
 export const TrialStatus = () => null;
 
 export const BusinessProvider = ({ children }: { children: ReactNode }) => children;
+
+// the real usePermissions module also exports this (used on logout)
+export function clearPermissionsCache(): void {}
