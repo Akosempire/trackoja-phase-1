@@ -115,7 +115,12 @@
   .command-search-results [role='option'].is-active, .command-search-results .is-active { background: var(--color-accent-soft); }
 
   /* Barcode scanner */
-  dialog.scanner-overlay { border: 0; border-radius: 20px; padding: 0; width: min(440px, calc(100vw - 24px)); background: var(--color-surface); box-shadow: var(--shadow-dialog); }
+  /* Camera scanner: a centred modal on tablets and desktops, a bottom sheet on phones */
+  dialog.scanner-overlay { position: fixed; inset: 0; margin: auto; height: fit-content; max-height: 90dvh; overflow-y: auto; border: 0; border-radius: 20px; padding: 0; width: min(440px, calc(100vw - 24px)); background: var(--color-surface); box-shadow: var(--shadow-dialog); }
+  dialog.scanner-overlay[open] { display: block; }
+  @media (max-width: 639px) {
+    dialog.scanner-overlay { margin: auto 0 0 0; width: 100vw; max-width: 100vw; border-radius: 20px 20px 0 0; }
+  }
   .scanner-frame { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
   .scanner-video-wrap { position: relative; border-radius: 14px; overflow: hidden; background: #000; aspect-ratio: 4 / 3; }
   .scanner-video { width: 100%; height: 100%; object-fit: cover; }
@@ -146,4 +151,17 @@
   .attention-meta { margin: 2px 0 0; font-size: 12px; color: var(--color-text-muted); }
   .disclosure { margin-top: 12px; padding-top: 0; border-top: 0; }
   .dev-banner { display: flex; align-items: center; gap: 10px; padding: 8px 16px; font-size: 13px; background: var(--color-warning-soft); color: var(--color-warning-text); }
+}
+
+/* ---- register (POS) ---- */
+@layer components {
+  .register-shell { min-height: 100dvh; display: flex; flex-direction: column; background: var(--color-canvas, var(--color-bg)); }
+  @keyframes register-pop { 0% { transform: scale(.6); } 60% { transform: scale(1.15); } 100% { transform: scale(1); } }
+  @keyframes register-pulse { 0% { transform: scale(1); } 40% { transform: scale(1.04); } 100% { transform: scale(1); } }
+  .register-pop { animation: register-pop .22s ease-out; }
+  .register-pulse { animation: register-pulse .25s ease-out; }
+  @media (prefers-reduced-motion: reduce) { .register-pop, .register-pulse { animation: none; } }
+}
+@media print {
+  .register-print { display: block !important; }
 }

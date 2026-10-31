@@ -2,6 +2,7 @@ import { lazy, Suspense, type ComponentType } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { AuthEntryRedirect, ProtectedRoute, GuestRoute, OnboardingRoute, PlatformAdminRoute, WorkspaceRoute } from './routes/ProtectedRoute';
 import { AppLayout } from './components/AppLayout';
+import { RegisterLayout } from './components/register/RegisterLayout';
 import { PageLoader } from './components/ui/PageLoader';
 import { PlatformProvider } from './components/platform/PlatformContext';
 import { PlatformLayout } from './components/platform/PlatformLayout';
@@ -147,6 +148,10 @@ export default function App() {
       </Route>
 
       <Route element={<ProtectedRoute />}>
+        {/* the register: full-screen, no admin chrome */}
+        <Route element={<RegisterLayout />}>
+          <Route path="/sales/checkout" element={<CheckoutPage />} />
+        </Route>
         <Route element={<AppLayout />}>
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/inventory/products" element={<ProductsPage />} />
@@ -168,7 +173,6 @@ export default function App() {
           <Route path="/inventory/labels" element={<LabelsPage />} />
           <Route path="/sales" element={<SalesHubPage />} />
           <Route path="/sales/history" element={<SalesHistoryPage />} />
-          <Route path="/sales/checkout" element={<CheckoutPage />} />
           <Route path="/sales/:saleId" element={<ReceiptPage />} />
           <Route path="/customers" element={<CustomersListPage />} />
           <Route path="/customers/new" element={<CustomerFormPage />} />

@@ -31,7 +31,8 @@ export default function ProductFormPage() {
 
   const [name, setName] = useState('');
   const [sku, setSku] = useState('');
-  const [barcode, setBarcode] = useState('');
+  // "Add product" from the register passes the unknown code it scanned
+  const [barcode, setBarcode] = useState(() => { try { return new URLSearchParams(window.location.search).get('barcode') ?? ''; } catch { return ''; } });
   const [description, setDescription] = useState('');
   const [categoryId, setCategoryId] = useState('');
   const [unit, setUnit] = useState('pcs');
