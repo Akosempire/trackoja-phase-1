@@ -29,6 +29,12 @@ export function UsetallyConnection({ storeId, storeName }: { storeId: string; st
   }, [storeId]);
   useEffect(load, [load]);
 
+  // Usetally's "Open TrackOja settings" links to /settings#usetally: bring this card into view once it's loaded
+  useEffect(() => {
+    if (!status || window.location.hash !== '#usetally') return;
+    document.getElementById('usetally')?.scrollIntoView({ block: 'center', behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+  }, [status]);
+
   const connect = () => { window.location.assign(UsetallyService.startConnect(storeId, storeName)); };
 
   async function act(kind: 'sync' | 'retry' | 'disconnect') {
@@ -55,7 +61,7 @@ export function UsetallyConnection({ storeId, storeName }: { storeId: string; st
   const wrongCurrency = active && status?.businessCurrency && status.businessCurrency !== status.storeCurrency;
 
   return (
-    <Card aria-labelledby="usetally-title">
+    <Card id="usetally" aria-labelledby="usetally-title" className="scroll-mt-20">
       <CardHead
         title={<span id="usetally-title">Usetally</span>}
         hint="Send every sale to Usetally as a paid invoice, so profit, tax and reports include the shop"
