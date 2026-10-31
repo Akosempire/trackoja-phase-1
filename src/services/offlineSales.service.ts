@@ -19,6 +19,7 @@ const STORAGE_KEY = 'tk_pending_sales';
 const listeners = new Set<() => void>();
 
 function read(): PendingSale[] {
+  if (memoryQueue) return memoryQueue;
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     return raw ? (JSON.parse(raw) as PendingSale[]) : [];
@@ -27,10 +28,22 @@ function read(): PendingSale[] {
   }
 }
 
+// If the phone's storage refuses (full or blocked), keep the queue in memory for
+// this tab rather than losing a sale.
+let memoryQueue: PendingSale[] | null = null;
 function write(sales: PendingSale[]) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(sales));
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(sales));
+    memoryQueue = null;
+  } catch {
+    memoryQueue = sales;
+  }
   listeners.forEach((listener) => listener());
 }
+
+// One sync at a time per store: two screens syncing together would send the
+// same sale twice.
+const flushing = new Map<string, Promise<{ synced: number; remaining: number }>>();
 
 export class OfflineSalesService {
   static subscribe(listener: () => void): () => void {
@@ -61,7 +74,15 @@ export class OfflineSalesService {
   }
 
   /** Attempts to submit every queued sale for a store. Stops at the first failure so order is preserved. */
-  static async flushPendingSales(storeId: string): Promise<{ synced: number; remaining: number }> {
+  static flushPendingSales(storeId: string): Promise<{ synced: number; remaining: number }> {
+    const running = flushing.get(storeId);
+    if (running) return running;
+    const run = OfflineSalesService.flushOnce(storeId).finally(() => flushing.delete(storeId));
+    flushing.set(storeId, run);
+    return run;
+  }
+
+  private static async flushOnce(storeId: string): Promise<{ synced: number; remaining: number }> {
     const pending = read();
     const ours = pending.filter((s) => s.storeId === storeId);
     let synced = 0;

@@ -3,6 +3,8 @@
 
 import { clearPermissionsCache } from '../hooks/usePermissions';
 import { supabase } from '../config/supabase';
+import { clearStartup } from '../utils/startup-cache';
+import { CatalogService } from './catalog.service';
 import type { AuthChangeEvent, User } from '@supabase/supabase-js';
 import { clearRestoration, withTimeout } from '../utils/session-continuity';
 import type { SignUpRequest, LoginRequest, User as AppUser } from '../types';
@@ -79,6 +81,8 @@ export class AuthService {
    * Log out the current user
    */
   static async logout() {
+    clearStartup();
+    void CatalogService.clearAll();
     clearPermissionsCache();
     try {
       // Record the LOGOUT audit log while the session is still valid - logout

@@ -3,6 +3,7 @@
 
 import { supabase } from '../config/supabase';
 import { UsetallyService } from './usetally.service';
+import { CatalogService } from './catalog.service';
 import type {
   Sale,
   SaleItem,
@@ -74,6 +75,8 @@ export class SaleService {
 
       // Connected to Usetally: send the sale now instead of at the next minute
       UsetallyService.nudgeSync(storeId);
+      // the register's cached catalogue shows the new stock at once
+      void CatalogService.applySale(storeId, request.items.map((i) => ({ productId: i.productId, variantId: i.variantId ?? null, quantity: i.quantity })));
       return this.getSale(data.id);
     } catch (error) {
       console.error('Create sale error:', error);

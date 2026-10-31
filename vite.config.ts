@@ -33,6 +33,9 @@ export default defineConfig({
         clientsClaim: true,
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/_/],
+        // The whole app shell opens offline: code, styles, the page, fonts and
+        // small icons. Large illustrations load from the network when needed.
+        globPatterns: ['**/*.{js,css,html,woff2,svg,ico,webmanifest}', 'icons/*.png'],
         // Only static app assets belong in the worker cache. Authenticated
         // Supabase responses must not be reused across accounts or workspaces.
       },
