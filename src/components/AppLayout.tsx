@@ -7,7 +7,9 @@ import { OfflineBanner } from './OfflineBanner';
 import { DeveloperModeBanner } from './DeveloperModeBanner';
 import { useAuth } from '../contexts/AuthContext';
 import { BusinessProvider } from '../contexts/BusinessContext';
-import { useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
+import { PageLoader } from './ui/PageLoader';
+import { prefetchPages } from '../utils/prefetch-pages';
 import { MenuIcon } from './icons';
 import { MerchantCommandSearch } from './MerchantCommandSearch';
 import { ThemeToggle } from './ThemeToggle';
@@ -31,6 +33,8 @@ export function AppLayout() {
   const { profile } = useAuth();
   const toast = useToast();
   const [menuOpen, setMenuOpen] = useState(false);
+  // once signed in, fetch the other screens in the background so moving around is instant
+  useEffect(() => { prefetchPages(); }, []);
   const [loggingOut, setLoggingOut] = useState(false);
   // time in the app by screen (Platform → Usage); platform staff aren't counted
   useUsageBeat(profile?.currentStoreId, Boolean(profile?.currentStoreId) && !profile?.isPlatformAdmin);
@@ -108,7 +112,10 @@ export function AppLayout() {
         <OfflineBanner />
         <main className="tl-content min-w-0 flex-1" id="main-content" tabIndex={-1}>
           <RouteBackBar />
-          <Outlet />
+          {/* Only the page area waits while a screen loads; the sidebar and tabs stay put */}
+          <Suspense fallback={<PageLoader />}>
+            <Outlet />
+          </Suspense>
         </main>
         <BottomNav />
       </div>

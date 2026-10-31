@@ -1,1 +1,0 @@
-import{j as s}from"./react-4d5b35f3.js";import{t as n}from"./index-f31bf252.js";function e({className:t,...r}){return s.jsx("input",{type:"search",className:["form-input","search-input",n,t].filter(Boolean).join(" "),...r})}export{e as S};

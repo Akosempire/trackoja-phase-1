@@ -7,6 +7,24 @@ import { useAuth } from '../contexts/AuthContext';
 import { RbacService } from '../services/rbac.service';
 import type { Permission } from '../types';
 
+// Permissions per user + store, shared by every screen: the first screen loads
+// them, the rest reuse them at once (and refresh quietly in the background), so
+// moving between pages doesn't flash a loader or hide menu links.
+type Cached = { permissions: Permission[]; roleName: string | null };
+const cache = new Map<string, Cached>();
+const inflight = new Map<string, Promise<Cached>>();
+function loadPermissions(userId: string, storeId: string, identity: string): Promise<Cached> {
+  const running = inflight.get(identity);
+  if (running) return running;
+  const p = RbacService.getUserPermissions(userId, storeId)
+    .then((r) => { const v = { permissions: r.permissions, roleName: r.role?.name ?? null }; cache.set(identity, v); return v; })
+    .finally(() => { inflight.delete(identity); });
+  inflight.set(identity, p);
+  return p;
+}
+/** For sign-out and role changes: forget cached permissions. */
+export function clearPermissionsCache(): void { cache.clear(); }
+
 export function usePermissions() {
   const { user, profile } = useAuth();
   const storeId = profile?.currentStoreId;
@@ -16,7 +34,10 @@ export function usePermissions() {
     permissions: Permission[];
     roleName: string | null;
     loading: boolean;
-  }>({ identity: null, permissions: [], roleName: null, loading: true });
+  }>(() => {
+    const hit = identity ? cache.get(identity) : undefined;
+    return hit ? { identity, permissions: hit.permissions, roleName: hit.roleName, loading: false } : { identity: null, permissions: [], roleName: null, loading: true };
+  });
 
   useEffect(() => {
     if (!user || !storeId || !identity) {
@@ -25,10 +46,11 @@ export function usePermissions() {
     }
 
     let active = true;
-    setResult({ identity, permissions: [], roleName: null, loading: true });
-    RbacService.getUserPermissions(user.id, storeId)
-      .then((result) => {
-        if (active) setResult({ identity, permissions: result.permissions, roleName: result.role?.name ?? null, loading: false });
+    const hit = cache.get(identity);
+    setResult(hit ? { identity, permissions: hit.permissions, roleName: hit.roleName, loading: false } : { identity, permissions: [], roleName: null, loading: true });
+    loadPermissions(user.id, storeId, identity)
+      .then((v) => {
+        if (active) setResult({ identity, permissions: v.permissions, roleName: v.roleName, loading: false });
       })
       .catch((err) => {
         console.error('Load permissions error:', err);

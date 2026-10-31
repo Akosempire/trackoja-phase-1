@@ -1,6 +1,7 @@
 // services/auth.service.ts
 // Authentication service for TrackOja Phase 1
 
+import { clearPermissionsCache } from '../hooks/usePermissions';
 import { supabase } from '../config/supabase';
 import type { AuthChangeEvent, User } from '@supabase/supabase-js';
 import { clearRestoration, withTimeout } from '../utils/session-continuity';
@@ -78,6 +79,7 @@ export class AuthService {
    * Log out the current user
    */
   static async logout() {
+    clearPermissionsCache();
     try {
       // Record the LOGOUT audit log while the session is still valid - logout
       // has no corresponding database write to hook a trigger into, so this is
