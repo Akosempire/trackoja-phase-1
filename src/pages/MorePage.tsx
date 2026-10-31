@@ -1,3 +1,4 @@
+import { startTour } from '../components/Tour';
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAppNav } from '../hooks/useAppNav';
@@ -6,7 +7,7 @@ import { InstallAppAction } from '../components/InstallAppAction';
 import { ThemeSelect } from '../components/ThemeSelect';
 import { useToast } from '../components/ui/Toast';
 import { ChevronRightIcon, DownloadIcon, LogoutIcon } from '../components/icons';
-import { Page, PageHeader } from '../components/kit';
+import { Page, PageHeader, btn } from '../components/kit';
 
 const GROUPS = ['Business operations', 'Management', 'Payments and connections', 'Account'];
 
@@ -27,7 +28,7 @@ export default function MorePage() {
   }
   return (
     <Page width="form">
-      <PageHeader title="More" subtitle="Everything else in your shop" />
+      <PageHeader title="More" subtitle="Everything else in your shop" actions={<button type="button" className={btn('outline')} onClick={startTour}>Take the tour</button>} />
       <div className="flex flex-col gap-6">
         {GROUPS.map(group => {
           const links = allItems.filter(item => item.group === group && !['/dashboard', '/more'].includes(item.to));

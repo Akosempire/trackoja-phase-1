@@ -9,6 +9,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { BusinessProvider } from '../contexts/BusinessContext';
 import { Suspense, useEffect, useState } from 'react';
 import { PageLoader } from './ui/PageLoader';
+import { Tour } from './Tour';
 import { prefetchPages } from '../utils/prefetch-pages';
 import { MenuIcon } from './icons';
 import { MerchantCommandSearch } from './MerchantCommandSearch';
@@ -31,7 +32,7 @@ import { AccessGate } from './access/AccessGate';
  */
 export function AppLayout() {
   const navigate = useNavigate();
-  const { profile } = useAuth();
+  const { profile, user } = useAuth();
   const toast = useToast();
   const [menuOpen, setMenuOpen] = useState(false);
   // once signed in, fetch the other screens in the background so moving around is instant
@@ -83,6 +84,7 @@ export function AppLayout() {
             aria-label="Open navigation"
             aria-expanded={menuOpen}
             aria-controls="mobile-navigation"
+            data-tour="menu"
             onClick={event => { event.currentTarget.focus(); setMenuOpen(true); }}
           >
             <MenuIcon width={20} height={20} />
@@ -119,6 +121,7 @@ export function AppLayout() {
           </Suspense>
         </main>
         <BottomNav />
+        {user && <Tour userId={user.id} />}
       </div>
     </div>
     </BusinessProvider>

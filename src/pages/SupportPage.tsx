@@ -1,4 +1,5 @@
-import { Card, Page, PageHeader } from '../components/kit';
+import { startTour } from '../components/Tour';
+import { Card, Page, PageHeader, btn } from '../components/kit';
 import { SupportMessages } from '../components/SupportMessages';
 
 const FAQS = [
@@ -27,7 +28,7 @@ const FAQS = [
 export default function SupportPage() {
   return (
     <Page width="form">
-      <PageHeader title="Support" subtitle="Message the team, or find a quick answer below" />
+      <PageHeader title="Support" subtitle="Message the team, or find a quick answer below" actions={<button type="button" className={btn('outline')} onClick={startTour}>Take the tour</button>} />
 
       <SupportMessages fallbackEmail="mercuriusmerchandise@gmail.com" />
 

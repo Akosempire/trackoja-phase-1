@@ -62,7 +62,7 @@ export function SideNav({ onLogout, mobile = false, onClose }: SideNavProps) {
               {!compact && <p className="m-0 mb-1 px-2.5 text-[11px] font-semibold uppercase tracking-[.06em] text-ink-3">{GROUP_TITLES[group] ?? group}</p>}
               <div className="flex flex-col gap-0.5">
                 {items.map(item => (
-                  <NavLink key={item.to} to={item.to} end={item.end} aria-label={item.label} title={compact ? item.label : undefined} onClick={onClose} className={linkClass}>
+                  <NavLink key={item.to} to={item.to} end={item.end} data-tour={`nav:${item.to}`} aria-label={item.label} title={compact ? item.label : undefined} onClick={onClose} className={linkClass}>
                     <item.icon width={18} height={18} />{!compact && <span className="truncate">{item.label}</span>}
                   </NavLink>
                 ))}
@@ -82,6 +82,7 @@ export function SideNav({ onLogout, mobile = false, onClose }: SideNavProps) {
           aria-label={primaryAction.label}
           title={compact ? primaryAction.label : undefined}
           disabled={!canScan}
+          data-tour="scan"
           onClick={() => { handleScan(); onClose?.(); }}
           className={cn('tl-nav-scan flex h-10 w-full items-center justify-center gap-2 rounded-md bg-brand text-sm font-semibold text-white transition-colors hover:bg-brand-hover disabled:opacity-50')}
         >
