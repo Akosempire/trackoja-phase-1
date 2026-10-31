@@ -3,6 +3,7 @@
 
 import { supabase } from '../config/supabase';
 import type { Product, CreateProductRequest, UpdateProductRequest } from '../types';
+import { markCatalogStale } from '../utils/catalog-signals';
 
 export interface ProductFilters {
   categoryId?: string;
@@ -35,6 +36,7 @@ export class ProductService {
     userId: string,
     request: CreateProductRequest
   ): Promise<Product> {
+    markCatalogStale(); // the register's cached catalogue refreshes next time
     try {
       const { data, error } = await supabase
         .from('products')
@@ -60,6 +62,7 @@ export class ProductService {
     userId: string,
     requests: CreateProductRequest[]
   ): Promise<Product[]> {
+    markCatalogStale(); // the register's cached catalogue refreshes next time
     try {
       const rows = requests.map((request) => this.toInsertRow(storeId, userId, request));
 
@@ -157,6 +160,7 @@ export class ProductService {
    * Update a product. stock_qty cannot be set here - use InventoryService.adjustStock.
    */
   static async updateProduct(productId: string, request: UpdateProductRequest): Promise<Product> {
+    markCatalogStale(); // the register's cached catalogue refreshes next time
     try {
       const updates: Record<string, unknown> = {};
       if (request.name !== undefined) updates.name = request.name;
@@ -196,6 +200,7 @@ export class ProductService {
    * Archive a product (hides it from active catalog views without deleting history)
    */
   static async archiveProduct(productId: string): Promise<Product> {
+    markCatalogStale(); // the register's cached catalogue refreshes next time
     return this.updateProduct(productId, { status: 'archived' });
   }
 
@@ -203,6 +208,7 @@ export class ProductService {
    * Permanently delete a product
    */
   static async deleteProduct(productId: string): Promise<void> {
+    markCatalogStale(); // the register's cached catalogue refreshes next time
     try {
       const { error } = await supabase.from('products').delete().eq('id', productId);
 

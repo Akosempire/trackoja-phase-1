@@ -5,6 +5,8 @@ import { AuthService } from '../services/auth.service';
 import { MemberService } from '../services/member.service';
 import { EntryService, type EntryResolution } from '../services/entry.service';
 import { clearRestoration, withTimeout } from '../utils/session-continuity';
+import { clearStartup, readStartup, saveStartup } from '../utils/startup-cache';
+import { CatalogService } from '../services/catalog.service';
 export type AuthStatus = 'initializing' | 'authenticated' | 'unauthenticated' | 'recoverable_error';
 interface AuthContextValue {
   user: User | null; profile: AppUser | null; loading: boolean; status: AuthStatus;
@@ -13,19 +15,25 @@ interface AuthContextValue {
 }
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [profile, setProfile] = useState<AppUser | null>(null);
-  const [status, setStatus] = useState<AuthStatus>('initializing');
-  const [entry, setEntry] = useState<EntryResolution | null>(null);
-  const [entryLoading, setEntryLoading] = useState(true);
+  // Instant start: draw from the last session's workspace on this device (same
+  // user only, see startup-cache), then refresh from the server in the background.
+  const [snapshot] = useState(() => readStartup());
+  const [user, setUser] = useState<User | null>(snapshot?.user ?? null);
+  const [profile, setProfile] = useState<AppUser | null>(snapshot?.profile ?? null);
+  const [status, setStatus] = useState<AuthStatus>(snapshot ? 'authenticated' : 'initializing');
+  const [entry, setEntry] = useState<EntryResolution | null>(snapshot?.entry ?? null);
+  const [entryLoading, setEntryLoading] = useState(!snapshot);
   const [entryError, setEntryError] = useState<string | null>(null);
   const sequence = useRef(0);
-  const currentUser = useRef<User | null>(null);
-  const resolved = useRef(false);
+  const currentUser = useRef<User | null>(snapshot?.user ?? null);
+  const resolved = useRef(Boolean(snapshot));
   const loadProfile = useCallback(async (next: User) => {
     const request = ++sequence.current;
     if (currentUser.current?.id !== next.id) {
       resolved.current = false; setProfile(null); setEntry(null);
+      clearStartup();
+      // a different person on this device: drop the previous person's cached catalogue
+      if (currentUser.current) void CatalogService.clearAll();
       if (currentUser.current) clearRestoration();
     }
     currentUser.current = next; setUser(next);
@@ -44,6 +52,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (request !== sequence.current) return;
       setProfile(result.nextProfile); setEntry(result.resolution); resolved.current = true;
       setStatus('authenticated');
+      saveStartup(next, result.nextProfile, result.resolution);
     } catch {
       if (request !== sequence.current) return;
       setEntryError('We could not reconnect to your workspace. Check your connection and try again.');
@@ -58,7 +67,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const session = await withTimeout(AuthService.getSession());
       if (request !== sequence.current) return;
       if (session?.user) await loadProfile(session.user);
-      else { currentUser.current = null; resolved.current = false; setUser(null); setProfile(null); setEntry(null); setStatus('unauthenticated'); setEntryLoading(false); }
+      else { clearStartup(); currentUser.current = null; resolved.current = false; setUser(null); setProfile(null); setEntry(null); setStatus('unauthenticated'); setEntryLoading(false); }
     } catch {
       if (request !== sequence.current) return;
       setStatus('recoverable_error'); setEntryLoading(false);
@@ -77,7 +86,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (event === 'SIGNED_OUT') {
         timers.forEach(clearTimeout); timers.clear();
         ++sequence.current; currentUser.current = null; resolved.current = false;
-        clearRestoration(); setUser(null); setProfile(null); setEntry(null); setEntryError(null);
+        clearRestoration(); clearStartup(); void CatalogService.clearAll(); setUser(null); setProfile(null); setEntry(null); setEntryError(null);
         setEntryLoading(false); setStatus('unauthenticated'); return;
       }
       // SIGNED_IN also fires on focus. Token refresh is not a new login.

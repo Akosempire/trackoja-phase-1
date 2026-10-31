@@ -10,34 +10,19 @@ import { PageLoader } from '../../components/ui/PageLoader';
 import { Card, Empty, Page, PageHeader, cn, inputClass } from '../../components/kit';
 import { stockQuantity } from '../../utils/business-activity';
 import type { InventoryMovement, Product } from '../../types';
+import { movementLabel } from '../../utils/movement-labels';
+import { countCorrection, countSummary } from '../../utils/stock-count';
 import { useToast } from '../../components/ui/Toast';
 
 type AdjustmentMovementType = 'replenishment' | 'transfer_in' | 'transfer_out' | 'adjustment';
-
-const MOVEMENT_LABELS: Record<AdjustmentMovementType, string> = {
-  replenishment: 'Replenishment (stock in)',
-  transfer_in: 'Transfer in',
-  transfer_out: 'Transfer out',
-  adjustment: 'Adjustment (stock count correction)',
-};
 
 /** The reason choices, written the way a shop owner would say them. */
 const MOVEMENT_CHOICES: Array<{ value: AdjustmentMovementType; title: string; hint: string; sign: '+' | '−' | '±' }> = [
   { value: 'replenishment', title: 'New stock arrived', hint: 'Delivery or purchase from a supplier', sign: '+' },
   { value: 'transfer_in', title: 'Transfer in', hint: 'Received from another branch', sign: '+' },
   { value: 'transfer_out', title: 'Transfer out', hint: 'Sent to another branch', sign: '−' },
-  { value: 'adjustment', title: 'Count correction', hint: 'Fix the number after counting, damage or loss', sign: '±' },
+  { value: 'adjustment', title: 'Count correction', hint: 'Enter what you counted; we work out the difference', sign: '±' },
 ];
-
-const HISTORY_LABELS: Record<string, string> = {
-  replenishment: 'Stock received',
-  transfer_in: 'Transfer in',
-  transfer_out: 'Transfer out',
-  adjustment: 'Count correction',
-  sale: 'Sold',
-  refund: 'Refunded',
-  void: 'Sale voided',
-};
 
 export default function StockAdjustmentPage() {
   const toast = useToast();
@@ -53,8 +38,8 @@ export default function StockAdjustmentPage() {
 
   const [productId, setProductId] = useWorkspaceState('stock-product', searchParams.get('productId') ?? '');
   const [movementType, setMovementType] = useWorkspaceState<AdjustmentMovementType>('stock-movement', 'replenishment');
-  const [direction, setDirection] = useWorkspaceState<'increase' | 'decrease'>('stock-direction', 'increase');
   const [quantity, setQuantity] = useWorkspaceState('stock-quantity', '');
+  const [counted, setCounted] = useState('');
   const [reason, setReason] = useState('');
 
   const selectedProduct = products.find((p) => p.id === productId);
@@ -92,19 +77,20 @@ export default function StockAdjustmentPage() {
     e.preventDefault();
     if (!storeId || !productId) return;
 
-    const magnitude = Number(quantity);
-    if (!magnitude || magnitude <= 0) {
-      setError('Enter a quantity greater than zero');
-      return;
-    }
-
-    let signedQuantity = magnitude;
-    if (movementType === 'transfer_out') signedQuantity = -magnitude;
-    if (movementType === 'adjustment') signedQuantity = direction === 'decrease' ? -magnitude : magnitude;
-
-    if (movementType === 'adjustment' && !reason.trim()) {
-      setError('A reason is required for adjustments');
-      return;
+    let signedQuantity: number;
+    if (movementType === 'adjustment') {
+      // Count correction: the difference between what was counted and what the system has
+      const check = countCorrection(selectedProduct?.stockQty ?? 0, counted);
+      if (!check.ok) { setError(check.error); return; }
+      if (!reason.trim()) { setError('Add a reason, e.g. "Shelf count" or "2 broken"'); return; }
+      signedQuantity = check.difference;
+    } else {
+      const magnitude = Number(quantity);
+      if (!magnitude || magnitude <= 0) {
+        setError('Enter a quantity greater than zero');
+        return;
+      }
+      signedQuantity = movementType === 'transfer_out' ? -magnitude : magnitude;
     }
 
     setSaving(true);
@@ -119,6 +105,7 @@ export default function StockAdjustmentPage() {
       });
       toast.update(toastId, { variant: 'success', message: 'Stock updated', description: `${selectedProduct?.name ?? 'Product'} inventory was adjusted.` });
       setQuantity('');
+      setCounted('');
       setReason('');
       const updated = await ProductService.getProduct(productId);
       setProducts((prev) => prev.map((p) => (p.id === productId ? updated : p)));
@@ -134,10 +121,12 @@ export default function StockAdjustmentPage() {
 
   if (loading) return <PageLoader />;
 
-  const magnitude = Number(quantity);
-  const validQuantity = Number.isFinite(magnitude) && magnitude > 0;
-  const sign = movementType === 'transfer_out' || (movementType === 'adjustment' && direction === 'decrease') ? -1 : 1;
   const before = selectedProduct?.stockQty ?? 0;
+  const isCount = movementType === 'adjustment';
+  const count = isCount ? countCorrection(before, counted) : null;
+  const magnitude = isCount ? Math.abs(count?.ok ? count.difference : 0) : Number(quantity);
+  const validQuantity = Number.isFinite(magnitude) && magnitude > 0;
+  const sign = isCount ? (count?.ok && count.difference < 0 ? -1 : 1) : movementType === 'transfer_out' ? -1 : 1;
   const after = before + (validQuantity ? sign * magnitude : 0);
   const unit = selectedProduct?.unit ?? '';
   const label = 'mb-1.5 block text-[13px] font-medium text-ink-2';
@@ -207,26 +196,18 @@ export default function StockAdjustmentPage() {
                 </div>
               </fieldset>
 
-              {movementType === 'adjustment' && (
-                <fieldset className="m-0 mb-5 min-w-0 border-0 p-0">
-                  <legend className={cn(label, "p-0")}>Direction</legend>
-                  <div className="grid grid-cols-2 gap-1 rounded-lg bg-tray p-1">
-                    {([['increase', 'Increase stock'], ['decrease', 'Decrease stock']] as const).map(([value, text]) => (
-                      <label key={value}
-                        className={cn('flex h-9 cursor-pointer items-center justify-center rounded-md text-[13px] font-medium transition-colors',
-                          direction === value ? 'bg-surface text-ink shadow-card' : 'text-ink-2 hover:text-ink')}>
-                        <input type="radio" name="stock-direction" value={value} checked={direction === value}
-                          id={value === 'increase' ? 'stock-direction' : undefined}
-                          onChange={() => setDirection(value)} className="sr-only" />
-                        {text}
-                      </label>
-                    ))}
-                  </div>
-                </fieldset>
+              {isCount ? (
+                <>
+                  <FormField id="stock-counted" label="How many did you count?" type="number" min={0} step="any" inputMode="decimal"
+                    value={counted} onChange={setCounted} required placeholder={`System says ${before.toLocaleString('en-NG')}`} />
+                  {count?.ok && (
+                    <p className="-mt-2 mb-4 text-sm font-semibold tabular-nums text-ink" aria-live="polite">{countSummary(count.system, count.counted)}</p>
+                  )}
+                </>
+              ) : (
+                <FormField id="stock-quantity" label="Quantity" type="number" min={0} step="any" inputMode="decimal"
+                  value={quantity} onChange={setQuantity} required placeholder="0" />
               )}
-
-              <FormField id="stock-quantity" label="Quantity" type="number" min={0} step="any" inputMode="decimal"
-                value={quantity} onChange={setQuantity} required placeholder="0" />
 
               {selectedProduct && (
                 <div className="mb-5 grid grid-cols-[1fr_auto_1fr] items-center gap-3 rounded-lg bg-tray px-4 py-3" aria-live="polite">
@@ -255,10 +236,10 @@ export default function StockAdjustmentPage() {
 
               <FormField
                 id="stock-reason"
-                label={movementType === 'adjustment' ? 'Reason (required)' : 'Reason'}
+                label={isCount ? 'Reason (required)' : 'Reason'}
                 value={reason}
                 onChange={setReason}
-                placeholder={movementType === 'adjustment' ? 'e.g. 2 bottles broken, recount after stock-take' : 'Optional note'}
+                placeholder={isCount ? 'e.g. Shelf count, 2 bottles broken' : 'Optional note'}
               />
 
               <Button type="submit" loading={saving} className="w-full">
@@ -280,7 +261,7 @@ export default function StockAdjustmentPage() {
                   <li key={m.id} className="flex items-start justify-between gap-3 px-4 py-3 sm:px-5">
                     <div className="min-w-0">
                       <p className="m-0 text-sm font-medium text-ink">
-                        {HISTORY_LABELS[m.movementType] ?? MOVEMENT_LABELS[m.movementType as AdjustmentMovementType] ?? m.movementType}
+                        {movementLabel(m.movementType)}
                       </p>
                       <p className="m-0 mt-0.5 truncate text-xs text-ink-3">{when(m.createdAt)}{m.reason ? ` · ${m.reason}` : ''}</p>
                     </div>

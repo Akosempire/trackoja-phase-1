@@ -14,8 +14,11 @@ let signedIn = true;
 let branch = sessionStorage.getItem('fixture-branch') ?? 'first';
 const params = new URLSearchParams(location.search);
 let offline = params.has('offline');
+// ?slow=ms: a slow network, to see the start-up splash vs the instant start
+const slow = Number(params.get('slow') ?? 0);
+const wait = () => new Promise((r) => setTimeout(r, slow));
 AuthService.getSession = async () => { if (offline) throw new Error('Offline'); return signedIn ? { user: { id: 'fixture-user' } } as any : null; };
-AuthService.getUserProfile = async () => ({ id: 'fixture-user', currentOrgId: 'fixture-org', currentStoreId: branch }) as any;
+AuthService.getUserProfile = async () => (await wait(), { id: 'fixture-user', currentOrgId: 'fixture-org', currentStoreId: branch }) as any;
 AuthService.onAuthStateChange = callback => { listener = callback; return { data: { subscription: { unsubscribe() {} } } } as any; };
 MemberService.acceptPendingInvitations = async () => [] as any;
 EntryService.resolve = async () => { if (offline) throw new Error('Offline'); return { kind: 'existing_user', destination: '/dashboard', hasAccess: true, currentOrgId: 'fixture-org', currentStoreId: branch } as any; };
