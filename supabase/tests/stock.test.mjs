@@ -29,6 +29,8 @@ async function user(tag) {
 }
 async function business(u, name) {
   const r = (await as(u, "select public.create_onboarding_business($1, $2, 'general_retail') j", [name, `${name} Ikeja`])).rows[0].j;
+  // stores made from now on require an open till (POS upgrade); these tests sell without one
+  await pool.query('update public.store_settings set require_open_till = false where store_id = $1', [r.store_id]);
   await pool.query("update public.organizations set billing_status = 'active' where id = (select org_id from public.stores where id = $1)", [r.store_id]);
   // a paying business (billing is tested elsewhere)
   await pool.query("update public.organization_products set status = 'active', expires_at = null where org_id = (select org_id from public.stores where id = $1)", [r.store_id]);

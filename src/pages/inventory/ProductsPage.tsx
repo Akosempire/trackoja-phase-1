@@ -44,6 +44,7 @@ export default function ProductsPage() {
 
   const canCreate = hasPermission('product:create');
   const canAdjust = hasPermission('inventory:adjust');
+  const canSeeCost = hasPermission('cost:view');
 
   useEffect(() => {
     if (!storeId) return;
@@ -117,9 +118,9 @@ export default function ProductsPage() {
       />
 
       {!loading && !error && products.length > 0 && !filtered && (
-        <section className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4" aria-label="Inventory summary">
+        <section className={cn('mb-6 grid grid-cols-2 gap-3', canSeeCost ? 'lg:grid-cols-4' : 'lg:grid-cols-3')} aria-label="Inventory summary">
           <Stat label="Items" value={products.length.toLocaleString('en-NG')} />
-          <Stat label="Stock value (cost)" value={formatMoney(stockValue)} />
+          {canSeeCost && <Stat label="Stock value (cost)" value={formatMoney(stockValue)} />}
           <Stat label="Running low" value={lowCount} tone={lowCount ? 'warn' : undefined} />
           <Stat label="Out of stock" value={outCount} tone={outCount ? 'danger' : undefined} />
         </section>
@@ -173,11 +174,11 @@ export default function ProductsPage() {
       >
         <Card padded={false} className="overflow-hidden">
           <div className="hidden grid-cols-[minmax(0,2.4fr)_minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,0.8fr)_minmax(0,1.1fr)] gap-4 border-b border-line bg-subtle px-5 py-2.5 text-xs font-semibold uppercase tracking-[.06em] text-ink-3 md:grid">
-            <span>{experience.terminology.lineItem}</span><span>Category</span><span className="text-right">Price</span><span className="text-right">Margin</span><span className="text-right">In stock</span>
+            <span>{experience.terminology.lineItem}</span><span>Category</span><span className="text-right">Price</span><span className="text-right">{canSeeCost ? 'Margin' : ''}</span><span className="text-right">In stock</span>
           </div>
           <ul className="m-0 list-none divide-y divide-line p-0">
             {shown.map((product) => {
-              const m = margin(product);
+              const m = canSeeCost ? margin(product) : null;
               return (
                 <li key={product.id} className="flex items-center">
                   {picking && (
@@ -198,7 +199,7 @@ export default function ProductsPage() {
                     </span>
                     <span className="hidden truncate text-sm text-ink-2 md:block">{categoryName(product.categoryId) ?? '—'}</span>
                     <span className="text-right text-sm font-semibold tabular-nums text-ink md:font-medium">{formatMoney(product.sellingPrice)}</span>
-                    <span className="hidden text-right text-sm tabular-nums text-ink-2 md:block">{m === null ? '—' : `${m}%`}</span>
+                    <span className="hidden text-right text-sm tabular-nums text-ink-2 md:block">{!canSeeCost ? '' : m === null ? '—' : `${m}%`}</span>
                     <span className="col-start-2 row-start-2 text-right md:col-auto md:row-auto">{stockBadge(product)}</span>
                   </Link>
                 </li>

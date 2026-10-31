@@ -108,11 +108,14 @@ export class RestockService {
   }
   static async countLines(countId: string): Promise<StockCountLine[]> {
     const { data, error } = await supabase.from('stock_count_lines')
-      .select('product_id, expected_qty, counted_qty, unit_cost, products(name, sku, barcode, unit)').eq('count_id', countId);
+      .select('product_id, expected_qty, counted_qty, products(name, sku, barcode, unit)').eq('count_id', countId);
     if (error) throw new Error(error.message);
+    // unit costs only for people with cost:view (value impact shows 0 otherwise)
+    const { data: costRows } = await supabase.rpc('get_stock_count_costs', { p_count_id: countId });
+    const costs = new Map(((costRows ?? []) as Array<{ product_id: string; unit_cost: number | string }>).map((c) => [c.product_id, Number(c.unit_cost)]));
     return (data ?? []).map((r: any) => ({
       productId: r.product_id, name: r.products?.name ?? 'Product', sku: r.products?.sku ?? '', barcode: r.products?.barcode ?? null,
-      unit: r.products?.unit ?? 'pcs', expected: Number(r.expected_qty), counted: num(r.counted_qty), unitCost: Number(r.unit_cost),
+      unit: r.products?.unit ?? 'pcs', expected: Number(r.expected_qty), counted: num(r.counted_qty), unitCost: costs.get(r.product_id) ?? 0,
     })).sort((a, b) => a.name.localeCompare(b.name));
   }
   static async setCounted(countId: string, productId: string, counted: number | null): Promise<void> {

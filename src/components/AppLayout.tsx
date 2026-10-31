@@ -19,6 +19,7 @@ import { useToast } from './ui/Toast';
 import { APP_MARK, APP_NAME } from '../config/brand';
 import { btn } from './kit';
 import { useUsageBeat } from '../hooks/useUsageBeat';
+import { AccessGate } from './access/AccessGate';
 
 /**
  * The merchant workspace shell.
@@ -114,7 +115,7 @@ export function AppLayout() {
           <RouteBackBar />
           {/* Only the page area waits while a screen loads; the sidebar and tabs stay put */}
           <Suspense fallback={<PageLoader />}>
-            <Outlet />
+            <AccessGate><Outlet /></AccessGate>
           </Suspense>
         </main>
         <BottomNav />

@@ -25,6 +25,8 @@ const user = async (tag) => {
 };
 async function business(owner, name) {
   const r = (await as(owner, "select public.create_onboarding_business($1, 'Main branch', 'general_retail') j", [name])).rows[0].j;
+  // stores made from now on require an open till (POS upgrade); these tests sell without one
+  await pool.query('update public.store_settings set require_open_till = false where store_id = $1', [r.store_id]);
   await svc("update public.organizations set billing_status = 'active' where id = $1", [r.org_id]);
   await svc("update public.organization_products set status = 'active', expires_at = null where org_id = $1", [r.org_id]);
   return r;

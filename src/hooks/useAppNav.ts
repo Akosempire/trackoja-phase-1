@@ -1,4 +1,5 @@
 import { mobileDestinations } from '../utils/navigation-layout';
+import { checkRouteAccess } from '../config/routeAccess';
 import { merchantPrimaryAction, navigationGroup, routeModule } from '../utils/merchant-experience';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { usePermissions } from './usePermissions';
@@ -47,7 +48,7 @@ const ICONS: Record<NavIconName, (props: { width?: number; height?: number }) =>
  */
 export function useAppNav() {
   const navigate = useNavigate();
-  const { hasPermission, loading: permsLoading } = usePermissions();
+  const { hasPermission, roleName, loading: permsLoading } = usePermissions();
   const { category, modules, loading: businessLoading } = useBusinessContext();
   const { pathname } = useLocation();
 
@@ -80,7 +81,7 @@ export function useAppNav() {
 
   // Payment records are readable with sales:view; approval and refund controls
   // remain separately gated by sales:refund on the page and in the database.
-  if (!navByKey.has('payments') && allowed('sales:view') && enabled.includes('sales')) {
+  if (!navByKey.has('payments') && allowed('sales:view_all') && enabled.includes('sales')) {
     const payments = { to: '/payments', label: 'Customer payments', icon: PaymentsIcon, group: 'Payments and connections' };
     navByKey.set('payments', payments);
     allItems.push(payments);
@@ -101,6 +102,11 @@ export function useAppNav() {
   extras.filter(item => !item.permission || allowed(item.permission)).forEach(item => {
     if (!allItems.some(existing => existing.to === item.to)) allItems.push({ ...item, group: navigationGroup(item.to) });
   });
+  // the same rules the route guard uses, so no link leads to "You don't have
+  // access". The dashboard link stays: without reports it opens their home screen.
+  if (!permsLoading) for (let i = allItems.length - 1; i >= 0; i--) {
+    if (allItems[i].to !== '/dashboard' && !checkRouteAccess(allItems[i].to, hasPermission, roleName).allowed) { navByKey.forEach((v, k) => { if (v === allItems[i]) navByKey.delete(k); }); allItems.splice(i, 1); }
+  }
   allItems.push({ to: '/more', label: 'More', icon: MoreIcon });
 
   // The mobile bottom bar is deliberately small and chosen per business type:

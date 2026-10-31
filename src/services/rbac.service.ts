@@ -42,59 +42,17 @@ export class RbacService {
   /**
    * Get user's permissions for a store
    */
-  static async getUserPermissions(userId: string, storeId: string): Promise<UserPermissions> {
-    try {
-      // Get user's store member record
-      const { data: memberData, error: memberError } = await supabase
-        .from('store_members')
-        .select(
-          `*,
-           roles(
-             id,
-             name,
-             description,
-             is_system,
-             level
-           )
-        `
-        )
-        .eq('user_id', userId)
-        .eq('store_id', storeId)
-        .eq('status', 'active')
-        .single();
-
-      if (memberError || !memberData || !memberData.roles) {
-        throw new Error('User is not a member of this store');
-      }
-
-      // Get permissions for the role
-      const { data: permissions, error: permError } = await supabase
-        .from('role_permissions')
-        .select(
-          `permissions(
-             id,
-             name,
-             resource,
-             action,
-             description,
-             category
-           )
-        `
-        )
-        .eq('role_id', memberData.role_id);
-
-      if (permError) throw permError;
-
-      const permissionList = permissions?.map((rp: any) => rp.permissions).filter(Boolean) || [];
-
-      return {
-        role: memberData.roles,
-        permissions: permissionList,
-      };
-    } catch (error) {
+  static async getUserPermissions(_userId: string, storeId: string): Promise<UserPermissions> {
+    // The database answers for whoever is working on this account: the staff
+    // member switched in by PIN, else the signed-in account.
+    const { data, error } = await supabase.rpc('get_my_permissions', { p_store_id: storeId });
+    if (error) {
       console.error('Get user permissions error:', error);
       throw error;
     }
+    const result = (data ?? {}) as { role?: UserPermissions['role'] | null; permissions?: UserPermissions['permissions']; acting?: { user_id: string; name: string } | null };
+    if (!result.role) throw new Error('User is not a member of this store');
+    return { role: result.role, permissions: result.permissions ?? [], acting: result.acting ?? null };
   }
 
   /**

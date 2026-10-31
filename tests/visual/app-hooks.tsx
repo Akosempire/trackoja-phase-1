@@ -12,9 +12,10 @@ export const useBusinessContext = () => {
   const modules = getBusinessExperience(category).defaultModules;
   return { category, modules, config: getCategoryConfig(category), hasModule: (m: string) => modules.includes(m), loading: false, refresh: async () => {} };
 };
-export const usePermissions = () => ({ loading: false, permissions: [], roleName: 'owner', hasPermission: () => params.get('restricted') !== 'true', hasAnyPermission: () => true });
+export const usePermissions = () => ({ loading: false, permissions: [], roleName: params.get('role') ?? 'owner', hasPermission: (p: string) => params.get('restricted') !== 'true' && (!params.get('perms') || params.get('perms')!.split(',').includes(p)), acting: params.get('acting') ? { user_id: 'fixture-acting', name: params.get('acting')! } : null, hasAnyPermission: () => true });
 export const TrialStatus = () => null;
 export const BusinessProvider = ({ children }: { children: ReactNode }) => children;
 
 // the real usePermissions module also exports this (used on logout)
 export function clearPermissionsCache(): void {}
+export function refreshPermissions(): void {}

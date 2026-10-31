@@ -184,6 +184,8 @@ export interface RolePermission {
 export interface UserPermissions {
   permissions: Permission[];
   role: Role;
+  /** The staff member switched in by PIN on this account, when not the account itself. */
+  acting?: { user_id: string; name: string } | null;
 }
 
 // ============================================================

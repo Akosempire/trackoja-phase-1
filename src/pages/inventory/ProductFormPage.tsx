@@ -54,6 +54,10 @@ export default function ProductFormPage() {
 
   const canUpdate = hasPermission('product:update');
   const canDelete = hasPermission('product:delete');
+  // cost is private to owners, managers and inventory officers; prices change
+  // only with price:edit (the database enforces both)
+  const canSeeCost = hasPermission('cost:view');
+  const canEditPrice = hasPermission('price:edit');
 
   useEffect(() => {
     if (!storeId) return;
@@ -121,8 +125,7 @@ export default function ProductFormPage() {
           description: description || undefined,
           categoryId: categoryId || null,
           unit,
-          costPrice: Number(costPrice) || 0,
-          sellingPrice: Number(sellingPrice) || 0,
+          ...(canEditPrice ? { sellingPrice: Number(sellingPrice) || 0, ...(canSeeCost ? { costPrice: Number(costPrice) || 0 } : {}) } : {}),
           taxRate: Number(taxRate) || 0,
           trackInventory,
           reorderLevel: Number(reorderLevel) || 0,
@@ -188,10 +191,11 @@ export default function ProductFormPage() {
       {sub && <p className="m-0 mt-0.5 text-[13px] text-ink-3">{sub}</p>}
     </div>
   );
+  const priceLocked = readOnly || (!isNew && !canEditPrice);
   const money = (id: string, value: string, set: (v: string) => void, required?: boolean) => (
     <div className="relative">
       <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-ink-3">₦</span>
-      <input id={id} className={cn(inputClass, 'pl-7 tabular-nums')} type="number" inputMode="decimal" min={0} step="any" value={value} onChange={(e) => set(e.target.value)} required={required} placeholder="0" disabled={readOnly} />
+      <input id={id} className={cn(inputClass, 'pl-7 tabular-nums')} type="number" inputMode="decimal" min={0} step="any" value={value} onChange={(e) => set(e.target.value)} required={required} placeholder="0" disabled={priceLocked} />
     </div>
   );
 
@@ -226,20 +230,23 @@ export default function ProductFormPage() {
           </Card>
 
           <Card aria-labelledby="pricing-title">
-            {section('pricing-title', 'Pricing', 'Cost price lets us show your real profit on every sale.')}
+            {section('pricing-title', 'Pricing', canSeeCost ? 'Cost price lets us show your real profit on every sale.' : 'What customers pay for one.')}
+            {!isNew && !canEditPrice && !readOnly && <p className="m-0 mb-3 text-[13px] text-ink-3">Only an owner or manager can change prices.</p>}
             <div className="grid gap-4 sm:grid-cols-2">
-              <div>
-                <label className={label} htmlFor="product-cost-price">Cost price</label>
-                {money('product-cost-price', costPrice, setCostPrice)}
-                <span className={hint}>What you paid for one</span>
-              </div>
+              {canSeeCost && (
+                <div>
+                  <label className={label} htmlFor="product-cost-price">Cost price</label>
+                  {money('product-cost-price', costPrice, setCostPrice)}
+                  <span className={hint}>What you paid for one</span>
+                </div>
+              )}
               <div>
                 <label className={label} htmlFor="product-selling-price">Selling price <span className="text-danger">*</span></label>
                 {money('product-selling-price', sellingPrice, setSellingPrice, true)}
                 <span className={hint}>What customers pay</span>
               </div>
             </div>
-            {price > 0 && (
+            {canSeeCost && price > 0 && (
               <div className={cn('mt-4 flex flex-wrap items-center justify-between gap-2 rounded-lg px-3 py-2.5 text-sm', profit >= 0 ? 'bg-success-soft text-success-ink' : 'bg-danger-soft text-danger')} role="status">
                 <span>{profit >= 0 ? 'You make' : 'You lose'} <strong className="tabular-nums">{formatMoney(Math.abs(profit))}</strong> on each one</span>
                 {marginPct !== null && <span className="font-semibold tabular-nums">{marginPct}% margin</span>}

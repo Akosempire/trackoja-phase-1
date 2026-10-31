@@ -30,6 +30,8 @@ test.before(async () => {
   owner = (await one('insert into auth.users(email) values ($1) returning id', [`var-${s}@a.test`])).id;
   outsider = (await one('insert into auth.users(email) values ($1) returning id', [`var-x-${s}@a.test`])).id;
   store = (await as(owner, "select public.create_onboarding_business('Ada Fashion', 'Yaba branch', 'fashion_store') j")).rows[0].j.store_id;
+  // stores made from now on require an open till (POS upgrade); these tests sell without one
+  await pool.query('update public.store_settings set require_open_till = false where store_id = $1', [store]);
   await as(outsider, "select public.create_onboarding_business('Other', 'Other branch', 'general_retail') j");
   await pool.query("update public.organizations set billing_status='active' where id=(select org_id from public.stores where id=$1)", [store]);
   shirt = (await one("insert into public.products(store_id,name,sku,selling_price,stock_qty,created_by) values ($1,'Ankara shirt','ANK-1',10000,0,$2) returning id", [store, owner])).id;

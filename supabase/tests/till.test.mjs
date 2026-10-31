@@ -39,7 +39,10 @@ test.before(async () => {
 });
 test.after(() => pool.end());
 
-test('selling without an open till still works by default', async () => {
+test('new stores require an open till; with it switched off, selling without one works', async () => {
+  assert.equal((await one('select require_open_till from public.store_settings where store_id = $1', [store])).require_open_till, true);
+  await assert.rejects(sell(owner, [{ productId: milk, quantity: 1 }], cash(3200)), /Open the till/);
+  await as(owner, 'select public.till_set_required($1, false)', [store]);
   const id = await sell(owner, [{ productId: milk, quantity: 1 }], cash(3200));
   const s = await one('select till_session_id, cashier_id from public.sales where id = $1', [id]);
   assert.equal(s.till_session_id, null);
@@ -109,7 +112,10 @@ test('PINs: only managers set them, nobody can read them, and they identify the 
   assert.equal(who.ok, true); assert.equal(who.user_id, cashier);
   const id = await sell(owner, [{ productId: milk, quantity: 1 }], cash(3200));
   assert.equal((await one('select cashier_id from public.sales where id = $1', [id])).cashier_id, cashier);
-  await as(owner, 'select public.clear_cashier($1)', [store]);
+  // Bayo is a cashier: going back to the owner's account needs a manager PIN
+  await assert.rejects(as(owner, 'select public.clear_cashier($1)', [store]), /manager or the owner/);
+  const ok = (await as(owner, "select public.request_manager_override($1, 'exit_register', '7391') j", [store])).rows[0].j;
+  await as(owner, 'select public.clear_cashier($1, $2)', [store, ok.approval_id]);
   assert.equal((await as(owner, 'select public.current_cashier($1) j', [store])).rows[0].j, null);
 });
 

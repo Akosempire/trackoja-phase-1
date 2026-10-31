@@ -46,11 +46,14 @@ export class StockLotService {
     try {
       const { data, error } = await supabase
         .from('stock_lots')
-        .select('*, product:products(name, unit)')
+        // every column but cost_per_unit, which only people with cost:view may read
+        .select('id, store_id, product_id, variant_id, lot_type, identifier, unit_of_measure, qty_received, qty_available, qty_reserved, selling_price_per_unit, expiry_date, received_at, supplier_id, status, attributes, created_by, created_at, updated_at, lot_seq, product:products(name, unit)')
         .eq('store_id', storeId)
         .order('received_at', { ascending: false });
 
       if (error) throw error;
+      const { data: costRows } = await supabase.rpc('get_stock_lot_costs', { p_store_id: storeId });
+      const costs = new Map(((costRows ?? []) as Array<{ lot_id: string; cost_per_unit: number | string | null }>).map((r) => [r.lot_id, r.cost_per_unit]));
 
       return (data ?? []).map((row: any) => ({
         id: row.id,
@@ -64,7 +67,7 @@ export class StockLotService {
         unitOfMeasure: row.unit_of_measure,
         qtyReceived: Number(row.qty_received ?? 0),
         qtyAvailable: Number(row.qty_available ?? 0),
-        costPerUnit: row.cost_per_unit === null ? null : Number(row.cost_per_unit),
+        costPerUnit: costs.get(row.id) == null ? null : Number(costs.get(row.id)),
         expiryDate: row.expiry_date,
         status: row.status,
         receivedAt: row.received_at,

@@ -11,6 +11,21 @@ export interface ProductFilters {
   lowStockOnly?: boolean;
 }
 
+/**
+ * Every product column except cost_price. Cost prices are private to people
+ * with cost:view (owners, managers, inventory officers): the database refuses
+ * the column to everyone else, so it is fetched separately with
+ * get_product_costs and merged in. A cashier's products have costPrice 0.
+ */
+export const PRODUCT_COLUMNS = 'id, store_id, category_id, name, sku, barcode, description, unit, selling_price, tax_rate, track_inventory, stock_qty, reorder_level, image_url, status, created_by, created_at, updated_at, attributes, variant_options';
+
+/** Cost prices this person may see, by product id (empty when they may not). */
+async function costsFor(storeId: string): Promise<Map<string, number>> {
+  const { data, error } = await supabase.rpc('get_product_costs', { p_store_id: storeId });
+  if (error || !Array.isArray(data)) return new Map();
+  return new Map((data as Array<{ product_id: string; cost_price: number | string }>).map((r) => [r.product_id, Number(r.cost_price)]));
+}
+
 export class ProductService {
   /**
    * Create a new product
@@ -24,13 +39,13 @@ export class ProductService {
       const { data, error } = await supabase
         .from('products')
         .insert(this.toInsertRow(storeId, userId, request))
-        .select()
+        .select(PRODUCT_COLUMNS)
         .single();
 
       if (error) throw error;
       if (!data) throw new Error('Failed to create product');
 
-      return this.mapProductData(data);
+      return { ...this.mapProductData(data), costPrice: request.costPrice ?? 0 };
     } catch (error) {
       console.error('Create product error:', error);
       throw error;
@@ -48,7 +63,7 @@ export class ProductService {
     try {
       const rows = requests.map((request) => this.toInsertRow(storeId, userId, request));
 
-      const { data, error } = await supabase.from('products').insert(rows).select();
+      const { data, error } = await supabase.from('products').insert(rows).select(PRODUCT_COLUMNS);
 
       if (error) throw error;
       return data ? data.map((p) => this.mapProductData(p)) : [];
@@ -84,7 +99,8 @@ export class ProductService {
    */
   static async getProducts(storeId: string, filters?: ProductFilters): Promise<Product[]> {
     try {
-      let query = supabase.from('products').select('*').eq('store_id', storeId);
+      const costs = costsFor(storeId);
+      let query = supabase.from('products').select(PRODUCT_COLUMNS).eq('store_id', storeId);
 
       if (filters?.categoryId) {
         query = query.eq('category_id', filters.categoryId);
@@ -105,7 +121,8 @@ export class ProductService {
       const { data, error } = await query;
 
       if (error) throw error;
-      let products = data ? data.map((p) => this.mapProductData(p)) : [];
+      const cost = await costs;
+      let products = data ? data.map((p) => ({ ...this.mapProductData(p), costPrice: cost.get((p as { id: string }).id) ?? 0 })) : [];
 
       if (filters?.lowStockOnly) {
         products = products.filter((p) => p.trackInventory && p.stockQty <= p.reorderLevel);
@@ -123,12 +140,13 @@ export class ProductService {
    */
   static async getProduct(productId: string): Promise<Product> {
     try {
-      const { data, error } = await supabase.from('products').select('*').eq('id', productId).single();
+      const { data, error } = await supabase.from('products').select(PRODUCT_COLUMNS).eq('id', productId).single();
 
       if (error) throw error;
       if (!data) throw new Error('Product not found');
 
-      return this.mapProductData(data);
+      const cost = await costsFor((data as { store_id: string }).store_id);
+      return { ...this.mapProductData(data), costPrice: cost.get(productId) ?? 0 };
     } catch (error) {
       console.error('Get product error:', error);
       throw error;
@@ -160,13 +178,14 @@ export class ProductService {
         .from('products')
         .update(updates)
         .eq('id', productId)
-        .select()
+        .select(PRODUCT_COLUMNS)
         .single();
 
       if (error) throw error;
       if (!data) throw new Error('Failed to update product');
 
-      return this.mapProductData(data);
+      const cost = await costsFor((data as { store_id: string }).store_id);
+      return { ...this.mapProductData(data), costPrice: cost.get(productId) ?? request.costPrice ?? 0 };
     } catch (error) {
       console.error('Update product error:', error);
       throw error;
@@ -204,7 +223,7 @@ export class ProductService {
       barcode: data.barcode,
       description: data.description,
       unit: data.unit,
-      costPrice: Number(data.cost_price),
+      costPrice: Number(data.cost_price ?? 0),
       sellingPrice: Number(data.selling_price),
       taxRate: Number(data.tax_rate),
       trackInventory: data.track_inventory,

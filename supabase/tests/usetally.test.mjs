@@ -31,6 +31,8 @@ test.before(async () => {
   owner = (await one("insert into auth.users(email) values ($1) returning id", [`tk-${Date.now()}@a.test`])).id;
   await pool.query("insert into public.users(id, email, full_name) values ($1, $2, 'Ada') on conflict (id) do nothing", [owner, `tk-${Date.now()}@a.test`]).catch(() => {});
   const r = (await as(owner, "select public.create_onboarding_business('Shop Ltd', 'Ikeja branch', 'general_retail') j")).rows[0].j;
+  // stores made from now on require an open till (POS upgrade); these tests sell without one
+  await pool.query('update public.store_settings set require_open_till = false where store_id = $1', [r.store_id]);
   store = r.store_id;
   // a paying business (billing is tested elsewhere)
   await svc("update public.organizations set billing_status = 'active' where id = (select org_id from public.stores where id = $1)", [store]);

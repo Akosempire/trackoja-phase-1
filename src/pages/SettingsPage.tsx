@@ -14,6 +14,7 @@ import type { Store } from '../types';
 import { ThemeSelect } from '../components/ThemeSelect';
 import { UsetallyConnection } from '../components/UsetallyConnection';
 import { DailyEmailCard, PrivacyDataCard } from '../components/PrivacyData';
+import { DiscountLimitCard } from '../components/settings/DiscountLimitCard';
 import { useToast } from '../components/ui/Toast';
 import { Card, CardHead, Page, PageHeader, btn, cn } from '../components/kit';
 
@@ -203,6 +204,8 @@ export default function SettingsPage() {
             )}
           </Card>
         )}
+
+        {store && storeId && <DiscountLimitCard storeId={storeId} canUpdate={canUpdate} />}
 
         <Card className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
