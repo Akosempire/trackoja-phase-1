@@ -1,0 +1,1 @@
+const r=[1e3,500,200,100,50,20,10,5];function a(t){let n=0;for(const e of r){const o=Math.floor(Number(t[e]??0));Number.isFinite(o)&&o>0&&(n+=o*e)}return n}function s(t){return Math.abs(t)<.005?"exact":t>0?"over":"short"}export{r as N,a as c,s as d};
