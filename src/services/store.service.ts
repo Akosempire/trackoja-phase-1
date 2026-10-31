@@ -228,6 +228,12 @@ export class StoreService {
   /**
    * Get the settings row for a store (loyalty config, receipt format, etc.)
    */
+  /** Print a receipt automatically after each sale (owners and managers). */
+  static async setAutoPrintReceipt(storeId: string, on: boolean): Promise<void> {
+    const { error } = await supabase.rpc('set_auto_print_receipt', { p_store_id: storeId, p_on: on });
+    if (error) throw new Error(error.message?.replace(/^.*?ERROR:\s*/, '') || 'Could not save');
+  }
+
   static async getStoreSettings(storeId: string): Promise<StoreSettings> {
     try {
       const { data, error } = await supabase
@@ -253,6 +259,7 @@ export class StoreService {
       allowNegativeStock: data.allow_negative_stock,
       requireCustomerForSale: data.require_customer_for_sale,
       autoPrintReceipt: data.auto_print_receipt,
+      discountLimitPercent: data.discount_limit_percent == null ? null : Number(data.discount_limit_percent),
       receiptFormat: data.receipt_format,
       loyaltyEnabled: data.loyalty_enabled,
       loyaltyEarnRate: Number(data.loyalty_earn_rate),

@@ -194,6 +194,12 @@ export class ProductService {
     }
   }
 
+  /** Pin / unpin a quick-sell product on the register (owners and managers). */
+  static async setFavourite(productId: string, favourite: boolean): Promise<void> {
+    const { error } = await supabase.rpc('set_product_favourite', { p_product_id: productId, p_favourite: favourite });
+    if (error) throw new Error(error.message?.replace(/^.*?ERROR:\s*/, '') || 'Could not pin the product');
+  }
+
   private static mapProductData(data: any): Product {
     return {
       id: data.id,
@@ -213,6 +219,7 @@ export class ProductService {
       imageUrl: data.image_url,
       attributes: data.attributes ?? {},
       variantOptions: Array.isArray(data.variant_options) ? data.variant_options : [],
+      isFavourite: Boolean(data.is_favourite),
       status: data.status,
       createdBy: data.created_by,
       createdAt: data.created_at,

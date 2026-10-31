@@ -122,6 +122,8 @@ export interface StoreSettings {
   allowNegativeStock: boolean;
   requireCustomerForSale: boolean;
   autoPrintReceipt: boolean;
+  /** Discounts above this % of the sale need a manager PIN; null = no limit */
+  discountLimitPercent?: number | null;
   receiptFormat: 'thermal' | 'a4' | 'pos';
   loyaltyEnabled: boolean;
   loyaltyEarnRate: number;
@@ -252,6 +254,8 @@ export interface Product {
   attributes?: Record<string, string>;
   /** Sizes/colours (up to two options); empty when the product has no variants. */
   variantOptions?: { name: string; values: string[] }[];
+  /** Pinned to the register's Favourites tab */
+  isFavourite?: boolean;
   status: 'active' | 'inactive' | 'archived';
   createdBy: string;
   createdAt: string;
