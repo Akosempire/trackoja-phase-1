@@ -324,7 +324,7 @@ export default function ExpensesPage() {
             </div>
           </div>
           {!isThisMonth && (
-            <button type="button" className="h-10 self-start rounded-md px-3 text-[13px] font-semibold text-brand hover:bg-brand-soft sm:self-auto"
+            <button type="button" className="h-10 self-start rounded-md px-3 text-[13px] font-semibold text-brand-ink hover:bg-brand-soft sm:self-auto"
               onClick={() => setRange({ from: startOfMonth(), to: today() })}>
               Back to this month
             </button>

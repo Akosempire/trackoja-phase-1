@@ -23,7 +23,7 @@ export function BottomNav() {
         to={item.to}
         end={item.end}
         className={({ isActive }) => cn('tl-tab flex min-w-0 flex-col items-center justify-center gap-1 text-[11px] font-medium no-underline',
-          isActive ? 'active text-brand' : 'text-ink-3')}
+          isActive ? 'active text-brand-ink' : 'text-ink-3')}
         aria-label={isCheckout && cartCount > 0 ? `${item.label}, ${cartCount} items in the sale` : item.label}
       >
         <span className="relative">
@@ -48,7 +48,7 @@ export function BottomNav() {
       {leftItems.length < 2 && Array.from({ length: 2 - leftItems.length }, (_, i) => <span key={`l${i}`} />)}
       <button
         type="button"
-        className="bottom-nav-scan flex flex-col items-center justify-end gap-1 pb-2 text-[11px] font-semibold text-brand disabled:opacity-50"
+        className="bottom-nav-scan flex flex-col items-center justify-end gap-1 pb-2 text-[11px] font-semibold text-brand-ink disabled:opacity-50"
         onClick={handleScan}
         disabled={!canScan}
         aria-label={primaryAction.scan ? 'Scan a barcode' : primaryAction.label}

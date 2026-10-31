@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 import { COMPANY_NAME, CONTACT_EMAIL } from '../landing/landingContent';
 import { Bullets, LegalLayout, Section } from './LegalLayout';
 
-const Mail = () => <a className="font-medium text-brand" href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>;
+const Mail = () => <a className="font-medium text-brand-ink" href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>;
 
 const PROCESSORS: [string, string, string][] = [
   ['Supabase', 'Database, sign-in and file storage', 'EU / US'],
@@ -92,7 +92,7 @@ export default function PrivacyPage() {
       </Section>
 
       <Section title="11. Changes">
-        <p className="m-0">We may update this policy. If a change matters, we’ll tell you in the app or by email. See also our <Link className="font-medium text-brand" to="/terms">terms of service</Link>.</p>
+        <p className="m-0">We may update this policy. If a change matters, we’ll tell you in the app or by email. See also our <Link className="font-medium text-brand-ink" to="/terms">terms of service</Link>.</p>
       </Section>
     </LegalLayout>
   );

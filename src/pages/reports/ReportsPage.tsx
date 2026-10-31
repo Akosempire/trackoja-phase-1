@@ -283,19 +283,15 @@ export default function ReportsPage() {
                 {inventoryValuation && (
                   <>
                     <dl className="m-0 space-y-3">
-                      <div>
-                        <div className="flex items-baseline justify-between gap-3">
+                      <div className="flex flex-wrap items-baseline justify-between gap-x-3">
                           <dt className="text-[13px] text-ink-2">Retail value</dt>
                           <dd className="m-0 text-base font-semibold tabular-nums text-ink">{formatMoney(inventoryValuation.totalRetailValue)}</dd>
-                        </div>
-                        <div className="mt-1.5"><Meter value={inventoryValuation.totalRetailValue > 0 ? 100 : 0} /></div>
+                        <dd className="m-0 mt-1.5 w-full" aria-hidden="true"><Meter value={inventoryValuation.totalRetailValue > 0 ? 100 : 0} /></dd>
                       </div>
-                      <div>
-                        <div className="flex items-baseline justify-between gap-3">
+                      <div className="flex flex-wrap items-baseline justify-between gap-x-3">
                           <dt className="text-[13px] text-ink-2">Cost value</dt>
                           <dd className="m-0 text-base font-semibold tabular-nums text-ink">{formatMoney(inventoryValuation.totalCostValue)}</dd>
-                        </div>
-                        <div className="mt-1.5"><Meter value={percent(inventoryValuation.totalCostValue, inventoryValuation.totalRetailValue)} tone="bg-ink-3" /></div>
+                        <dd className="m-0 mt-1.5 w-full" aria-hidden="true"><Meter value={percent(inventoryValuation.totalCostValue, inventoryValuation.totalRetailValue)} tone="bg-ink-3" /></dd>
                       </div>
                     </dl>
                     <p className="m-0 mt-3 text-xs text-ink-3">

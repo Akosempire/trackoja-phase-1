@@ -31,7 +31,7 @@ export function PayDialog({ open, onClose, onDone, storeId, supplierId, purchase
       footer={<><Button variant="ghost" onClick={onClose}>Cancel</Button><Button onClick={pay} loading={busy} disabled={!(n > 0) || n > owed}>Record payment</Button></>}>
       <div className="flex flex-col gap-3">
         {error && <p className="m-0 rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger" role="alert">{error}</p>}
-        <Labelled label="Amount" hint={<button type="button" className="font-semibold text-brand" onClick={() => setAmount(String(owed))}>Pay all {formatMoney(owed)}</button>}>
+        <Labelled label="Amount" hint={<button type="button" className="font-semibold text-brand-ink" onClick={() => setAmount(String(owed))}>Pay all {formatMoney(owed)}</button>}>
           <NumberBox label="Amount" value={amount} onChange={setAmount} />
         </Labelled>
         <div className="grid grid-cols-2 gap-2">

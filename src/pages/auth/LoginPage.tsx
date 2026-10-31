@@ -62,7 +62,7 @@ export default function LoginPage() {
           required
         />
         <div className="-mt-1 mb-5 flex justify-end">
-          <Link to="/forgot-password" className="text-[13px] font-medium text-brand no-underline hover:underline">
+          <Link to="/forgot-password" className="text-[13px] font-medium text-brand-ink no-underline hover:underline">
             Forgot password?
           </Link>
         </div>

@@ -148,7 +148,7 @@ export default function StockAdjustmentPage() {
       <PageHeader
         title="Adjust stock"
         subtitle="Quick one-off corrections. For deliveries, counts and branch transfers use Restock."
-        actions={<Link className="text-[13px] font-semibold text-brand no-underline" to="/inventory/restock">Open Restock</Link>}
+        actions={<Link className="tap text-[13px] font-semibold text-brand-ink no-underline" to="/inventory/restock">Open Restock</Link>}
       />
 
       {error && <div className="mb-4 rounded-lg bg-danger-soft px-4 py-3 text-sm text-danger" role="alert">{error}</div>}

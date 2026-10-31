@@ -216,8 +216,8 @@ export default function ProductsPage() {
       )}
 
       <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-[13px]">
-        <Link className="font-semibold text-brand no-underline" to="/inventory/categories">Manage categories</Link>
-        <Link className="font-semibold text-brand no-underline" to="/inventory/lots">Batches and expiry</Link>
+        <Link className="tap font-semibold text-brand-ink no-underline" to="/inventory/categories">Manage categories</Link>
+        <Link className="tap font-semibold text-brand-ink no-underline" to="/inventory/lots">Batches and expiry</Link>
       </div>
     </Page>
   );

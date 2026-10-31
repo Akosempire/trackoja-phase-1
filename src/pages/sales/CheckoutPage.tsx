@@ -725,12 +725,12 @@ export default function CheckoutPage() {
                       </>
                     ) : (
                       <div className="flex flex-wrap gap-x-4 gap-y-2">
-                        <button type="button" className="text-[13px] font-semibold text-brand" onClick={() => setShowCustomerSearch(true)}>+ Add customer</button>
-                        {!(showDiscount || discount > 0) && <button type="button" className="text-[13px] font-semibold text-brand" onClick={() => setShowDiscount(true)}>+ Add discount</button>}
+                        <button type="button" className="text-[13px] font-semibold text-brand-ink" onClick={() => setShowCustomerSearch(true)}>+ Add customer</button>
+                        {!(showDiscount || discount > 0) && <button type="button" className="text-[13px] font-semibold text-brand-ink" onClick={() => setShowDiscount(true)}>+ Add discount</button>}
                       </div>
                     )}
                     {(selectedCustomer || showCustomerSearch || requireCustomer) && !(showDiscount || discount > 0) && (
-                      <button type="button" className="mt-3 text-[13px] font-semibold text-brand" onClick={() => setShowDiscount(true)}>+ Add discount</button>
+                      <button type="button" className="mt-3 text-[13px] font-semibold text-brand-ink" onClick={() => setShowDiscount(true)}>+ Add discount</button>
                     )}
                   </div>
 

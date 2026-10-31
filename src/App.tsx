@@ -16,7 +16,18 @@ const pageModules = import.meta.glob<{ default: ComponentType }>([
 const lazyPage = (path: string) => {
   const loader = pageModules[`${path}.tsx`];
   if (!loader) throw new Error(`Unknown page module: ${path}`);
-  return lazy(() => withTimeout(loader(), 20000));
+  // After a new release the old page may ask for a screen file that no longer
+  // exists. Reload once to pick up the new release instead of showing a broken page.
+  return lazy(() => withTimeout(loader(), 20000).catch((error: unknown) => {
+    const key = 'trackoja.chunk-reload';
+    let reloaded = false;
+    try { reloaded = sessionStorage.getItem(key) === '1'; sessionStorage.setItem(key, '1'); } catch { /* storage blocked */ }
+    if (!reloaded && /dynamically imported module|Importing a module script failed|Failed to fetch/i.test(String((error as Error)?.message ?? error))) {
+      window.location.reload();
+      return new Promise<never>(() => undefined);
+    }
+    throw error;
+  }));
 };
 const WelcomePage = lazyPage('./pages/WelcomePage');
 const LoginPage = lazyPage('./pages/auth/LoginPage');

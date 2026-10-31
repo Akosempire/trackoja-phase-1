@@ -38,7 +38,7 @@ export function PinDialog({ open, onClose, title, description, submitLabel = 'Co
         />
         {error && <p className="m-0 rounded-lg bg-danger-soft px-3 py-2 text-[13px] text-danger" role="alert">{error}</p>}
         <div className="grid grid-cols-3 gap-2" aria-hidden="true">
-          {['1', '2', '3', '4', '5', '6', '7', '8', '9', '', '0', '⌫'].map((k, i) => k === '' ? <span key={i} /> : (
+          {['1', '2', '3', '4', '5', '6', '7', '8', '9', '', '0', '⌫'].map((k, i) => k === '' ? <span key={`gap-${i}`} /> : (
             <button key={k} type="button" tabIndex={-1}
               onClick={() => (k === '⌫' ? setPin((p) => p.slice(0, -1)) : press(k))}
               className={cn('h-12 rounded-lg border border-line bg-subtle text-lg font-semibold text-ink active:bg-hover')}>{k}</button>

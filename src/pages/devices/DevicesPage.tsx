@@ -179,7 +179,7 @@ export default function DevicesPage() {
                       <DevicesIcon width={18} height={18} />
                     </span>
                     <div className="min-w-0">
-                      <Link to={`/devices/${device.id}`} className="block truncate text-sm font-medium text-ink no-underline hover:text-brand">
+                      <Link to={`/devices/${device.id}`} className="block truncate text-sm font-medium text-ink no-underline hover:text-brand-ink">
                         {device.name}
                       </Link>
                       <p className="m-0 mt-0.5 truncate text-xs text-ink-3">

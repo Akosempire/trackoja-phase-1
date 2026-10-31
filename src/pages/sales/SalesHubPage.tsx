@@ -17,7 +17,7 @@ import { getBusinessExperience } from '../../config/businessExperience';
 import { formatDateTime, formatMoney, formatNumber } from '../../utils/format';
 import { recordSaleAction } from '../../utils/business-language';
 
-const linkClass = 'text-[13px] font-semibold text-brand no-underline';
+const linkClass = 'text-[13px] font-semibold text-brand-ink no-underline';
 const rowClass = 'flex items-center justify-between gap-3 px-4 py-3 text-inherit no-underline transition-colors hover:bg-subtle sm:px-5';
 const methodLabel = (method: string) => method.length <= 3 ? method.toUpperCase() : method[0].toUpperCase() + method.slice(1).replace(/_/g, ' ');
 

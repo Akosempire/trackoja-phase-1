@@ -200,7 +200,7 @@ export default function PaymentsPage() {
               </div>
               <div className="mt-3">
                 <details className="group">
-                  <summary className="inline-flex h-8 cursor-pointer list-none items-center gap-1.5 rounded-md text-[13px] font-semibold text-brand [&::-webkit-details-marker]:hidden">
+                  <summary className="inline-flex h-8 cursor-pointer list-none items-center gap-1.5 rounded-md text-[13px] font-semibold text-brand-ink [&::-webkit-details-marker]:hidden">
                     <svg aria-hidden="true" viewBox="0 0 16 16" width="14" height="14" className="transition-transform group-open:rotate-90"><path d="m6 4 4 4-4 4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
                     {activeFilters ? `More payment filters (${activeFilters} on)` : 'More payment filters'}
                   </summary>
@@ -258,7 +258,7 @@ export default function PaymentsPage() {
                   {filteredAttempts.map((attempt) => (
                     <li key={attempt.id} className={cn('grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-1.5 px-4 py-3 sm:px-5', cols)}>
                       <div className="min-w-0">
-                        <Link className="block truncate font-mono text-[13px] font-medium text-ink no-underline hover:text-brand hover:underline" to={`/payments/transactions/${attempt.id}`}>{attempt.merchantReference}</Link>
+                        <Link className="block truncate font-mono text-[13px] font-medium text-ink no-underline hover:text-brand-ink hover:underline" to={`/payments/transactions/${attempt.id}`}>{attempt.merchantReference}</Link>
                         <p className="m-0 mt-0.5 truncate text-xs text-ink-3">
                           {attempt.providerReference ? <>Provider: <span className="font-mono">{attempt.providerReference}</span></> : 'No provider reference yet'}
                           {attempt.environment === 'sandbox' && <> · <span className="font-semibold text-warn-ink">Sandbox</span></>}

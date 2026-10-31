@@ -48,7 +48,7 @@ export default function SupplierDetailPage() {
       )}
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start lg:gap-6">
         <Card padded={false} className="overflow-hidden">
-          <div className="px-4 pt-4 sm:px-5"><CardHead title="Deliveries" action={hasPermission('purchase:create') ? <Link className="text-[13px] font-semibold text-brand no-underline" to="/inventory/receive">Receive stock</Link> : undefined} /></div>
+          <div className="px-4 pt-4 sm:px-5"><CardHead title="Deliveries" action={hasPermission('purchase:create') ? <Link className="tap text-[13px] font-semibold text-brand-ink no-underline" to="/inventory/receive">Receive stock</Link> : undefined} /></div>
           {deliveries.length ? (
             <ul className="m-0 list-none divide-y divide-line border-t border-line p-0">
               {deliveries.map((p) => (

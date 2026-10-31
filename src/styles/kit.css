@@ -2,6 +2,11 @@
    Lives in the `components` layer, so it beats every legacy sheet while Tailwind
    utilities still beat it. Screens not yet rebuilt pick up the new look from here. */
 @layer components {
+  /* Bigger tap area for small text links (WCAG 2.5.8, aim 44px): the hit box grows, the layout doesn't */
+  .tap { position: relative; }
+  .tap::after { content: ''; position: absolute; inset: -12px -8px; }
+  /* Checkboxes and radios at least 20px, inside a label row that is at least 44px where possible */
+  input[type='checkbox'], input[type='radio'] { min-width: 20px; min-height: 20px; }
   .page { width: 100%; max-width: 1120px; margin-inline: auto; padding: 20px 16px 112px; }
   @media (min-width: 640px) { .page { padding-inline: 24px; } }
   @media (min-width: 1024px) { .page { padding: 32px 32px 40px; } }

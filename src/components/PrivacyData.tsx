@@ -84,7 +84,7 @@ export function PrivacyDataCard({ storeId, storeName, orgId, canExport }: { stor
   const bizName = deletion?.name ?? '';
   return (
     <Card aria-labelledby="privacy-title">
-      <CardHead title={<span id="privacy-title">Privacy &amp; data</span>} hint={<>Your data, your choice. See our <Link className="text-brand" to="/privacy">privacy policy</Link>.</>} />
+      <CardHead title={<span id="privacy-title">Privacy &amp; data</span>} hint={<>Your data, your choice. See our <Link className="text-brand-ink" to="/privacy">privacy policy</Link>.</>} />
       <div className="flex flex-col divide-y divide-line">
         {canExport && (
           <div className="flex flex-col gap-3 pb-4 sm:flex-row sm:items-center sm:justify-between">

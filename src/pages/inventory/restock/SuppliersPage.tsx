@@ -87,7 +87,7 @@ export default function SuppliersPage() {
                 </li>
               ))}
             </ul>
-          ) : <div className="p-4"><Empty title="No deliveries yet" action={<Link className="text-sm font-semibold text-brand" to="/inventory/receive">Receive stock</Link>} /></div>}
+          ) : <div className="p-4"><Empty title="No deliveries yet" action={<Link className="text-sm font-semibold text-brand-ink" to="/inventory/receive">Receive stock</Link>} /></div>}
         </Card>
       )}
       {editing && <SupplierForm storeId={storeId} supplier={editing === 'new' ? null : editing} onClose={() => setEditing(null)} onSaved={load} />}

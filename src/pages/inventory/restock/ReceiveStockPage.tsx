@@ -142,7 +142,7 @@ export default function ReceiveStockPage() {
                     </div>
                     <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-ink-3">
                       <span>New cost price: <strong className="font-semibold text-ink-2">{formatMoney(newCost)}</strong>{newCost !== l.product.costPrice ? ` (was ${formatMoney(l.product.costPrice)})` : ''}</span>
-                      <button type="button" className="font-semibold text-brand" onClick={() => set(l.key, { showBatch: !l.showBatch })}>{l.showBatch ? 'No batch' : 'Add batch & expiry'}</button>
+                      <button type="button" className="font-semibold text-brand-ink" onClick={() => set(l.key, { showBatch: !l.showBatch })}>{l.showBatch ? 'No batch' : 'Add batch & expiry'}</button>
                     </div>
                     {l.showBatch && (
                       <div className="mt-2 grid grid-cols-2 gap-2">
@@ -190,7 +190,7 @@ export default function ReceiveStockPage() {
             {error && <p className="m-0 rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger" role="alert">{error}</p>}
             {batchMissing && <p className="m-0 text-xs text-danger">Add the batch number for lines with an expiry date.</p>}
             <Button onClick={save} loading={saving} disabled={problems.length > 0 || batchMissing} className="w-full">Save and add to stock</Button>
-            <p className="m-0 text-xs text-ink-3">Cost price becomes the average of what's on the shelf and what arrived. The delivery also shows in <Link to="/expenses" className="text-brand">Expenses</Link>.</p>
+            <p className="m-0 text-xs text-ink-3">Cost price becomes the average of what's on the shelf and what arrived. The delivery also shows in <Link to="/expenses" className="text-brand-ink">Expenses</Link>.</p>
           </div>
         </Card>
       </div>

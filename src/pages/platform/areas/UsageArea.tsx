@@ -51,7 +51,7 @@ export default function UsageArea() {
                 className={cn('h-8 rounded-md border-0 px-3 text-[13px] font-medium', days === p ? 'bg-surface text-ink shadow-card' : 'bg-transparent text-ink-3 hover:text-ink')}>{p} days</button>
             ))}
           </div>
-          {store && <button type="button" className="h-8 rounded-md border-0 bg-transparent px-3 text-[13px] font-medium text-brand" onClick={() => setStore(null)}>All stores</button>}
+          {store && <button type="button" className="h-8 rounded-md border-0 bg-transparent px-3 text-[13px] font-medium text-brand-ink" onClick={() => setStore(null)}>All stores</button>}
           <RefreshButton onClick={load} loading={rows === null && !error} />
         </>} />
 

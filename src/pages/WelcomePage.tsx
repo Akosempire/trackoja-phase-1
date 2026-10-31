@@ -136,7 +136,7 @@ export default function WelcomePage() {
 
         <p className="m-0 mt-5 text-center text-sm text-ink-2">
           Already have an account?{' '}
-          <Link to="/login" className="font-semibold text-brand no-underline hover:underline" onClick={() => localStorage.setItem(WELCOME_SEEN_KEY, '1')}>
+          <Link to="/login" className="font-semibold text-brand-ink no-underline hover:underline" onClick={() => localStorage.setItem(WELCOME_SEEN_KEY, '1')}>
             Sign in
           </Link>
         </p>

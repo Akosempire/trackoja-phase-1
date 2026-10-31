@@ -88,7 +88,7 @@ function PreviewRow({ label, meta, children }: { label: string; meta?: string; c
 function SectionHead({ eyebrow, title, copy, center }: { eyebrow?: string; title: string; copy?: string; center?: boolean }) {
   return (
     <div className={cn('mb-8 max-w-[640px] sm:mb-10', center && 'mx-auto text-center')}>
-      {eyebrow && <p className="m-0 mb-2 text-[13px] font-semibold text-brand">{eyebrow}</p>}
+      {eyebrow && <p className="m-0 mb-2 text-[13px] font-semibold text-brand-ink">{eyebrow}</p>}
       <h2 className={sectionTitle}>{title}</h2>
       {copy && <p className={sectionCopy}>{copy}</p>}
     </div>
@@ -265,7 +265,7 @@ export default function LandingPage() {
               <h1 className="m-0 mt-5 text-[36px] font-semibold leading-[42px] tracking-tight text-ink sm:text-5xl sm:leading-[56px] lg:text-[56px] lg:leading-[64px]">
                 <span className="block">Sell faster.</span>
                 <span className="block">Track stock.</span>
-                <span className="block text-brand">Know your profit.</span>
+                <span className="block text-brand-ink">Know your profit.</span>
               </h1>
               <p className="m-0 mt-5 max-w-[540px] text-base leading-7 text-ink-2 sm:text-[17px]">
                 {APP_NAME} records every sale, updates stock as you sell, and shows how the day
@@ -601,7 +601,7 @@ export default function LandingPage() {
                   <>
                     We could not load our plans, so no price is shown here. We would rather say
                     that than quote a figure that may be out of date. Email{' '}
-                    <a className="font-medium text-brand" href={`mailto:${CONTACT_EMAIL}`}>
+                    <a className="font-medium text-brand-ink" href={`mailto:${CONTACT_EMAIL}`}>
                       {CONTACT_EMAIL}
                     </a>{' '}
                     and we will confirm current pricing.
@@ -625,7 +625,7 @@ export default function LandingPage() {
               <p className="m-0 mx-auto mt-3 max-w-[480px] text-[15px] leading-6 text-white/85">
                 Bring your sales, stock, customers, and team into one place.
               </p>
-              <Link className="mt-8 inline-flex h-12 items-center justify-center gap-2 rounded-md bg-white px-5 text-[15px] font-semibold text-brand no-underline transition-colors hover:bg-white/90" to="/signup">
+              <Link className="mt-8 inline-flex h-12 items-center justify-center gap-2 rounded-md bg-white px-5 text-[15px] font-semibold text-brand-ink no-underline transition-colors hover:bg-white/90" to="/signup">
                 Get started with {APP_NAME}
                 <IconArrowRight width={18} />
               </Link>

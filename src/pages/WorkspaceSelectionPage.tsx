@@ -45,7 +45,7 @@ export default function WorkspaceSelectionPage() {
     <main className="min-h-dvh bg-canvas px-4 py-10 sm:py-16">
       <div className="mx-auto w-full max-w-[560px]">
         <div className="mb-6 text-center sm:mb-8">
-          <p className="m-0 mb-1 text-[13px] font-semibold text-brand">TrackOja</p>
+          <p className="m-0 mb-1 text-[13px] font-semibold text-brand-ink">TrackOja</p>
           <h1 className="m-0 text-2xl font-semibold leading-8 tracking-tight text-ink lg:text-[28px] lg:leading-9">Choose a business</h1>
           <p className="m-0 mt-1 text-sm text-ink-2">You belong to more than one workspace. Choose where you want to continue.</p>
         </div>

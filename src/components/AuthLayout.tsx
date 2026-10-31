@@ -95,7 +95,7 @@ export function AuthLayout({ title, subtitle, children, footer }: AuthLayoutProp
           <div className="mt-6 [&_input.form-input]:h-11 [&_input.form-input]:text-[15px] [&_.form-input-reveal]:size-10">{children}</div>
         </div>
         {footer && (
-          <div className="mt-5 text-center text-sm text-ink-2 [&_a]:font-semibold [&_a]:text-brand [&_a]:no-underline [&_a:hover]:underline">
+          <div className="mt-5 text-center text-sm text-ink-2 [&_a]:font-semibold [&_a]:text-brand-ink [&_a]:no-underline [&_a:hover]:underline">
             {footer}
           </div>
         )}

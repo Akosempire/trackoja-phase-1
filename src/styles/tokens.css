@@ -19,7 +19,7 @@
   --color-accent: #1570ef;
   --color-accent-hover: #175cd3;
   --color-accent-dark: #3b8cff;
-  --color-danger: #d92d20;
+  --color-danger: #b42318; /* error-700: 5.9:1 on danger-soft, was #d92d20 (4.4:1) */
   --color-success: #079455;
   --color-warning: #dc6803;
   --color-info: #0086c9;

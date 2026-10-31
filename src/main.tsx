@@ -30,3 +30,6 @@ createRoot(document.getElementById('root')!).render(
     </AppErrorBoundary>
   </StrictMode>
 );
+
+// The app started fine: allow one more automatic reload after a future release (see lazyPage in App.tsx).
+window.setTimeout(() => { try { sessionStorage.removeItem('trackoja.chunk-reload'); } catch { /* storage blocked */ } }, 10000);

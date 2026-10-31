@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 import { COMPANY_NAME, CONTACT_EMAIL } from '../landing/landingContent';
 import { Bullets, LegalLayout, Section } from './LegalLayout';
 
-const Mail = () => <a className="font-medium text-brand" href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>;
+const Mail = () => <a className="font-medium text-brand-ink" href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>;
 
 export default function TermsPage() {
   return (
@@ -33,7 +33,7 @@ export default function TermsPage() {
       </Section>
 
       <Section title="5. Your data">
-        <p className="m-0">Your shop’s records belong to you. You can download them or delete your business at any time in Settings → Privacy &amp; data. How we handle personal data is set out in our <Link className="font-medium text-brand" to="/privacy">privacy policy</Link>. You’re responsible for having the right to record your customers’ and staff’s details in TrackOja.</p>
+        <p className="m-0">Your shop’s records belong to you. You can download them or delete your business at any time in Settings → Privacy &amp; data. How we handle personal data is set out in our <Link className="font-medium text-brand-ink" to="/privacy">privacy policy</Link>. You’re responsible for having the right to record your customers’ and staff’s details in TrackOja.</p>
       </Section>
 
       <Section title="6. Fair use">

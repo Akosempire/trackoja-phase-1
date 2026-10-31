@@ -58,7 +58,7 @@ export default function ReconciliationPage() {
           <ul className="m-0 list-none divide-y divide-line border-t border-line p-0">{attempts.map((attempt) => <li className="px-4 py-4 sm:px-5" key={attempt.id}>
             <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
               <div className="min-w-0">
-                <Link className="block break-all font-mono text-[13px] font-medium text-ink no-underline hover:text-brand hover:underline" to={`/payments/transactions/${attempt.id}`}>{attempt.merchantReference}</Link>
+                <Link className="block break-all font-mono text-[13px] font-medium text-ink no-underline hover:text-brand-ink hover:underline" to={`/payments/transactions/${attempt.id}`}>{attempt.merchantReference}</Link>
                 <p className="m-0 mt-0.5 text-xs text-ink-3">{formatDateTime(attempt.initiatedAt)} · Terminal ••••{attempt.terminalLastFour}
                   {attempt.environment === 'sandbox' ? ' · Sandbox' : ''}</p>
               </div>

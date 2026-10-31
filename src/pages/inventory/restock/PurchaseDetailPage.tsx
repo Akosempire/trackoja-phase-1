@@ -58,7 +58,7 @@ export default function PurchaseDetailPage() {
         ) : <p className="m-0 text-sm text-ink-3">Nothing paid yet.</p>}
         {p.notes && <p className="m-0 mt-3 border-t border-line pt-3 text-sm text-ink-2">{p.notes}</p>}
       </Card>
-      {p.supplier_id && <div className="mt-4"><Link className="text-sm font-semibold text-brand" to={`/inventory/suppliers/${p.supplier_id}`}>Open supplier</Link></div>}
+      {p.supplier_id && <div className="mt-4"><Link className="text-sm font-semibold text-brand-ink" to={`/inventory/suppliers/${p.supplier_id}`}>Open supplier</Link></div>}
       {paying && p.supplier_id && <PayDialog open onClose={() => setPaying(false)} onDone={load} storeId={storeId} supplierId={p.supplier_id} purchaseId={p.id} owed={owed} supplierName={p.supplier_name ?? 'supplier'} />}
     </Page>
   );

@@ -42,7 +42,7 @@ export default function LegalPlaceholderPage({
           </p>
           <p className="m-0">
             In the meantime, send any question about your data or your agreement to{' '}
-            <a className="font-medium text-brand" href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a> and we will answer directly.
+            <a className="font-medium text-brand-ink" href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a> and we will answer directly.
           </p>
           <p className="m-0 border-t border-line pt-4 text-[13px] text-ink-3">{APP_NAME} is operated by {COMPANY_NAME}.</p>
         </div>
