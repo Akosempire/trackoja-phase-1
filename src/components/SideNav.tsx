@@ -32,14 +32,14 @@ export function SideNav({ onLogout, mobile = false, onClose }: SideNavProps) {
   const linkClass = ({ isActive }: { isActive: boolean }) => cn(
     'tl-nav-link flex h-9 items-center gap-3 rounded-lg px-2.5 text-sm font-medium no-underline transition-colors',
     compact && 'justify-center px-0',
-    isActive ? 'active bg-brand-soft text-brand-ink' : 'text-ink-2 hover:bg-hover hover:text-ink',
+    isActive ? 'active bg-surface text-brand-ink shadow-card' : 'text-ink-2 hover:bg-surface hover:text-ink',
   );
 
   return (
     <aside
       aria-label="Workspace"
-      className={cn('tl-side flex flex-col bg-surface',
-        mobile ? 'h-full w-full' : 'sticky top-0 hidden h-dvh shrink-0 border-r border-line lg:flex',
+      className={cn('tl-side flex flex-col bg-canvas',
+        mobile ? 'h-full w-full' : 'sticky top-0 hidden h-dvh shrink-0 lg:flex',
         !mobile && (compact ? 'w-[72px]' : 'w-64'))}
     >
       <div className={cn('flex h-16 items-center gap-2.5 px-4', compact && 'justify-center px-0')}>
