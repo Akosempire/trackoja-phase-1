@@ -388,7 +388,7 @@ export const TEAM_ROLES = [
 ];
 
 export const NAV_LINKS = [
-  { label: 'Features', href: '#features' },
+  { label: 'Features', href: '#day' },
   { label: 'How it works', href: '#how-it-works' },
   { label: 'Businesses', href: '#businesses' },
   { label: 'Pricing', href: '#pricing' },

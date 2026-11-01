@@ -4,7 +4,6 @@ import { Link } from 'react-router-dom';
 import {
   ANNUAL_SAVINGS_LABEL,
   BUSINESS_TYPES,
-  CAPABILITIES,
   COMPANY_NAME,
   CONTACT_EMAIL,
   NAV_LINKS,
@@ -24,22 +23,17 @@ import {
   type PricingPlan,
 } from './landingContent';
 import { SubscriptionService } from '../../services/subscription.service';
+import { DayInTheShop, LandingStyles, NightCta, PremiumHero } from './Premium';
 import { InstallAppAction } from '../../components/InstallAppAction';
 import { btn, cn } from '../../components/kit';
 import { APP_NAME } from '../../config/brand';
 import {
   BrandLogo,
-  IconArrowRight,
   IconCheck,
   IconClose,
-  IconCustomers,
   IconMenu,
-  IconReports,
-  IconSales,
-  IconStock,
 } from './LandingIcons';
 
-const CAPABILITY_ICONS = [IconSales, IconStock, IconCustomers, IconReports];
 
 /** Loading placeholders: the same grid, filled with the same card shape. */
 const PRICE_CARD_PLACEHOLDERS = [1, 2, 3, 4];
@@ -55,7 +49,7 @@ type PricingState =
   | { status: 'unavailable'; cause: 'failed' | 'empty' };
 
 const container = 'mx-auto w-full max-w-[1160px] px-4 sm:px-6 lg:px-8';
-const sectionTitle = 'm-0 text-[26px] font-semibold leading-[34px] tracking-tight text-ink sm:text-[32px] sm:leading-10';
+const sectionTitle = 'lp-display m-0 text-[32px] font-bold leading-[1.05] text-ink sm:text-[46px]';
 const sectionCopy = 'm-0 mt-3 text-[15px] leading-6 text-ink-2';
 const surfaceCard = 'min-w-0 rounded-xl border border-line bg-surface shadow-card';
 const footerLink = 'text-sm text-ink-2 no-underline hover:text-ink';
@@ -85,54 +79,15 @@ function PreviewRow({ label, meta, children }: { label: string; meta?: string; c
   );
 }
 
-function SectionHead({ eyebrow, title, copy, center }: { eyebrow?: string; title: string; copy?: string; center?: boolean }) {
+function SectionHead({ title, copy, center }: { title: string; copy?: string; center?: boolean }) {
   return (
     <div className={cn('mb-8 max-w-[640px] sm:mb-10', center && 'mx-auto text-center')}>
-      {eyebrow && <p className="m-0 mb-2 text-[13px] font-semibold text-brand-ink">{eyebrow}</p>}
       <h2 className={sectionTitle}>{title}</h2>
       {copy && <p className={sectionCopy}>{copy}</p>}
     </div>
   );
 }
 
-/** The hero's product preview, drawn from the same sample rows the page shows below. */
-function HeroPreview() {
-  return (
-    <div role="img" aria-label={`Sample ${APP_NAME} screens: today's sales summary and a cashier's cart`} className="relative mx-auto w-full max-w-[460px] lg:mr-0">
-      <div className="rounded-2xl border border-line bg-tray p-3 shadow-pop sm:p-4">
-        <div className={cn(surfaceCard, 'p-4 sm:p-5')}>
-          <div className="flex items-center justify-between">
-            <p className="m-0 text-[13px] font-medium text-ink-2">Today</p>
-            <Tag tone="ok">Live</Tag>
-          </div>
-          <p className="m-0 mt-2 text-[30px] font-semibold leading-9 tracking-tight tabular-nums text-ink">{OWNER_VIEW_ROWS[0].value}</p>
-          <p className="m-0 text-xs text-ink-3">{OWNER_VIEW_ROWS[0].label}</p>
-          <div className="mt-4 grid grid-cols-3 gap-2">
-            {OWNER_VIEW_ROWS.slice(1).map((row) => (
-              <div key={row.label} className="min-w-0 rounded-lg bg-subtle px-2.5 py-2">
-                <p className="m-0 truncate text-[11px] text-ink-3">{row.label}</p>
-                <p className={cn('m-0 mt-0.5 text-[15px] font-semibold tabular-nums', 'tone' in row && row.tone === 'warn' ? 'text-warn-ink' : 'text-ink')}>{row.value}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-        <div className={cn(surfaceCard, 'mt-3 p-4 sm:p-5')}>
-          <p className="m-0 text-[13px] font-medium text-ink-2">Cart · {STAFF_VIEW_ROWS.length} items</p>
-          <div className="divide-y divide-line">
-            {STAFF_VIEW_ROWS.map((row) => (
-              <PreviewRow key={row.label} label={row.label} meta={row.meta}>
-                <span className="shrink-0 text-[13px] font-semibold tabular-nums text-ink">{row.value}</span>
-              </PreviewRow>
-            ))}
-          </div>
-          <div className="mt-2 flex h-11 items-center justify-between rounded-md bg-brand px-4 text-sm font-semibold text-white">
-            <span>Charge</span><span className="tabular-nums">{STAFF_VIEW_TOTAL}</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 export default function LandingPage() {
   const { billing: availability } = useBillingAvailability();
@@ -191,6 +146,7 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-dvh bg-canvas text-ink">
+      <LandingStyles />
       <a className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-surface focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-ink focus:shadow-pop" href="#lp-main">
         Skip to content
       </a>
@@ -255,83 +211,15 @@ export default function LandingPage() {
       <main id="lp-main">
         <span id="lp-top" />
 
-        {/* ---------------------------------------------------------- hero */}
-        <section className="border-b border-line bg-surface">
-          <div className={cn(container, 'grid items-center gap-10 py-12 sm:py-16 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] lg:gap-16 lg:py-24')}>
-            <div className="min-w-0">
-              <p className="m-0 inline-flex items-center gap-2 rounded-full bg-brand-soft px-3 py-1 text-[13px] font-medium text-brand-ink">
-                Point of sale and stock for small shops
-              </p>
-              <h1 className="m-0 mt-5 text-[36px] font-semibold leading-[42px] tracking-tight text-ink sm:text-5xl sm:leading-[56px] lg:text-[56px] lg:leading-[64px]">
-                <span className="block">Sell faster.</span>
-                <span className="block">Track stock.</span>
-                <span className="block text-brand-ink">Know your profit.</span>
-              </h1>
-              <p className="m-0 mt-5 max-w-[540px] text-base leading-7 text-ink-2 sm:text-[17px]">
-                {APP_NAME} records every sale, updates stock as you sell, and shows how the day
-                went, from the phone you already have. Set it up for your type of business in minutes.
-              </p>
-              <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-                <Link className={btn('primary', 'lg')} to="/signup">
-                  Get started
-                  <IconArrowRight width={18} />
-                </Link>
-                <a className={btn('outline', 'lg')} href="#how-it-works">
-                  See how it works
-                </a>
-              </div>
-              <ul className="m-0 mt-8 flex list-none flex-wrap gap-x-5 gap-y-2 p-0 text-[13px] text-ink-2">
-                {['Works on any phone', 'Cash, card and transfer', 'Owner and staff roles'].map((item) => (
-                  <li key={item} className="inline-flex items-center gap-1.5">
-                    <span className="text-success"><IconCheck width={16} /></span>
-                    {item}
-                  </li>
-                ))}
-              </ul>
-            </div>
+        <PremiumHero container={container} />
 
-            <HeroPreview />
-          </div>
-        </section>
+        <DayInTheShop container={container} />
 
-        {/* -------------------------------------------------- capabilities */}
-        <section className="scroll-mt-16 py-16 sm:py-20" id="features">
-          <div className={container}>
-            <SectionHead eyebrow="Features" title="Everything you need to stay on top of business." />
-
-            <div className="grid gap-4 md:grid-cols-2">
-              {CAPABILITIES.map((capability, index) => {
-                const Icon = CAPABILITY_ICONS[index] ?? IconSales;
-                return (
-                  <article className={cn(surfaceCard, 'flex flex-col p-5')} key={capability.title}>
-                    <span className="inline-flex size-10 items-center justify-center rounded-lg bg-brand-soft text-brand-ink" aria-hidden="true">
-                      <Icon width={20} />
-                    </span>
-                    <h3 className="m-0 mt-4 text-[16px] font-semibold text-ink">{capability.title}</h3>
-                    <p className="m-0 mt-1 text-sm leading-[22px] text-ink-2">{capability.copy}</p>
-
-                    <div className="mt-4 divide-y divide-line rounded-lg bg-subtle px-3">
-                      {capability.fragment.map((row) => (
-                        <PreviewRow key={row.label} label={row.label} meta={row.meta}>
-                          {row.value && <Tag tone={row.tone}>{row.value}</Tag>}
-                        </PreviewRow>
-                      ))}
-                    </div>
-
-                    {capability.note && <p className="m-0 mt-3 text-xs text-ink-3">{capability.note}</p>}
-                  </article>
-                );
-              })}
-            </div>
-          </div>
-        </section>
 
         {/* ------------------------------------------------ business types */}
         <section className="scroll-mt-16 border-y border-line bg-surface py-16 sm:py-20" id="businesses">
           <div className={container}>
-            <SectionHead
-              eyebrow="Businesses"
-              title="Built around your kind of business."
+            <SectionHead title="Built around your kind of business."
               copy="Choose your business type during setup and work with tools that reflect how you operate."
             />
 
@@ -403,7 +291,7 @@ export default function LandingPage() {
         {/* ------------------------------------------------- how it works */}
         <section className="scroll-mt-16 py-16 sm:py-20" id="how-it-works">
           <div className={container}>
-            <SectionHead eyebrow="How it works" title="From setup to your next sale." />
+            <SectionHead title="From setup to your next sale." />
 
             <ol className="m-0 grid list-none gap-4 p-0 lg:grid-cols-3">
               {STEPS.map((step, index) => (
@@ -427,7 +315,7 @@ export default function LandingPage() {
         {/* --------------------------------------------- owner and team */}
         <section className="scroll-mt-16 border-y border-line bg-surface py-16 sm:py-20" id="team">
           <div className={container}>
-            <SectionHead eyebrow="Your team" title="Give your team the tools they need. Keep the full picture in view." />
+            <SectionHead title="Give your team the tools they need. Keep the full picture in view." />
 
             <div className="grid gap-4 lg:grid-cols-2">
               <article className="min-w-0 rounded-2xl bg-tray p-4 sm:p-6">
@@ -487,7 +375,6 @@ export default function LandingPage() {
           <div className={container}>
             <SectionHead
               center
-              eyebrow="Pricing"
               title="A plan for the way your business works"
               copy="Start on your own or get hands-on help as your operations grow."
             />
@@ -617,21 +504,7 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* --------------------------------------------------- final CTA */}
-        <section className="pb-16 sm:pb-20">
-          <div className={container}>
-            <div className="rounded-2xl bg-brand px-6 py-12 text-center sm:px-12 sm:py-16">
-              <h2 className="m-0 text-[26px] font-semibold leading-[34px] tracking-tight text-white sm:text-[32px] sm:leading-10">A clearer way to run every day.</h2>
-              <p className="m-0 mx-auto mt-3 max-w-[480px] text-[15px] leading-6 text-white/85">
-                Bring your sales, stock, customers, and team into one place.
-              </p>
-              <Link className="mt-8 inline-flex h-12 items-center justify-center gap-2 rounded-md bg-white px-5 text-[15px] font-semibold text-brand-ink no-underline transition-colors hover:bg-white/90" to="/signup">
-                Get started with {APP_NAME}
-                <IconArrowRight width={18} />
-              </Link>
-            </div>
-          </div>
-        </section>
+        <NightCta container={container} />
       </main>
 
       {/* -------------------------------------------------------- footer */}
