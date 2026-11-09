@@ -1,4 +1,5 @@
 import { formatMoney } from '../../utils/format';
+import { lineName, lineQty, lineUnitPrice } from '../../utils/packs';
 import { useBusinessContext } from '../../contexts/BusinessContext';
 import { recordSaleAction } from '../../utils/business-language';
 import { useEffect, useState } from 'react';
@@ -165,7 +166,7 @@ export default function ReceiptPage() {
     const lines = [
       `${store?.name ?? 'Receipt'} · #${sale.saleNumber}`,
       when,
-      ...(sale.items ?? []).map((item) => `${item.quantity} × ${item.productName}  ${formatMoney(item.lineTotal)}`),
+      ...(sale.items ?? []).map((item) => `${lineQty(item)} × ${lineName(item)}  ${formatMoney(item.lineTotal)}`),
       `Total: ${formatMoney(sale.total)}`,
       'Thank you for your business',
     ].join('\n');
@@ -180,7 +181,7 @@ export default function ReceiptPage() {
   const paidNow = Math.min(sale.total, Math.max(0, sale.amountPaid - onCredit));
   const whatsappHref = whatsappLink(customer?.phone ?? sale.customerPhone ?? null, receiptMessage({
     storeName: store?.name ?? 'Receipt', receiptNumber: `#${sale.saleNumber}`, date: when,
-    items: (sale.items ?? []).map((i) => ({ name: i.productName, quantity: i.quantity, lineTotal: i.lineTotal })),
+    items: (sale.items ?? []).map((i) => ({ name: lineName(i), quantity: lineQty(i), lineTotal: i.lineTotal })),
     total: sale.total, paid: paidNow, balance: Math.max(0, sale.total - paidNow),
   }));
 
@@ -246,8 +247,8 @@ export default function ReceiptPage() {
         <ul className="m-0 list-none space-y-2 p-0">
           {(sale.items ?? []).map((item) => (
             <li key={item.id}>
-              <div className={row}><span className="min-w-0">{item.productName}</span><span className="shrink-0 tabular-nums">{formatMoney(item.lineTotal)}</span></div>
-              <div className="text-xs text-ink-3">{item.quantity} × {formatMoney(item.unitPrice)}{item.refundedQuantity > 0 ? ` · ${item.refundedQuantity} refunded` : ''}</div>
+              <div className={row}><span className="min-w-0">{lineName(item)}</span><span className="shrink-0 tabular-nums">{formatMoney(item.lineTotal)}</span></div>
+              <div className="text-xs text-ink-3">{lineQty(item)} × {formatMoney(lineUnitPrice(item))}{item.refundedQuantity > 0 ? ` · ${item.refundedQuantity}${item.packQty != null ? ' pieces' : ''} refunded` : ''}</div>
             </li>
           ))}
         </ul>
@@ -330,7 +331,7 @@ export default function ReceiptPage() {
                   const max = item.quantity - item.refundedQuantity;
                   return (
                     <li key={item.id} className="flex items-center justify-between gap-3">
-                      <span className="min-w-0 text-sm text-ink">{item.productName} <span className="text-ink-3">(up to {max})</span></span>
+                      <span className="min-w-0 text-sm text-ink">{item.productName} <span className="text-ink-3">(up to {max}{item.packQty != null ? ' pieces' : ''})</span></span>
                       <input className={cn(inputClass, 'w-20')} aria-label={`Return quantity for ${item.productName}`} type="number" min={0} max={max}
                         value={refundItems[item.id] ?? ''} onChange={(e) => setRefundItemQty(item.id, Number(e.target.value) || 0, max)} />
                     </li>

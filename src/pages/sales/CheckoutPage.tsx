@@ -16,6 +16,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { formatMoney } from '../../utils/format';
+import { hasPack, lineName, lineQty, packPriceOf, splitStock } from '../../utils/packs';
 import { useAuth } from '../../contexts/AuthContext';
 import { useBusinessContext } from '../../contexts/BusinessContext';
 import { ProductService } from '../../services/product.service';
@@ -68,6 +69,10 @@ interface CartLine {
   quantity: number;
   trackInventory: boolean;
   stockQty: number;
+  /** Sold by the carton: quantity counts cartons, unitPrice is the carton price, stockQty is whole cartons */
+  pack?: { name: string; size: number };
+  /** The product's carton (if it has one), so the line can switch between piece and carton */
+  packOption?: { name: string; size: number; price: number; piecePrice: number; pieceStock: number };
 }
 
 type Method = RegisterMethod | 'moniepoint_pos';
@@ -342,6 +347,7 @@ export default function CheckoutPage() {
         sku: variant?.sku ?? product.sku, unit: product.unit,
         unitPrice: variant?.sellingPrice ?? product.sellingPrice, taxRate: product.taxRate,
         quantity: 1, trackInventory: product.trackInventory, stockQty: stock,
+        ...(hasPack(product) ? { packOption: { name: product.packName || 'Carton', size: product.packSize, price: packPriceOf({ ...product, sellingPrice: variant?.sellingPrice ?? product.sellingPrice }), piecePrice: variant?.sellingPrice ?? product.sellingPrice, pieceStock: stock } } : {}),
       }];
     });
     setLastKey(key);
@@ -385,6 +391,26 @@ export default function CheckoutPage() {
     apply();
     if (q === 0 && lastKey === key) setLastKey(null);
     if (viaKeyboard) focusSearch();
+  };
+
+  /** Switch a line between pieces and cartons (keeps the count, within stock) */
+  const setLineUnit = (key: string, toPack: boolean) => {
+    if (posSaleLocked) return;
+    const line = cart.find((l) => l.key === key);
+    const opt = line?.packOption;
+    if (!line || !opt || Boolean(line.pack) === toPack) return;
+    const baseKey = key.replace(/:pack$/, '');
+    const newKey = toPack ? `${baseKey}:pack` : baseKey;
+    const stock = toPack ? Math.floor(opt.pieceStock / opt.size) : opt.pieceStock;
+    if (toPack && line.trackInventory && !allowNegative && stock < 1) { toast.error(`Not enough for a whole ${opt.name.toLowerCase()}`, { description: `${opt.pieceStock} left, a ${opt.name.toLowerCase()} is ${opt.size}.` }); return; }
+    setCart((prev) => {
+      const other = prev.find((l) => l.key === newKey);
+      const cap = (q: number) => (line.trackInventory && !allowNegative ? Math.min(q, stock) : q);
+      const switched: CartLine = { ...line, key: newKey, quantity: cap(line.quantity + (other?.quantity ?? 0)), stockQty: stock,
+        unitPrice: toPack ? opt.price : opt.piecePrice, pack: toPack ? { name: opt.name, size: opt.size } : undefined };
+      return prev.filter((l) => l.key !== newKey).map((l) => (l.key === key ? switched : l));
+    });
+    setLastKey(newKey);
   };
 
   const removeLine = (key: string) => {
@@ -469,7 +495,7 @@ export default function CheckoutPage() {
     const payments = salePayments(payLines).map((p) => ({ method: p.method, amount: p.amount, reference: p.reference, pending: p.pending }));
     const notes = discountApproval && discount > 0 ? `Discount approved by ${discountApproval.by} (approval ${discountApproval.id})` : undefined;
     const request: CreateSaleRequest = {
-      items: cart.map((l) => ({ productId: l.productId, quantity: l.quantity, ...(l.variantId ? { variantId: l.variantId } : {}) })),
+      items: cart.map((l) => ({ productId: l.productId, quantity: l.quantity, ...(l.variantId ? { variantId: l.variantId } : {}), ...(l.pack ? { unit: 'pack' as const, packSize: l.pack.size } : {}) })),
       payments,
       customerId: selectedCustomer?.id,
       discountTotal: discount,
@@ -513,6 +539,7 @@ export default function CheckoutPage() {
     if (!navigator.onLine) { setError('Connect to the internet before sending a POS payment request.'); return; }
     if (!posTerminalId) { setError('Choose an active Moniepoint terminal in this branch.'); return; }
     if (cart.some((l) => l.variantId)) { setError("Moniepoint terminal payments don't support sizes and colours yet. Choose POS / card instead."); return; }
+    if (cart.some((l) => l.pack)) { setError("Moniepoint terminal payments don't support selling by the carton yet. Choose POS / card instead."); return; }
     if (blockers.filter((b) => !b.includes('still to pay')).length) { setError(blockers[0]); return; }
     setSaving(true); setError(null);
     try {
@@ -834,7 +861,7 @@ export default function CheckoutPage() {
               {shown.slice(0, 300).map((p, i) => {
                 const out = !allowNegative && p.trackInventory && p.stockQty <= 0;
                 const low = p.trackInventory && !out && p.stockQty <= p.reorderLevel;
-                const inCart = cart.filter((l) => l.productId === p.id).reduce((n, l) => n + l.quantity, 0);
+                const inCart = cart.filter((l) => l.productId === p.id).reduce((n, l) => n + l.quantity * (l.pack?.size ?? 1), 0);
                 return (
                   <li key={p.id} id={`p-${p.id}`} role="option" aria-selected={i === highlight}
                     className={cn('flex min-h-16 items-center gap-2 pl-3 pr-2', i === highlight && 'bg-brand-soft', out && 'opacity-60')}>
@@ -843,7 +870,7 @@ export default function CheckoutPage() {
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-[15px] font-medium text-ink">{p.name}</span>
                         <span className={cn('block text-[12.5px]', out ? 'font-semibold text-danger' : low ? 'font-semibold text-warn-ink' : 'text-ink-3')}>
-                          {out ? 'Out of stock' : p.trackInventory ? `${p.stockQty} left` : p.sku}
+                          {out ? 'Out of stock' : p.trackInventory ? `${p.stockQty} left${splitStock(p.stockQty, p) ? ` · ${splitStock(p.stockQty, p)}` : ''}` : p.sku}
                         </span>
                       </span>
                       <span className="shrink-0 text-[15px] font-semibold tabular-nums text-ink">{formatMoney(p.sellingPrice)}</span>
@@ -868,7 +895,7 @@ export default function CheckoutPage() {
               {shown.slice(0, 300).map((p, i) => {
                 const out = !allowNegative && p.trackInventory && p.stockQty <= 0;
                 const low = p.trackInventory && !out && p.stockQty <= p.reorderLevel;
-                const inCart = cart.filter((l) => l.productId === p.id).reduce((n, l) => n + l.quantity, 0);
+                const inCart = cart.filter((l) => l.productId === p.id).reduce((n, l) => n + l.quantity * (l.pack?.size ?? 1), 0);
                 return (
                   <button key={p.id} id={`p-${p.id}`} role="option" aria-selected={i === highlight} type="button" onClick={() => addToCart(p)}
                     className={cn('relative flex min-w-0 flex-col rounded-xl border bg-surface p-3 text-left shadow-card transition',
@@ -936,12 +963,12 @@ export default function CheckoutPage() {
                   <a className={cn(btn('outline'), 'h-12')} target="_blank" rel="noopener noreferrer"
                     href={whatsappLink(done.sale.customerPhone ?? null, receiptMessage({
                       storeName, receiptNumber: `#${done.sale.saleNumber}`, date: doneWhen,
-                      items: (done.sale.items ?? []).map((i) => ({ name: i.productName, quantity: i.quantity, lineTotal: i.lineTotal })),
+                      items: (done.sale.items ?? []).map((i) => ({ name: lineName(i), quantity: lineQty(i), lineTotal: i.lineTotal })),
                       total: done.sale.total, paid: Math.min(done.sale.total, done.sale.amountPaid - done.sale.changeDue), balance: Math.max(0, done.sale.total - (done.sale.amountPaid - done.sale.changeDue)),
                     }))}>WhatsApp</a>
                   <Button variant="outline" className="h-12" onClick={async () => {
                     const s = done.sale!;
-                    const text = [`${storeName} · #${s.saleNumber}`, ...(s.items ?? []).map((i) => `${i.quantity} × ${i.productName}  ${formatMoney(i.lineTotal)}`), `Total: ${formatMoney(s.total)}`].join('\n');
+                    const text = [`${storeName} · #${s.saleNumber}`, ...(s.items ?? []).map((i) => `${lineQty(i)} × ${lineName(i)}  ${formatMoney(i.lineTotal)}`), `Total: ${formatMoney(s.total)}`].join('\n');
                     try { if (navigator.share) await navigator.share({ title: `Receipt #${s.saleNumber}`, text }); else { await navigator.clipboard.writeText(text); toast.success('Receipt copied'); } } catch { /* closed */ }
                   }}>Share</Button>
                   <Link className={cn(btn('outline'), 'h-12')} to={`/sales/${done.sale.id}`}>View receipt</Link>
@@ -980,7 +1007,7 @@ export default function CheckoutPage() {
                             <div className="flex items-start justify-between gap-3">
                               <div className="min-w-0">
                                 <p className="m-0 truncate text-sm font-medium text-ink">{line.name}</p>
-                                <p className="m-0 text-xs text-ink-3">{formatMoney(line.unitPrice)} each</p>
+                                <p className="m-0 text-xs text-ink-3">{line.pack ? `${line.pack.name} of ${line.pack.size} · ${formatMoney(line.unitPrice)} each` : `${formatMoney(line.unitPrice)} each`}</p>
                               </div>
                               <span className="shrink-0 text-sm font-semibold tabular-nums text-ink">{formatMoney(round2(line.unitPrice * line.quantity))}</span>
                             </div>
@@ -994,6 +1021,16 @@ export default function CheckoutPage() {
                                   onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); focusSearch(); } }} />
                                 <button type="button" className={cn(tap, 'inline-flex items-center justify-center text-xl text-ink-2 hover:text-ink disabled:opacity-40')} onClick={() => changeQty(line.key, line.quantity + 1)} disabled={line.trackInventory && !allowNegative && line.quantity >= line.stockQty} aria-label={`One more ${line.name}`}>+</button>
                               </div>
+                              {line.packOption && (
+                                <div className="inline-flex rounded-lg border border-line-strong p-0.5" role="group" aria-label={`Sell ${line.name} by`}>
+                                  {[false, true].map((toPack) => (
+                                    <button key={String(toPack)} type="button" aria-pressed={Boolean(line.pack) === toPack} onClick={() => setLineUnit(line.key, toPack)}
+                                      className={cn('min-h-10 rounded-md px-2.5 text-[13px] font-semibold', Boolean(line.pack) === toPack ? 'bg-brand text-white' : 'text-ink-2 hover:text-ink')}>
+                                      {toPack ? line.packOption!.name : 'Piece'}
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
                               <button type="button" className={cn(tap, 'inline-flex items-center justify-center rounded-lg text-ink-3 hover:bg-danger-soft hover:text-danger')} onClick={() => removeLine(line.key)} aria-label={`Remove ${line.name}`} title="Remove (Delete)">
                                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3" /></svg>
                               </button>

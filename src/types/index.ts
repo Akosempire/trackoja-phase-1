@@ -254,6 +254,11 @@ export interface Product {
   reorderLevel: number;
   imageUrl?: string;
   attributes?: Record<string, string>;
+  /** Sold in packs too (a carton of 24): stock still counts in pieces. Absent = pieces only. */
+  packName?: string;
+  packSize?: number;
+  /** Price of one pack (the wholesale price); absent = packSize × sellingPrice */
+  packPrice?: number;
   /** Sizes/colours (up to two options); empty when the product has no variants. */
   variantOptions?: { name: string; values: string[] }[];
   /** Pinned to the register's Favourites tab */
@@ -318,6 +323,9 @@ export interface CreateProductRequest {
   reorderLevel?: number;
   imageUrl?: string;
   attributes?: Record<string, string>;
+  packName?: string | null;
+  packSize?: number | null;
+  packPrice?: number | null;
 }
 
 export interface UpdateProductRequest {
@@ -335,6 +343,9 @@ export interface UpdateProductRequest {
   imageUrl?: string;
   status?: 'active' | 'inactive' | 'archived';
   attributes?: Record<string, string>;
+  packName?: string | null;
+  packSize?: number | null;
+  packPrice?: number | null;
 }
 
 export interface AdjustStockRequest {
@@ -397,6 +408,11 @@ export interface SaleItem {
   discountAmount: number;
   lineTotal: number;
   refundedQuantity: number;
+  /** Sold by the pack: how many packs, of what, at what price (quantity is in pieces) */
+  packQty?: number;
+  packName?: string;
+  packSize?: number;
+  packPrice?: number;
   createdAt: string;
 }
 
@@ -425,6 +441,10 @@ export interface CreateSaleItemRequest {
   discountAmount?: number;
   /** A size/colour of the product (product_variants.id) */
   variantId?: string;
+  /** 'pack': quantity is how many packs (cartons); stock goes down by quantity × pack size */
+  unit?: 'pack';
+  /** Pieces in one pack (sent nowhere: lets the app update its cached stock) */
+  packSize?: number;
 }
 
 export interface CreateSalePaymentRequest {

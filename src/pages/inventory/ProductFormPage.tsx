@@ -14,6 +14,7 @@ import { VariantsEditor } from '../../components/VariantsEditor';
 import { Card, Page, PageHeader, btn, cn, inputClass } from '../../components/kit';
 import { ScanIcon } from '../../components/icons';
 import { formatMoney } from '../../utils/format';
+import { toPieces, unitWord } from '../../utils/packs';
 import type { ProductCategory } from '../../types';
 
 export default function ProductFormPage() {
@@ -46,7 +47,12 @@ export default function ProductFormPage() {
   const [imageUrl, setImageUrl] = useState('');
   const [uploadingImage, setUploadingImage] = useState(false);
   const [scanning, setScanning] = useState(false);
-  const [piecesPerUnit, setPiecesPerUnit] = useState('');
+  // sold by the carton too: stock still counts in pieces
+  const [packOn, setPackOn] = useState(false);
+  const [packName, setPackName] = useState('Carton');
+  const [packSize, setPackSize] = useState('');
+  const [packPrice, setPackPrice] = useState('');
+  const [openingPacks, setOpeningPacks] = useState('0');
   const imageInputRef = useRef<HTMLInputElement>(null);
 
   const { config } = useBusinessContext();
@@ -86,7 +92,11 @@ export default function ProductFormPage() {
         setImageUrl(product.imageUrl ?? '');
         setAttributes(product.attributes ?? {});
         setVariantOptions(product.variantOptions ?? []);
-        setPiecesPerUnit(product.attributes?.pieces_per_unit ?? '');
+        setPackOn(Boolean(product.packSize));
+        setPackName(product.packName ?? 'Carton');
+        // an older "pieces per unit" note becomes the suggested pack size
+        setPackSize(String(product.packSize ?? product.attributes?.pieces_per_unit ?? ''));
+        setPackPrice(product.packPrice != null ? String(product.packPrice) : '');
       })
       .catch((err) => setError(err.message ?? 'Failed to load product'))
       .finally(() => setLoading(false));
@@ -98,7 +108,13 @@ export default function ProductFormPage() {
 
     setSaving(true);
     setError(null);
-    const formAttributes = { ...attributes, ...(piecesPerUnit.trim() ? { pieces_per_unit: piecesPerUnit.trim() } : {}) };
+    const { pieces_per_unit: _oldNote, ...formAttributes } = attributes;
+    const size = Number(packSize);
+    if (packOn && !(size > 1)) { setSaving(false); setError(`Enter how many ${unitWord(unit, 2)} are in one ${packName.toLowerCase() || 'pack'} (2 or more).`); return; }
+    const pack = packOn
+      ? { packName: packName.trim() || 'Carton', packSize: size, packPrice: packPrice.trim() === '' ? null : Number(packPrice) }
+      : { packSize: null, packName: null, packPrice: null };
+    const opening = packOn ? toPieces(Number(openingPacks), Number(stockQty), { packSize: size }) : Number(stockQty) || 0;
     try {
       if (isNew) {
         const product = await ProductService.createProduct(storeId, user.id, {
@@ -112,10 +128,11 @@ export default function ProductFormPage() {
           sellingPrice: Number(sellingPrice) || 0,
           taxRate: Number(taxRate) || 0,
           trackInventory,
-          stockQty: Number(stockQty) || 0,
+          stockQty: opening,
           reorderLevel: Number(reorderLevel) || 0,
           imageUrl: imageUrl || undefined,
           attributes: formAttributes,
+          ...pack,
         });
         navigate(`/inventory/products/${product.id}`, { replace: true });
       } else if (productId) {
@@ -133,6 +150,7 @@ export default function ProductFormPage() {
           status,
           imageUrl: imageUrl || undefined,
           attributes: formAttributes,
+          ...(canEditPrice ? pack : { packSize: packOn ? size : null, packName: packOn ? pack.packName : null }),
         });
         navigate('/inventory/products');
       }
@@ -275,13 +293,37 @@ export default function ProductFormPage() {
                     {!config.unitOptions.includes(unit) && unit && <option value={unit}>{unit}</option>}
                   </select>
                 </div>
-                <FormField id="product-pieces" label="Pieces per unit (optional)" type="number" min={1} step="1" value={piecesPerUnit} onChange={setPiecesPerUnit} hint="e.g. 40 sachets in a carton" />
-                {isNew && <FormField id="product-stock-qty" label="How many you have now" type="number" min={0} step="any" value={stockQty} onChange={setStockQty} />}
+                {isNew && !packOn && <FormField id="product-stock-qty" label="How many you have now" type="number" min={0} step="any" value={stockQty} onChange={setStockQty} />}
                 <FormField id="product-reorder-level" label="Warn me when it drops to" type="number" min={0} step="any" value={reorderLevel} onChange={setReorderLevel} />
               </div>
             ) : (
               <p className="m-0 text-[13px] text-ink-3">Stock isn't tracked for this product (good for services or made-to-order items).</p>
             )}
+
+            <div className="mt-2 rounded-xl border border-line p-4">
+              <label className="flex cursor-pointer items-start gap-3">
+                <input type="checkbox" className="mt-0.5 size-4 accent-[var(--color-accent)]" checked={packOn} onChange={(e) => setPackOn(e.target.checked)} />
+                <span>
+                  <span className="block text-sm font-semibold text-ink">Also sell by the carton</span>
+                  <span className="block text-[13px] text-ink-3">Buy in bulk and sell either way. Stock stays in {unitWord(unit, 2)}: selling a carton takes all its {unitWord(unit, 2)} off.</span>
+                </span>
+              </label>
+              {packOn && (
+                <div className="mt-4 grid gap-x-4 sm:grid-cols-3">
+                  <FormField id="product-pack-name" label="Called" value={packName} onChange={setPackName} maxLength={30} hint="Carton, pack, crate, bag…" />
+                  <FormField id="product-pack-size" label={`${unitWord(unit, 2)[0].toUpperCase()}${unitWord(unit, 2).slice(1)} in one`} type="number" min={2} step="any" value={packSize} onChange={setPackSize} required hint="e.g. 24" />
+                  <FormField id="product-pack-price" label={`Price per ${packName.toLowerCase() || 'carton'}`} type="number" min={0} step="any" value={packPrice} onChange={setPackPrice} disabled={!isNew && !canEditPrice}
+                    hint={Number(packSize) > 1 && Number(sellingPrice) > 0 ? `Empty = ${formatMoney(Number(packSize) * Number(sellingPrice))} (${packSize} × ${formatMoney(Number(sellingPrice))})` : 'Your wholesale price'} />
+                  {isNew && trackInventory && (
+                    <>
+                      <FormField id="product-opening-packs" label={`${packName || 'Cartons'} you have now`} type="number" min={0} step="1" value={openingPacks} onChange={setOpeningPacks} />
+                      <FormField id="product-stock-qty" label={`Plus loose ${unitWord(unit, 2)}`} type="number" min={0} step="any" value={stockQty} onChange={setStockQty}
+                        hint={Number(packSize) > 1 ? `= ${toPieces(Number(openingPacks), Number(stockQty), { packSize: Number(packSize) })} ${unitWord(unit, 2)} in stock` : undefined} />
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
           </Card>
 
           {config.attributeFields.length > 0 && (

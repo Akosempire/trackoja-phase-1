@@ -8,6 +8,7 @@ import { ProductService } from '../../services/product.service';
 import { CategoryService } from '../../services/category.service';
 import { Card, Page, PageHeader, Pill, Stat, btn, cn, inputClass } from '../../components/kit';
 import { ScanIcon, SearchIcon } from '../../components/icons';
+import { splitStock } from '../../utils/packs';
 import { stockQuantity } from '../../utils/business-activity';
 import { PageLoader } from '../../components/ui/PageLoader';
 import { SectionState } from '../../components/ui/StateBlock';
@@ -98,7 +99,8 @@ export default function ProductsPage() {
   const stockBadge = (product: Product) => {
     if (!product.trackInventory) return <span className="text-xs text-ink-3">Not tracked</span>;
     const tone = product.stockQty <= 0 ? 'danger' : product.stockQty <= product.reorderLevel ? 'warn' : 'neutral';
-    return <Pill tone={tone}>{stockQuantity(product.stockQty, product.unit)}</Pill>;
+    const split = splitStock(product.stockQty, product);
+    return <span className="inline-flex flex-col items-end gap-0.5"><Pill tone={tone}>{stockQuantity(product.stockQty, product.unit)}</Pill>{split && <span className="text-[11px] text-ink-3 tabular-nums">{split}</span>}</span>;
   };
   const margin = (product: Product) => product.sellingPrice > 0 && product.costPrice > 0
     ? Math.round(((product.sellingPrice - product.costPrice) / product.sellingPrice) * 100) : null;

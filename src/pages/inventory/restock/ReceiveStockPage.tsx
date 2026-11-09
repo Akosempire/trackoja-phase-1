@@ -12,11 +12,14 @@ import { useToast } from '../../../components/ui/Toast';
 import { Card, CardHead, Empty, Page, PageHeader, cn, inputClass } from '../../../components/kit';
 import { amountPaidNow, deliveryProblems, deliveryTotal, weightedCost } from '../../../utils/restock';
 import { formatMoney } from '../../../utils/format';
+import { hasPack, stockText, toPieces } from '../../../utils/packs';
 import type { Product } from '../../../types';
 import { Labelled, NumberBox, ProductPicker } from './shared';
 import { RestockNav } from './RestockNav';
 
-interface Line { key: string; product: Product; qty: string; cost: string; batch: string; expiry: string; showBatch: boolean }
+/** qty: pieces (loose pieces when the product comes in cartons); packs: whole cartons; cost: per piece */
+interface Line { key: string; product: Product; qty: string; packs: string; packCost: string; cost: string; batch: string; expiry: string; showBatch: boolean }
+const piecesIn = (l: Pick<Line, 'product' | 'qty' | 'packs'>) => (hasPack(l.product) ? toPieces(Number(l.packs), Number(l.qty), l.product) : Number(l.qty));
 const METHODS = [['cash', 'Cash'], ['transfer', 'Transfer'], ['card', 'Card'], ['credit', 'On credit (pay later)'], ['other', 'Other']] as const;
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -63,18 +66,26 @@ export default function ReceiveStockPage() {
     }).catch((e) => setError(e.message));
   }, [storeId]);
 
-  const parsed = useMemo(() => lines.map((l) => ({ productId: l.product.id, quantity: Number(l.qty), unitCost: Number(l.cost) })), [lines]);
+  const parsed = useMemo(() => lines.map((l) => ({ productId: l.product.id, quantity: piecesIn(l), unitCost: Number(l.cost) })), [lines]);
   const total = deliveryTotal(parsed);
   const paidNow = amountPaidNow(total, method, paid);
   const problems = deliveryProblems(parsed);
   const batchMissing = lines.some((l) => l.showBatch && l.expiry && !l.batch.trim());
 
   function mkLine(p: Product, qty = '1', cost = String(p.costPrice || '')): Line {
-    return { key: `${p.id}-${Math.random().toString(36).slice(2, 7)}`, product: p, qty, cost, batch: '', expiry: '', showBatch: false };
+    const key = `${p.id}-${Math.random().toString(36).slice(2, 7)}`;
+    // comes in cartons: count whole cartons, with any loose pieces on the side
+    if (hasPack(p)) {
+      const n = Number(qty) || 0, packs = n === 1 ? 1 : Math.floor(n / p.packSize);
+      const packCost = cost === '' ? '' : String(Math.round(Number(cost) * p.packSize * 100) / 100);
+      return { key, product: p, packs: String(packs), qty: String(n === 1 ? 0 : Math.round((n - packs * p.packSize) * 1000) / 1000), packCost, cost, batch: '', expiry: '', showBatch: false };
+    }
+    return { key, product: p, qty, packs: '0', packCost: '', cost, batch: '', expiry: '', showBatch: false };
   }
   const add = (p: Product) => setLines((ls) => {
     const same = ls.find((l) => l.product.id === p.id && !l.showBatch);
-    return same ? ls.map((l) => (l === same ? { ...l, qty: String((Number(l.qty) || 0) + 1) } : l)) : [...ls, mkLine(p)];
+    if (!same) return [...ls, mkLine(p)];
+    return ls.map((l) => (l === same ? (hasPack(p) ? { ...l, packs: String((Number(l.packs) || 0) + 1) } : { ...l, qty: String((Number(l.qty) || 0) + 1) }) : l));
   });
   const set = (key: string, patch: Partial<Line>) => setLines((ls) => ls.map((l) => (l.key === key ? { ...l, ...patch } : l)));
 
@@ -83,7 +94,7 @@ export default function ReceiveStockPage() {
     setSaving(true); setError(null);
     try {
       const id = await RestockService.receive(storeId, {
-        lines: lines.map((l) => ({ productId: l.product.id, quantity: Number(l.qty), unitCost: Number(l.cost) || 0,
+        lines: lines.map((l) => ({ productId: l.product.id, quantity: piecesIn(l), unitCost: Number(l.cost) || 0,
           ...(l.showBatch && l.batch.trim() ? { lotType: 'batch' as const, identifier: l.batch.trim(), expiryDate: l.expiry || undefined } : {}) })),
         supplierId: supplierId || null, date, method, reference, notes, amountPaid: paidNow,
       });
@@ -121,22 +132,33 @@ export default function ReceiveStockPage() {
           ) : (
             <ul className="m-0 mt-4 flex list-none flex-col gap-3 p-0">
               {lines.map((l) => {
-                const q = Number(l.qty) || 0, c = Number(l.cost) || 0;
+                const q = piecesIn(l), c = Number(l.cost) || 0;
+                const pk = hasPack(l.product) ? l.product : null;
                 const newCost = q > 0 ? weightedCost(l.product.stockQty, l.product.costPrice, q, c) : l.product.costPrice;
                 return (
                   <li key={l.key} className="rounded-lg border border-line p-3">
                     <div className="flex items-start justify-between gap-3">
                       <span className="min-w-0">
                         <span className="block truncate text-sm font-semibold text-ink">{l.product.name}</span>
-                        <span className="block text-xs text-ink-3">{l.product.sku} · {l.product.stockQty} in stock now</span>
+                        <span className="block text-xs text-ink-3">{l.product.sku} · {stockText(l.product.stockQty, l.product)} in stock now</span>
                       </span>
                       <button type="button" className="shrink-0 text-xs font-semibold text-danger" onClick={() => setLines((ls) => ls.filter((x) => x.key !== l.key))}>Remove</button>
                     </div>
                     <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
-                      <Labelled label={`Quantity (${l.product.unit})`}><NumberBox label="Quantity" value={l.qty} onChange={(v) => set(l.key, { qty: v })} /></Labelled>
-                      <Labelled label="Cost per unit"><NumberBox label="Cost per unit" value={l.cost} onChange={(v) => set(l.key, { cost: v })} /></Labelled>
-                      <div className="col-span-2 flex flex-col justify-end text-right sm:col-span-1">
-                        <span className="text-xs text-ink-3">Line total</span>
+                      {pk ? (
+                        <>
+                          <Labelled label={`${pk.packName || 'Carton'}s (${pk.packSize} each)`}><NumberBox label={`${pk.packName || 'Carton'}s`} value={l.packs} onChange={(v) => set(l.key, { packs: v })} /></Labelled>
+                          <Labelled label={`Loose ${l.product.unit}`}><NumberBox label={`Loose ${l.product.unit}`} value={l.qty} onChange={(v) => set(l.key, { qty: v })} /></Labelled>
+                          <Labelled label={`Cost per ${(pk.packName || 'carton').toLowerCase()}`}><NumberBox label={`Cost per ${(pk.packName || 'carton').toLowerCase()}`} value={l.packCost} onChange={(v) => set(l.key, { packCost: v, cost: v === '' ? '' : String(Number(v) / pk.packSize) })} /></Labelled>
+                        </>
+                      ) : (
+                        <>
+                          <Labelled label={`Quantity (${l.product.unit})`}><NumberBox label="Quantity" value={l.qty} onChange={(v) => set(l.key, { qty: v })} /></Labelled>
+                          <Labelled label="Cost per unit"><NumberBox label="Cost per unit" value={l.cost} onChange={(v) => set(l.key, { cost: v })} /></Labelled>
+                        </>
+                      )}
+                      <div className={cn('flex flex-col justify-end text-right', pk ? 'col-span-2 sm:col-span-3' : 'col-span-2 sm:col-span-1')}>
+                        <span className="text-xs text-ink-3">{pk ? `${q} ${l.product.unit} in · line total` : 'Line total'}</span>
                         <span className="text-sm font-semibold tabular-nums text-ink">{formatMoney(Math.round(q * c * 100) / 100)}</span>
                       </div>
                     </div>

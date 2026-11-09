@@ -1,4 +1,5 @@
 import { formatMoney } from '../../utils/format';
+import { lineName, lineQty, lineUnitPrice } from '../../utils/packs';
 import { APP_NAME } from '../../config/brand';
 import type { Sale } from '../../types';
 
@@ -26,8 +27,8 @@ export function ReceiptPrint({ sale, storeName, storeAddress, storePhone, cashie
       <div className="my-3 border-t border-dashed border-line-strong" />
       {(sale.items ?? []).map((i) => (
         <div key={i.id}>
-          <div className={row}><span>{i.productName}</span><span>{formatMoney(i.lineTotal)}</span></div>
-          <div className="text-xs">{i.quantity} × {formatMoney(i.unitPrice)}</div>
+          <div className={row}><span>{lineName(i)}</span><span>{formatMoney(i.lineTotal)}</span></div>
+          <div className="text-xs">{lineQty(i)} × {formatMoney(lineUnitPrice(i))}</div>
         </div>
       ))}
       <div className="my-3 border-t border-dashed border-line-strong" />

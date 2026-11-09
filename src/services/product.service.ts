@@ -18,7 +18,7 @@ export interface ProductFilters {
  * the column to everyone else, so it is fetched separately with
  * get_product_costs and merged in. A cashier's products have costPrice 0.
  */
-export const PRODUCT_COLUMNS = 'id, store_id, category_id, name, sku, barcode, description, unit, selling_price, tax_rate, track_inventory, stock_qty, reorder_level, image_url, status, created_by, created_at, updated_at, attributes, variant_options';
+export const PRODUCT_COLUMNS = 'id, store_id, category_id, name, sku, barcode, description, unit, selling_price, tax_rate, track_inventory, stock_qty, reorder_level, image_url, status, created_by, created_at, updated_at, attributes, variant_options, pack_name, pack_size, pack_price';
 
 /** Cost prices this person may see, by product id (empty when they may not). */
 async function costsFor(storeId: string): Promise<Map<string, number>> {
@@ -93,6 +93,7 @@ export class ProductService {
       reorder_level: request.reorderLevel ?? 0,
       image_url: request.imageUrl,
       attributes: request.attributes ?? {},
+      ...(request.packSize ? { pack_name: request.packName || null, pack_size: request.packSize, pack_price: request.packPrice ?? null } : {}),
       created_by: userId,
     };
   }
@@ -177,6 +178,12 @@ export class ProductService {
       if (request.imageUrl !== undefined) updates.image_url = request.imageUrl;
       if (request.status !== undefined) updates.status = request.status;
       if (request.attributes !== undefined) updates.attributes = request.attributes;
+      if (request.packSize !== undefined) {
+        updates.pack_size = request.packSize || null;
+        updates.pack_name = request.packSize ? request.packName || null : null;
+        if (!request.packSize) updates.pack_price = null;
+        else if (request.packPrice !== undefined) updates.pack_price = request.packPrice;
+      }
 
       const { data, error } = await supabase
         .from('products')
@@ -244,6 +251,7 @@ export class ProductService {
       imageUrl: data.image_url,
       attributes: data.attributes ?? {},
       variantOptions: Array.isArray(data.variant_options) ? data.variant_options : [],
+      ...(Number(data.pack_size) > 1 ? { packName: data.pack_name || 'Pack', packSize: Number(data.pack_size), ...(data.pack_price != null ? { packPrice: Number(data.pack_price) } : {}) } : {}),
       isFavourite: Boolean(data.is_favourite),
       status: data.status,
       createdBy: data.created_by,

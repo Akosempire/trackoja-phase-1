@@ -4,6 +4,7 @@
 import { supabase } from '../config/supabase';
 import { UsetallyService } from './usetally.service';
 import { CatalogService } from './catalog.service';
+import { piecesOf } from '../utils/packs';
 import type {
   Sale,
   SaleItem,
@@ -36,6 +37,7 @@ export class SaleService {
         p_items: request.items.map((item) => ({
           productId: item.productId,
           ...(item.variantId ? { variantId: item.variantId } : {}),
+          ...(item.unit === 'pack' ? { unit: 'pack' } : {}),
           quantity: item.quantity,
           discountAmount: item.discountAmount ?? 0,
         })),
@@ -76,7 +78,7 @@ export class SaleService {
       // Connected to Usetally: send the sale now instead of at the next minute
       UsetallyService.nudgeSync(storeId);
       // the register's cached catalogue shows the new stock at once
-      void CatalogService.applySale(storeId, request.items.map((i) => ({ productId: i.productId, variantId: i.variantId ?? null, quantity: i.quantity })));
+      void CatalogService.applySale(storeId, request.items.map((i) => ({ productId: i.productId, variantId: i.variantId ?? null, quantity: piecesOf(i) })));
       return this.getSale(data.id);
     } catch (error) {
       console.error('Create sale error:', error);
@@ -377,6 +379,7 @@ export class SaleService {
       discountAmount: Number(data.discount_amount),
       lineTotal: Number(data.line_total),
       refundedQuantity: Number(data.refunded_quantity ?? 0),
+      ...(data.pack_qty != null ? { packQty: Number(data.pack_qty), packName: data.pack_name || 'Pack', packSize: Number(data.pack_size), packPrice: Number(data.pack_price) } : {}),
       createdAt: data.created_at,
     };
   }
