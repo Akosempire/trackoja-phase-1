@@ -552,6 +552,8 @@ export interface Customer {
   balance: number;
   loyaltyPoints: number;
   isActive: boolean;
+  /** Buys wholesale (any quantity): their sales use wholesale prices without a manager PIN */
+  isWholesaler?: boolean;
   createdBy: string;
   createdAt: string;
   updatedAt: string;
@@ -597,6 +599,7 @@ export interface CreateCustomerRequest {
   address?: string;
   notes?: string;
   creditLimit?: number;
+  isWholesaler?: boolean;
 }
 
 export interface UpdateCustomerRequest {
@@ -607,6 +610,7 @@ export interface UpdateCustomerRequest {
   notes?: string;
   creditLimit?: number;
   isActive?: boolean;
+  isWholesaler?: boolean;
 }
 
 // ============================================================

@@ -154,6 +154,9 @@ export default function CheckoutPage() {
   const [pickFor, setPickFor] = useState<Product | null>(null);
   const [customerSearch, setCustomerSearch] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  // wholesale prices for this sale: automatic for a saved wholesaler, else a manager approves
+  const [wholesaleOn, setWholesaleOn] = useState(false);
+  const [wholesaleBy, setWholesaleBy] = useState<string | null>(null);
   const [showCustomerSearch, setShowCustomerSearch] = useState(false);
   const [discountTotal, setDiscountTotal] = useState('');
   const [showDiscount, setShowDiscount] = useState(false);
@@ -260,7 +263,7 @@ export default function CheckoutPage() {
 
   // a store switch never carries a draft sale into another workspace
   useEffect(() => {
-    setCart([]); setSelectedCustomer(null); setCustomerSearch(''); setSearch(''); setCategoryId('');
+    setCart([]); setSelectedCustomer(null); setCustomerSearch(''); setSearch(''); setCategoryId(''); setWholesaleOn(false); setWholesaleBy(null);
     setPosAttempt(null); setCheckoutKey(crypto.randomUUID()); setRequestKey(crypto.randomUUID()); setDone(null);
   }, [storeId]);
 
@@ -339,7 +342,10 @@ export default function CheckoutPage() {
     if (!variant && variantsOf(product.id).length > 0) { setPickFor(product); return; }
     const stock = variant ? variant.stockQty : product.stockQty;
     if (!allowNegative && product.trackInventory && stock <= 0) { setNotice({ kind: 'oos', product }); if (fromScan) beep(false); return; }
-    const key = variant ? `${product.id}:${variant.id}` : product.id;
+    const retailPrice = variant?.sellingPrice ?? product.sellingPrice;
+    const wholesalePrice = wholesalePriceOf({ ...product, sellingPrice: retailPrice });
+    const asWholesale = wholesaleOn && wholesalePrice != null;
+    const key = `${variant ? `${product.id}:${variant.id}` : product.id}${asWholesale ? ':w' : ''}`;
     setCart((prev) => {
       const existing = prev.find((l) => l.key === key);
       if (existing) {
@@ -349,8 +355,9 @@ export default function CheckoutPage() {
         key, productId: product.id, variantId: variant?.id,
         name: variant ? `${product.name} – ${variantLabel(variant.size, variant.colour)}` : product.name,
         sku: variant?.sku ?? product.sku, unit: product.unit,
-        unitPrice: variant?.sellingPrice ?? product.sellingPrice, taxRate: product.taxRate,
+        unitPrice: asWholesale ? wholesalePrice! : retailPrice, taxRate: product.taxRate,
         quantity: 1, trackInventory: product.trackInventory, stockQty: stock,
+        ...(asWholesale ? { tier: 'wholesale' as const } : {}),
         ...((): Partial<CartLine> => {
           const retail = variant?.sellingPrice ?? product.sellingPrice;
           const priced = { ...product, sellingPrice: retail };
@@ -405,8 +412,49 @@ export default function CheckoutPage() {
 
   /** Switch a line between retail, wholesale (by the piece) and the carton (keeps the count, within stock) */
   const lineMode = (l: CartLine): SellMode => (l.pack ? 'pack' : l.tier === 'wholesale' ? 'wholesale' : 'retail');
+  /** Turn every line that has a wholesale price to wholesale (or back to retail); cartons stay cartons */
+  const retier = (toWholesale: boolean) => setCart((prev) => {
+    const out: CartLine[] = [];
+    for (const l of prev) {
+      const opt = l.sellAs;
+      let next = l;
+      if (opt && !l.pack && opt.wholesale != null && Boolean(l.tier) !== toWholesale) {
+        const base = l.key.replace(/:(pack|w)$/, '');
+        next = { ...l, key: toWholesale ? `${base}:w` : base, unitPrice: toWholesale ? opt.wholesale : opt.retail, tier: toWholesale ? 'wholesale' : undefined };
+      }
+      const same = out.find((o) => o.key === next.key);
+      if (same) same.quantity = same.trackInventory && !allowNegative ? Math.min(same.quantity + next.quantity, same.stockQty) : same.quantity + next.quantity;
+      else out.push({ ...next });
+    }
+    return out;
+  });
+  const canApproveWholesale = hasPermission('sales:override');
+  const wholesaleAllowed = Boolean(selectedCustomer?.isWholesaler) || canApproveWholesale || Boolean(wholesaleBy);
+  /** Wholesale for someone who isn't a saved wholesaler needs a manager's approval (once per sale) */
+  const withWholesaleApproval = (then: () => void) => {
+    if (wholesaleAllowed) { then(); return; }
+    if (!cashierSession) { setError('Wholesale prices are for wholesalers: pick a customer saved as a wholesaler, or ask a manager.'); return; }
+    needOverride('wholesale', `${selectedCustomer ? `${selectedCustomer.name} isn't saved as a wholesaler` : 'No wholesaler is on this sale'}. A manager approves wholesale prices for this sale.`,
+      (a) => { if (a) setWholesaleBy(a.approverName); then(); }, { customer: selectedCustomer?.name ?? null });
+  };
+  const setWholesaleSale = (on: boolean) => {
+    if (posSaleLocked) return;
+    if (!on) { setWholesaleOn(false); retier(false); return; }
+    withWholesaleApproval(() => { setWholesaleOn(true); retier(true); });
+  };
+  // a saved wholesaler on the sale: wholesale prices on everything, any quantity
+  useEffect(() => {
+    if (selectedCustomer?.isWholesaler) { setWholesaleOn(true); retier(true); }
+    else if (wholesaleOn && !canApproveWholesale && !wholesaleBy) { setWholesaleOn(false); retier(false); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedCustomer?.id]);
+
   const setLineMode = (key: string, mode: SellMode) => {
     if (posSaleLocked) return;
+    if (mode === 'wholesale' && !wholesaleAllowed) { withWholesaleApproval(() => setLineModeNow(key, mode)); return; }
+    setLineModeNow(key, mode);
+  };
+  const setLineModeNow = (key: string, mode: SellMode) => {
     const line = cart.find((l) => l.key === key);
     const opt = line?.sellAs;
     if (!line || !opt || lineMode(line) === mode) return;
@@ -448,7 +496,7 @@ export default function CheckoutPage() {
 
   const clearSale = () => {
     setCart([]); setSelectedCustomer(null); setCustomerSearch(''); setShowCustomerSearch(false);
-    setDiscountTotal(''); setShowDiscount(false); setDiscountApproval(null);
+    setDiscountTotal(''); setShowDiscount(false); setDiscountApproval(null); setWholesaleOn(false); setWholesaleBy(null);
     setMethod('cash'); setSplit(false); setLines([newLine('cash')]); setCashEdited(false); setReference('');
     setError(null); setNotice(null); setLastKey(null); setLinesExpanded(false); setTableNumber('');
     setCheckoutKey(crypto.randomUUID()); setRequestKey(crypto.randomUUID());
@@ -469,6 +517,7 @@ export default function CheckoutPage() {
     }
     setDone(null);
     setCart(h.lines.map((l) => ({ ...l, key: l.key ?? (l.variantId ? `${l.productId}:${l.variantId}` : l.productId) })));
+    setWholesaleOn(h.lines.some((l) => l.tier === 'wholesale')); setWholesaleBy(null);
     setSelectedCustomer(customers.find((c) => c.id === h.customerId) ?? null);
     setDiscountTotal(Number(h.discount) > 0 ? h.discount : '');
     setShowDiscount(Number(h.discount) > 0);
@@ -542,6 +591,12 @@ export default function CheckoutPage() {
     } catch (err) {
       if (isNetworkError(err)) { queueOffline(); return; }
       const message = err instanceof Error ? err.message : 'Failed to complete sale';
+      // a manager's approval lasts 2 minutes: ask again rather than leave the sale stuck
+      if (/wholesale customer or a manager/i.test(message) && wholesaleBy) {
+        setWholesaleBy(null);
+        setError('The manager\'s approval for wholesale prices ran out. Turn Wholesale prices off and on to ask again.');
+        return;
+      }
       setError(message);
       toast.error('Sale could not be recorded', { description: message });
     } finally {
@@ -1075,7 +1130,7 @@ export default function CheckoutPage() {
                     <div className="flex items-center gap-3 rounded-lg bg-subtle p-2 pl-3">
                       <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-full bg-brand-soft text-xs font-semibold text-brand-ink" aria-hidden="true">{selectedCustomer.name.charAt(0).toUpperCase()}</span>
                       <div className="min-w-0 flex-1">
-                        <p className="m-0 truncate text-sm font-medium text-ink">{selectedCustomer.name}</p>
+                        <p className="m-0 truncate text-sm font-medium text-ink">{selectedCustomer.name}{selectedCustomer.isWholesaler && <span className="ml-1.5 rounded-full bg-brand-soft px-1.5 py-0.5 text-[11px] font-semibold text-brand-ink">Wholesaler</span>}</p>
                         <p className="m-0 truncate text-xs text-ink-3">{selectedCustomer.phone || 'No phone'} · {formatMoney(round2(selectedCustomer.creditLimit - selectedCustomer.balance))} credit left</p>
                       </div>
                       <Button variant="ghost" className="h-11" onClick={() => { setSelectedCustomer(null); if (method === 'credit') chooseMethod('cash'); }}>Change</Button>
@@ -1087,7 +1142,7 @@ export default function CheckoutPage() {
                         <ul className="m-0 mt-1 list-none overflow-hidden rounded-lg border border-line p-0">
                           {filtered.map((c) => (
                             <li key={c.id}><button type="button" className="block min-h-11 w-full px-3 py-2 text-left hover:bg-subtle" onClick={() => { setSelectedCustomer(c); setCustomerSearch(''); setShowCustomerSearch(false); setError(null); }}>
-                              <span className="block text-sm font-medium text-ink">{c.name}</span><span className="block text-xs text-ink-3">{c.phone || c.email || 'No contact'}</span>
+                              <span className="block text-sm font-medium text-ink">{c.name}{c.isWholesaler && <span className="ml-1.5 rounded-full bg-brand-soft px-1.5 py-0.5 text-[11px] font-semibold text-brand-ink">Wholesaler</span>}</span><span className="block text-xs text-ink-3">{c.phone || c.email || 'No contact'}</span>
                             </button></li>
                           ))}
                         </ul>
@@ -1113,6 +1168,22 @@ export default function CheckoutPage() {
                     </div>
                   )}
 
+                  {(wholesaleOn || cart.some((l) => l.sellAs?.wholesale != null)) && (
+                    <div className={cn('flex items-center justify-between gap-3 rounded-lg border px-3 py-2', wholesaleOn ? 'border-brand/40 bg-brand-soft/50' : 'border-line')}>
+                      <span className="min-w-0">
+                        <span className="block text-sm font-semibold text-ink">Wholesale prices</span>
+                        <span className="block text-xs text-ink-3">{selectedCustomer?.isWholesaler ? `${selectedCustomer.name} is a wholesaler: any quantity`
+                          : wholesaleBy ? `Approved by ${wholesaleBy} for this sale`
+                          : wholesaleOn ? 'On for this sale'
+                          : canApproveWholesale ? 'For a wholesaler buying any quantity' : 'Pick a wholesaler, or a manager approves'}</span>
+                      </span>
+                      <button type="button" role="switch" aria-checked={wholesaleOn} aria-label="Wholesale prices for this sale" disabled={posSaleLocked || Boolean(selectedCustomer?.isWholesaler)}
+                        onClick={() => setWholesaleSale(!wholesaleOn)}
+                        className={cn('relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition-colors disabled:opacity-60', wholesaleOn ? 'bg-brand' : 'bg-line-strong')}>
+                        <span className={cn('inline-block size-5 rounded-full bg-white shadow transition-transform', wholesaleOn ? 'translate-x-6' : 'translate-x-1')} />
+                      </button>
+                    </div>
+                  )}
                   {!(selectedCustomer || showCustomerSearch || requireCustomer) || !(showDiscount || discount > 0) ? (
                     <div className="grid grid-cols-2 gap-2">
                       {!(selectedCustomer || showCustomerSearch || requireCustomer) && <Button variant="outline" className="h-11" onClick={() => setShowCustomerSearch(true)}>+ Customer</Button>}

@@ -367,3 +367,6 @@ END;
 $$;
 REVOKE ALL ON FUNCTION public.usetally_sale_payload(UUID) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.usetally_sale_payload(UUID) TO service_role;
+
+-- new product columns readable by the app (cost columns stay private)
+SELECT public._apply_cost_privacy();

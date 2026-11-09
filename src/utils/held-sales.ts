@@ -8,6 +8,10 @@ export interface HeldLine {
   key?: string; variantId?: string;
   productId: string; name: string; sku: string; unit: string;
   unitPrice: number; taxRate: number; quantity: number; trackInventory: boolean; stockQty: number;
+  /** cartons and wholesale (keys end :pack or :w) */
+  pack?: { name: string; size: number };
+  tier?: 'wholesale';
+  sellAs?: { retail: number; wholesale: number | null; pack: { name: string; size: number; price: number } | null; pieceStock: number };
 }
 export interface HeldSale {
   id: string;

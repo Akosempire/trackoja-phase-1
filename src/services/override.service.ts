@@ -6,7 +6,7 @@ import { supabase } from '../config/supabase';
  * leaving the register…). The database checks the PIN and the approver's
  * role, and records both names (request_manager_override).
  */
-export type OverrideAction = 'void' | 'refund' | 'discount' | 'price_override' | 'remove_after_payment' | 'open_drawer' | 'exit_register';
+export type OverrideAction = 'void' | 'refund' | 'discount' | 'price_override' | 'remove_after_payment' | 'open_drawer' | 'exit_register' | 'wholesale';
 
 export interface OverrideApproval { approvalId: string; approverName: string }
 
@@ -18,6 +18,7 @@ export const OVERRIDE_TITLES: Record<OverrideAction, string> = {
   remove_after_payment: 'Approve removing an item',
   open_drawer: 'Approve opening the drawer',
   exit_register: 'Leave the register',
+  wholesale: 'Approve wholesale prices',
 };
 
 export class OverrideNotAvailable extends Error {}

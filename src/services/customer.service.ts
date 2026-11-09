@@ -35,6 +35,7 @@ export class CustomerService {
           address: request.address,
           notes: request.notes,
           credit_limit: request.creditLimit ?? 0,
+          ...(request.isWholesaler ? { is_wholesaler: true } : {}),
           created_by: userId,
         })
         .select()
@@ -108,6 +109,7 @@ export class CustomerService {
       if (request.notes !== undefined) updates.notes = request.notes;
       if (request.creditLimit !== undefined) updates.credit_limit = request.creditLimit;
       if (request.isActive !== undefined) updates.is_active = request.isActive;
+      if (request.isWholesaler !== undefined) updates.is_wholesaler = request.isWholesaler;
 
       const { data, error } = await supabase
         .from('customers')
@@ -262,6 +264,7 @@ export class CustomerService {
       balance: Number(data.balance),
       loyaltyPoints: Number(data.loyalty_points),
       isActive: data.is_active,
+      isWholesaler: Boolean(data.is_wholesaler),
       createdBy: data.created_by,
       createdAt: data.created_at,
       updatedAt: data.updated_at,

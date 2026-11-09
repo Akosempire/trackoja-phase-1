@@ -104,7 +104,7 @@ export default function CustomersListPage() {
                     <span className="flex min-w-0 items-center gap-3">
                       <Avatar name={customer.name} />
                       <span className="min-w-0">
-                        <span className="block truncate text-sm font-medium text-ink">{customer.name}</span>
+                        <span className="flex min-w-0 items-center gap-1.5"><span className="truncate text-sm font-medium text-ink">{customer.name}</span>{customer.isWholesaler && <span className="shrink-0 rounded-full bg-brand-soft px-1.5 py-0.5 text-[11px] font-semibold text-brand-ink">Wholesaler</span>}</span>
                         <span className="block truncate text-xs text-ink-3 md:hidden">{contact}</span>
                       </span>
                     </span>

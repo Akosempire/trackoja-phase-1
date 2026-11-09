@@ -288,3 +288,6 @@ END;
 $$;
 
 GRANT EXECUTE ON FUNCTION public.create_sale(UUID, JSONB, JSONB, TEXT, TEXT, NUMERIC, TEXT, UUID) TO authenticated;
+
+-- new product columns readable by the app (cost columns stay private)
+SELECT public._apply_cost_privacy();

@@ -26,8 +26,11 @@ export default function CustomerFormPage() {
   const [address, setAddress] = useState('');
   const [notes, setNotes] = useState('');
   const [creditLimit, setCreditLimit] = useState('0');
+  const [isWholesaler, setIsWholesaler] = useState(false);
 
   const canUpdate = hasPermission('customer:update');
+  // only owners and managers decide who gets wholesale prices
+  const canMarkWholesaler = hasPermission('price:edit');
   const canDelete = hasPermission('customer:delete');
 
   useEffect(() => {
@@ -41,6 +44,7 @@ export default function CustomerFormPage() {
         setAddress(customer.address ?? '');
         setNotes(customer.notes ?? '');
         setCreditLimit(String(customer.creditLimit));
+        setIsWholesaler(Boolean(customer.isWholesaler));
       })
       .catch((err) => setError(err.message ?? 'Failed to load customer'))
       .finally(() => setLoading(false));
@@ -61,6 +65,7 @@ export default function CustomerFormPage() {
           address: address || undefined,
           notes: notes || undefined,
           creditLimit: Number(creditLimit) || 0,
+          ...(canMarkWholesaler ? { isWholesaler } : {}),
         });
         navigate(`/customers/${customer.id}`, { replace: true });
       } else if (customerId) {
@@ -71,6 +76,7 @@ export default function CustomerFormPage() {
           address: address || undefined,
           notes: notes || undefined,
           creditLimit: Number(creditLimit) || 0,
+          ...(canMarkWholesaler ? { isWholesaler } : {}),
         });
         navigate(`/customers/${customerId}`);
       }
@@ -122,6 +128,18 @@ export default function CustomerFormPage() {
             <div className="[&>.form-group]:mb-0">
               <FormField id="customer-address" label="Address" value={address} onChange={setAddress} placeholder="Optional" />
             </div>
+          </Card>
+
+          <Card aria-labelledby="customer-wholesale-title">
+            <label className="flex cursor-pointer items-start gap-3">
+              <input type="checkbox" className="mt-0.5 size-4 accent-[var(--color-accent)]" checked={isWholesaler} disabled={!canMarkWholesaler} onChange={(e) => setIsWholesaler(e.target.checked)} />
+              <span>
+                <span id="customer-wholesale-title" className="block text-[15px] font-semibold text-ink">Wholesaler</span>
+                <span className="block text-[13px] text-ink-3">{canMarkWholesaler
+                  ? 'Their sales use wholesale prices for any quantity. Anyone else needs a manager\'s approval for wholesale prices.'
+                  : 'Only an owner or manager can mark a customer as a wholesaler.'}</span>
+              </span>
+            </label>
           </Card>
 
           <Card aria-labelledby="customer-credit-title">
