@@ -8,6 +8,42 @@
 -- refunds, stock counts, lots and reports keep working in pieces unchanged.
 -- Restocking in cartons is converted to pieces in the app.
 
+-- Before anything: this update builds on earlier TrackOja updates. Stop with a
+-- plain message if one is missing, instead of half-installing.
+DO $$
+DECLARE missing TEXT := '';
+BEGIN
+  IF to_regclass('public.product_variants') IS NULL THEN missing := missing || ' sizes & colours (30 Oct);'; END IF;
+  IF to_regclass('public.usetally_links') IS NULL THEN missing := missing || ' Usetally link (29 Oct);'; END IF;
+  IF to_regclass('public.manager_approvals') IS NULL
+     OR to_regprocedure('public.user_has_permission(uuid, uuid, text)') IS NULL
+     OR to_regprocedure('public._consume_approval(uuid, text, uuid, uuid)') IS NULL
+     OR to_regprocedure('public._override_permission(text)') IS NULL THEN
+    missing := missing || ' roles & manager PIN (31 Oct);';
+  END IF;
+  IF missing <> '' THEN
+    RAISE EXCEPTION 'Run these earlier TrackOja updates first:%', missing;
+  END IF;
+END $$;
+
+-- Makes sure the helper that keeps cost prices private exists (an older copy
+-- of the 31 Oct update may not have it). Same as in 20261031002001.
+CREATE OR REPLACE FUNCTION public._apply_cost_privacy()
+RETURNS VOID LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE t RECORD; v_cols TEXT;
+BEGIN
+  FOR t IN SELECT * FROM (VALUES ('products', 'cost_price'), ('product_variants', 'cost_price'),
+                                 ('stock_lots', 'cost_per_unit'), ('stock_count_lines', 'unit_cost')) AS x(tbl, hidden)
+  LOOP
+    IF to_regclass('public.' || t.tbl) IS NULL THEN CONTINUE; END IF;
+    SELECT string_agg(quote_ident(column_name), ', ' ORDER BY ordinal_position) INTO v_cols
+    FROM information_schema.columns WHERE table_schema = 'public' AND table_name = t.tbl AND column_name <> t.hidden;
+    EXECUTE format('REVOKE SELECT ON public.%I FROM anon, authenticated', t.tbl);
+    EXECUTE format('GRANT SELECT (%s) ON public.%I TO anon, authenticated', v_cols, t.tbl);
+  END LOOP;
+END; $$;
+REVOKE ALL ON FUNCTION public._apply_cost_privacy() FROM PUBLIC, anon, authenticated;
+
 ALTER TABLE public.products ADD COLUMN IF NOT EXISTS pack_name TEXT;
 ALTER TABLE public.products ADD COLUMN IF NOT EXISTS pack_size NUMERIC(14,3);
 ALTER TABLE public.products ADD COLUMN IF NOT EXISTS pack_price NUMERIC(14,2);
