@@ -53,6 +53,7 @@ export default function ProductFormPage() {
   const [packSize, setPackSize] = useState('');
   const [packPrice, setPackPrice] = useState('');
   const [openingPacks, setOpeningPacks] = useState('0');
+  const [wholesalePrice, setWholesalePrice] = useState('');
   const imageInputRef = useRef<HTMLInputElement>(null);
 
   const { config } = useBusinessContext();
@@ -97,6 +98,7 @@ export default function ProductFormPage() {
         // an older "pieces per unit" note becomes the suggested pack size
         setPackSize(String(product.packSize ?? product.attributes?.pieces_per_unit ?? ''));
         setPackPrice(product.packPrice != null ? String(product.packPrice) : '');
+        setWholesalePrice(product.wholesalePrice != null ? String(product.wholesalePrice) : '');
       })
       .catch((err) => setError(err.message ?? 'Failed to load product'))
       .finally(() => setLoading(false));
@@ -114,6 +116,7 @@ export default function ProductFormPage() {
     const pack = packOn
       ? { packName: packName.trim() || 'Carton', packSize: size, packPrice: packPrice.trim() === '' ? null : Number(packPrice) }
       : { packSize: null, packName: null, packPrice: null };
+    const wholesale = { wholesalePrice: wholesalePrice.trim() === '' ? null : Number(wholesalePrice) };
     const opening = packOn ? toPieces(Number(openingPacks), Number(stockQty), { packSize: size }) : Number(stockQty) || 0;
     try {
       if (isNew) {
@@ -133,6 +136,7 @@ export default function ProductFormPage() {
           imageUrl: imageUrl || undefined,
           attributes: formAttributes,
           ...pack,
+          ...wholesale,
         });
         navigate(`/inventory/products/${product.id}`, { replace: true });
       } else if (productId) {
@@ -150,7 +154,7 @@ export default function ProductFormPage() {
           status,
           imageUrl: imageUrl || undefined,
           attributes: formAttributes,
-          ...(canEditPrice ? pack : { packSize: packOn ? size : null, packName: packOn ? pack.packName : null }),
+          ...(canEditPrice ? { ...pack, ...wholesale } : { packSize: packOn ? size : null, packName: packOn ? pack.packName : null }),
         });
         navigate('/inventory/products');
       }
@@ -263,6 +267,13 @@ export default function ProductFormPage() {
                 <label className={label} htmlFor="product-selling-price">Selling price <span className="text-danger">*</span></label>
                 {money('product-selling-price', sellingPrice, setSellingPrice, true)}
                 <span className={hint}>What customers pay</span>
+              </div>
+              <div>
+                <label className={label} htmlFor="product-wholesale-price">Wholesale price <span className="font-normal text-ink-3">(optional)</span></label>
+                {money('product-wholesale-price', wholesalePrice, setWholesalePrice)}
+                <span className={hint}>{packOn && Number(packSize) > 1 && wholesalePrice.trim() === ''
+                  ? `For wholesalers buying loose ${unitWord(unit, 2)}. Empty = carton price ÷ ${packSize}`
+                  : `Per one, for wholesalers buying loose ${unitWord(unit, 2)}`}</span>
               </div>
             </div>
             {canSeeCost && price > 0 && (

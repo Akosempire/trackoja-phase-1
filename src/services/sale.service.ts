@@ -38,6 +38,7 @@ export class SaleService {
           productId: item.productId,
           ...(item.variantId ? { variantId: item.variantId } : {}),
           ...(item.unit === 'pack' ? { unit: 'pack' } : {}),
+          ...(item.price === 'wholesale' ? { price: 'wholesale' } : {}),
           quantity: item.quantity,
           discountAmount: item.discountAmount ?? 0,
         })),
@@ -379,6 +380,7 @@ export class SaleService {
       discountAmount: Number(data.discount_amount),
       lineTotal: Number(data.line_total),
       refundedQuantity: Number(data.refunded_quantity ?? 0),
+      ...(data.price_tier === 'wholesale' ? { priceTier: 'wholesale' as const } : {}),
       ...(data.pack_qty != null ? { packQty: Number(data.pack_qty), packName: data.pack_name || 'Pack', packSize: Number(data.pack_size), packPrice: Number(data.pack_price) } : {}),
       createdAt: data.created_at,
     };

@@ -2,7 +2,7 @@
 // product can also be sold and restocked by the pack (a carton of 24).
 import { stockQuantity } from './business-activity';
 
-export interface PackInfo { unit?: string; sellingPrice?: number; packName?: string; packSize?: number; packPrice?: number }
+export interface PackInfo { unit?: string; sellingPrice?: number; packName?: string; packSize?: number; packPrice?: number; wholesalePrice?: number }
 
 export const hasPack = (p: PackInfo | null | undefined): p is PackInfo & { packSize: number } => Number(p?.packSize) > 1;
 
@@ -51,6 +51,13 @@ export const packLineLabel = (qty: number, name: string, size: number): string =
 
 /** A sale line as the customer reads it: cartons as cartons, pieces as pieces */
 export const lineQty = (i: { quantity: number; packQty?: number }): number => i.packQty ?? i.quantity;
-export const lineName = (i: { productName: string; packQty?: number; packName?: string; packSize?: number }): string =>
-  i.packQty != null ? `${i.productName} (${i.packName || 'Pack'} of ${i.packSize})` : i.productName;
+export const lineName = (i: { productName: string; packQty?: number; packName?: string; packSize?: number; priceTier?: 'wholesale' }): string =>
+  i.packQty != null ? `${i.productName} (${i.packName || 'Pack'} of ${i.packSize})` : i.priceTier === 'wholesale' ? `${i.productName} (wholesale)` : i.productName;
 export const lineUnitPrice = (i: { unitPrice: number; packQty?: number; packPrice?: number }): number => (i.packQty != null && i.packPrice != null ? i.packPrice : i.unitPrice);
+
+/** Wholesale price per piece: its own, else the pack price shared out per piece; null = none */
+export function wholesalePriceOf(p: PackInfo): number | null {
+  if (p.wholesalePrice != null) return Number(p.wholesalePrice);
+  if (hasPack(p)) return Math.round((packPriceOf(p) / p.packSize) * 100) / 100;
+  return null;
+}

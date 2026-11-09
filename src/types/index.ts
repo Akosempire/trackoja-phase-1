@@ -259,6 +259,8 @@ export interface Product {
   packSize?: number;
   /** Price of one pack (the wholesale price); absent = packSize × sellingPrice */
   packPrice?: number;
+  /** Wholesale price per piece; absent = the pack price shared out per piece */
+  wholesalePrice?: number;
   /** Sizes/colours (up to two options); empty when the product has no variants. */
   variantOptions?: { name: string; values: string[] }[];
   /** Pinned to the register's Favourites tab */
@@ -326,6 +328,7 @@ export interface CreateProductRequest {
   packName?: string | null;
   packSize?: number | null;
   packPrice?: number | null;
+  wholesalePrice?: number | null;
 }
 
 export interface UpdateProductRequest {
@@ -346,6 +349,7 @@ export interface UpdateProductRequest {
   packName?: string | null;
   packSize?: number | null;
   packPrice?: number | null;
+  wholesalePrice?: number | null;
 }
 
 export interface AdjustStockRequest {
@@ -413,6 +417,8 @@ export interface SaleItem {
   packName?: string;
   packSize?: number;
   packPrice?: number;
+  /** 'wholesale': sold by the piece at the wholesale price */
+  priceTier?: 'wholesale';
   createdAt: string;
 }
 
@@ -443,6 +449,8 @@ export interface CreateSaleItemRequest {
   variantId?: string;
   /** 'pack': quantity is how many packs (cartons); stock goes down by quantity × pack size */
   unit?: 'pack';
+  /** 'wholesale': charge the wholesale price per piece */
+  price?: 'wholesale';
   /** Pieces in one pack (sent nowhere: lets the app update its cached stock) */
   packSize?: number;
 }

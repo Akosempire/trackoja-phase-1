@@ -28,3 +28,13 @@ describe('cartons and pieces', () => {
     expect(hasPack({ packSize: 1 })).toBe(false);
   });
 });
+
+describe('wholesale by the piece', () => {
+  it('own wholesale price, else the carton price shared out, else none', async () => {
+    const { wholesalePriceOf, lineName } = await import('../src/utils/packs');
+    expect(wholesalePriceOf({ ...indomie, wholesalePrice: 230 })).toBe(230);
+    expect(wholesalePriceOf(indomie)).toBe(225);
+    expect(wholesalePriceOf({ sellingPrice: 100 })).toBe(null);
+    expect(lineName({ productName: 'Indomie', priceTier: 'wholesale' })).toBe('Indomie (wholesale)');
+  });
+});

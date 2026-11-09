@@ -102,3 +102,25 @@ test('pack settings are checked', async () => {
   await assert.rejects(pool.query('update public.products set pack_size = 1 where id = $1', [indomie]), /products_pack_ok/);
   await assert.rejects(pool.query('update public.products set pack_price = -1 where id = $1', [indomie]), /products_pack_ok/);
 });
+
+test('a wholesaler buys 12 loose pieces at the wholesale price, from the same stock', async () => {
+  await pool.query('update public.products set stock_qty = 24, wholesale_price = null, pack_price = 5400 where id = $1', [indomie]);
+  // no wholesale price set: the carton price shared out, N5,400 / 24 = N225
+  const id = await sell([{ productId: indomie, quantity: 12, price: 'wholesale' }], 2700);
+  const l = await one('select * from public.sale_items where sale_id=$1', [id]);
+  assert.equal(Number(l.unit_price), 225); assert.equal(Number(l.line_total), 2700);
+  assert.equal(l.price_tier, 'wholesale'); assert.equal(l.pack_qty, null);
+  assert.equal(await stock(indomie), 12);
+  // its own wholesale price wins; retail pieces still sell at N250
+  await pool.query('update public.products set wholesale_price = 230 where id = $1', [indomie]);
+  const mixed = await sell([{ productId: indomie, quantity: 6, price: 'wholesale' }, { productId: indomie, quantity: 2 }], 1380 + 500);
+  assert.equal(Number((await one('select total from public.sales where id=$1', [mixed])).total), 1880);
+  assert.equal(await stock(indomie), 4);
+});
+
+test('wholesale needs a wholesale price or a carton', async () => {
+  await assert.rejects(sell([{ productId: loose, quantity: 1, price: 'wholesale' }], 100), /has no wholesale price/);
+  await pool.query('update public.products set wholesale_price = 80 where id = $1', [loose]);
+  const id = await sell([{ productId: loose, quantity: 10, price: 'wholesale' }], 800);
+  assert.equal(Number((await one('select line_total from public.sale_items where sale_id=$1', [id])).line_total), 800);
+});
